@@ -66,9 +66,7 @@ export default function TestApiPage() {
                   {(dog.breeds && dog.breeds.length > 0 ? dog.breeds.join(', ') : 'Unknown Breed')} • {dog.age} • {dog.size}
                 </p>
                 <p className="text-sm text-gray-500 mb-4">{formatDogLocation(dog)}</p>
-                {dog.description && (
-                  <p className="text-sm text-gray-700 line-clamp-3">{dog.description}</p>
-                )}
+                {/* No description field in Dog interface; omit for this test page */}
                 <div className="mt-4">
                   <a
                     href={dog.url}
