@@ -35,18 +35,19 @@ if custom_domain:
         f"https://www.{custom_domain}",
     ])
 
-# Use FastAPI CORSMiddleware to handle simple and preflight CORS properly
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"]
-)
-
-# Additional CORS middleware as backup
+# Simple CORS middleware that definitely works
 @app.middleware("http")
 async def add_cors_headers(request, call_next):
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
+    
+    # Handle regular requests
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
     response.headers["Access-Control-Allow-Credentials"] = "true"
