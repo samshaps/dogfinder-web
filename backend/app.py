@@ -23,8 +23,10 @@ app = FastAPI(title="Dogfinder Web")
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://dogfinder-web.vercel.app",
+    "https://dogfinder-web.vercel.app",  # Keep this for fallback
     "https://www.dogfinder-web.vercel.app",
+    "https://dogyenta.com",  # Your custom domain
+    "https://www.dogyenta.com",  # www version
 ]
 
 # Add any custom domain you'll use
@@ -35,36 +37,19 @@ if custom_domain:
         f"https://www.{custom_domain}",
     ])
 
-# Simple CORS middleware that definitely works
-@app.middleware("http")
-async def add_cors_headers(request, call_next):
-    # Handle preflight requests
-    if request.method == "OPTIONS":
-        response = Response()
-        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
-    
-    # Handle regular requests
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
+# Use FastAPI CORSMiddleware to handle simple and preflight CORS properly
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"]
+)
 
 
 @app.get("/healthz")
 def healthcheck() -> PlainTextResponse:
     return PlainTextResponse("ok")
-
-@app.get("/test-cors")
-def test_cors(response: Response) -> JSONResponse:
-    response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return JSONResponse({"message": "CORS test", "headers": dict(response.headers)})
 
 
 # Preflight requests will be handled by CORSMiddleware; no manual OPTIONS route needed
@@ -81,7 +66,12 @@ def api_dogs(
     sort: str = Query("freshness", regex="^(freshness|distance)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    response: Response = None,
 ) -> JSONResponse:
+    # Add explicit CORS headers as backup
+    if response:
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
@@ -94,12 +84,7 @@ def api_dogs(
     cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(sizes)}:{sort}:{page}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
-        response = JSONResponse(cached)
-        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        return response
+        return JSONResponse(cached)
 
     try:
         result = search_animals(
@@ -115,12 +100,7 @@ def api_dogs(
         )
         cache_set(cache_key, result, ttl_seconds=120)
         
-        response = JSONResponse(result)
-        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        return response
+        return JSONResponse(result)
     except Exception as e:
         # return error payload instead of 500, helps debugging
         raise HTTPException(status_code=400, detail=str(e))
