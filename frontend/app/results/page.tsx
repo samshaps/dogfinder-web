@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Share2, ExternalLink, MapPin, AlertTriangle, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog } from '@/lib/api';
 import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning } from '@/lib/ai-service';
@@ -308,10 +309,13 @@ function PhotoModal({ dog, isOpen, onClose }: { dog: Dog | null; isOpen: boolean
         
         {/* Photo Display */}
         <div className="relative">
-          <img
+          <Image
             src={photos[currentPhotoIndex] || '/placeholder-dog.jpg'}
             alt={`${dog.name} photo ${currentPhotoIndex + 1}`}
+            width={400}
+            height={384}
             className="w-full h-96 object-cover"
+            priority
           />
           
           {/* Navigation Arrows */}

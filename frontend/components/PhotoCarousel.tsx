@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 
 interface Photo {
   url: string;
@@ -48,7 +49,7 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
   // Preload next image
   const preloadImage = useCallback((index: number) => {
     if (index >= 0 && index < validPhotos.length && !loadedImages.has(index)) {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         setLoadedImages(prev => new Set([...prev, index]));
       };
@@ -171,12 +172,13 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
   if (!photos || photos.length <= 1) {
     return (
       <div className={`relative aspect-square overflow-hidden rounded-lg ${className}`}>
-        <img
+        <Image
           src={photos?.[0]?.url || '/placeholder-dog.jpg'}
           alt={photos?.[0]?.alt || `${dogName} photo`}
+          width={400}
+          height={400}
           className="w-full h-full object-cover"
           loading="lazy"
-          decoding="async"
           draggable={false}
         />
       </div>
@@ -211,12 +213,13 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
           transition: isDragging ? 'none' : 'transform 0.3s ease-in-out'
         }}
       >
-        <img
+        <Image
           src={validPhotos[actualCurrentIndex]?.url}
           alt={validPhotos[actualCurrentIndex]?.alt || `${dogName} photo ${actualCurrentIndex + 1}`}
+          width={400}
+          height={400}
           className="w-full h-full object-cover select-none"
           loading="lazy"
-          decoding="async"
           draggable={false}
           onError={() => handleImageError(validIndices[actualCurrentIndex])}
           tabIndex={0}
