@@ -35,15 +35,14 @@ if custom_domain:
         f"https://www.{custom_domain}",
     ])
 
-# Temporarily disable CORS middleware to test explicit headers
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_origin_regex=r"https://.*\.vercel\.app",
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-#     allow_headers=["*"],
-# )
+# CORS middleware - allow all origins for now to fix the issue
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins temporarily
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/healthz")
