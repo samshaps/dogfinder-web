@@ -59,6 +59,12 @@ async def add_cors_headers(request, call_next):
 def healthcheck() -> PlainTextResponse:
     return PlainTextResponse("ok")
 
+@app.get("/test-cors")
+def test_cors(response: Response) -> JSONResponse:
+    response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return JSONResponse({"message": "CORS test", "headers": dict(response.headers)})
+
 
 # Preflight requests will be handled by CORSMiddleware; no manual OPTIONS route needed
 
