@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { searchDogs, DogsResponse, Dog } from '@/lib/api';
+import { searchDogs, DogsResponse, Dog, formatDogLocation } from '@/lib/api';
 
 export default function TestApiPage() {
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -65,13 +65,13 @@ export default function TestApiPage() {
                 <p className="text-gray-600 mb-2">
                   {(dog.breeds && dog.breeds.length > 0 ? dog.breeds.join(', ') : 'Unknown Breed')} • {dog.age} • {dog.size}
                 </p>
-                <p className="text-sm text-gray-500 mb-4">{dog.location}</p>
+                <p className="text-sm text-gray-500 mb-4">{formatDogLocation(dog)}</p>
                 {dog.description && (
                   <p className="text-sm text-gray-700 line-clamp-3">{dog.description}</p>
                 )}
                 <div className="mt-4">
                   <a
-                    href={dog.petfinderUrl}
+                    href={dog.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
