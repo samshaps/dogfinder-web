@@ -50,6 +50,15 @@ def healthcheck() -> PlainTextResponse:
     return PlainTextResponse("ok")
 
 
+@app.options("/api/dogs")
+def api_dogs_options(response: Response) -> Response:
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+
 @app.get("/api/dogs")
 def api_dogs(
     zip: str | None = Query(None, description="base zip code"),
@@ -61,6 +70,7 @@ def api_dogs(
     sort: str = Query("freshness", regex="^(freshness|distance)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    response: Response = None,
 ) -> JSONResponse:
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
@@ -89,6 +99,14 @@ def api_dogs(
             sort=sort,
         )
         cache_set(cache_key, result, ttl_seconds=120)
+        
+        # Explicitly set CORS headers as backup
+        if response:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+        
         return JSONResponse(result)
     except Exception as e:
         # return error payload instead of 500, helps debugging
