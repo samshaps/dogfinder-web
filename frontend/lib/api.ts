@@ -47,6 +47,28 @@ export interface SearchParams {
   limit?: number;
 }
 
+// Narrowed type for raw API payload (Petfinder → backend passthrough)
+type RawDog = {
+  id: string;
+  name?: string;
+  breeds?: { primary?: string; secondary?: string };
+  age?: string;
+  size?: string;
+  gender?: string;
+  photos?: Array<{ large?: string; medium?: string; small?: string }>;
+  published_at?: string;
+  contact?: {
+    address?: { city?: string; state?: string };
+    email?: string;
+    phone?: string;
+  };
+  distance?: number;
+  url?: string;
+  organization?: { name?: string };
+  tags?: string[];
+  attributes?: Record<string, unknown>;
+};
+
 // Convert search parameters to URL query string
 function buildQueryString(params: SearchParams): string {
   const searchParams = new URLSearchParams();
@@ -83,48 +105,48 @@ function buildQueryString(params: SearchParams): string {
 }
 
 // Transform raw Petfinder data to our Dog interface
-function transformDogData(rawDog: Record<string, unknown>): Dog {
-  const breeds = [];
-  if (rawDog.breeds?.primary) breeds.push(rawDog.breeds.primary);
-  if (rawDog.breeds?.secondary) breeds.push(rawDog.breeds.secondary);
+function transformDogData(raw: RawDog): Dog {
+  const breeds: string[] = [];
+  if (raw.breeds?.primary) breeds.push(raw.breeds.primary);
+  if (raw.breeds?.secondary) breeds.push(raw.breeds.secondary);
   
-  const photos = [];
-  if (rawDog.photos && rawDog.photos.length > 0) {
-    rawDog.photos.forEach((photo: Record<string, unknown>) => {
+  const photos: string[] = [];
+  if (raw.photos && raw.photos.length > 0) {
+    raw.photos.forEach((photo) => {
       if (photo.large) photos.push(photo.large);
       else if (photo.medium) photos.push(photo.medium);
       else if (photo.small) photos.push(photo.small);
     });
   }
   
-  const tags = [];
-  if (rawDog.tags) tags.push(...rawDog.tags);
-  if (rawDog.attributes) {
-    Object.entries(rawDog.attributes).forEach(([key, value]) => {
+  const tags: string[] = [];
+  if (raw.tags) tags.push(...raw.tags);
+  if (raw.attributes) {
+    Object.entries(raw.attributes).forEach(([key, value]) => {
       if (value === true) tags.push(key.replace(/_/g, ' '));
     });
   }
   
   return {
-    id: rawDog.id,
-    name: rawDog.name || 'Unknown',
+    id: raw.id,
+    name: raw.name || 'Unknown',
     breeds: breeds.length > 0 ? breeds : ['Mixed Breed'],
-    age: rawDog.age || 'Unknown',
-    size: rawDog.size || 'Unknown',
-    gender: rawDog.gender || 'Unknown',
+    age: raw.age || 'Unknown',
+    size: raw.size || 'Unknown',
+    gender: raw.gender || 'Unknown',
     photos: photos,
-    publishedAt: rawDog.published_at || new Date().toISOString(),
+    publishedAt: raw.published_at || new Date().toISOString(),
     location: {
-      city: rawDog.contact?.address?.city || 'Unknown',
-      state: rawDog.contact?.address?.state || 'Unknown',
-      distanceMi: rawDog.distance || 0
+      city: raw.contact?.address?.city || 'Unknown',
+      state: raw.contact?.address?.state || 'Unknown',
+      distanceMi: raw.distance || 0
     },
     tags: tags,
-    url: rawDog.url || '#',
+    url: raw.url || '#',
     shelter: {
-      name: rawDog.organization?.name || 'Unknown Shelter',
-      email: rawDog.contact?.email || '',
-      phone: rawDog.contact?.phone || ''
+      name: raw.organization?.name || 'Unknown Shelter',
+      email: raw.contact?.email || '',
+      phone: raw.contact?.phone || ''
     }
   };
 }
