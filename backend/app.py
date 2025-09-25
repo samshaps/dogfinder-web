@@ -19,11 +19,26 @@ load_dotenv()
 
 app = FastAPI(title="Dogfinder Web")
 
-# CORS middleware - temporarily allow all origins for testing
+# CORS middleware - secure configuration for production
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000", 
+    "https://dogfinder-web.vercel.app",
+    "https://www.dogfinder-web.vercel.app",
+]
+
+# Add any custom domain you'll use
+custom_domain = os.getenv("CUSTOM_DOMAIN")
+if custom_domain:
+    origins.extend([
+        f"https://{custom_domain}",
+        f"https://www.{custom_domain}",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
