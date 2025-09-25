@@ -84,7 +84,12 @@ def api_dogs(
     cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(sizes)}:{sort}:{page}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
-        return JSONResponse(cached)
+        response = JSONResponse(cached)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
 
     try:
         result = search_animals(
@@ -100,14 +105,13 @@ def api_dogs(
         )
         cache_set(cache_key, result, ttl_seconds=120)
         
-        # Explicitly set CORS headers as backup
-        if response:
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-        
-        return JSONResponse(result)
+        # Create response with explicit CORS headers
+        response = JSONResponse(result)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
     except Exception as e:
         # return error payload instead of 500, helps debugging
         raise HTTPException(status_code=400, detail=str(e))
