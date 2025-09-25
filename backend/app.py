@@ -46,12 +46,11 @@ app.add_middleware(
 
 
 @app.get("/healthz")
-def healthcheck() -> PlainTextResponse:
-    response = PlainTextResponse("ok")
+def healthcheck(response: Response) -> PlainTextResponse:
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
+    return PlainTextResponse("ok")
 
 
 @app.options("/api/dogs")
