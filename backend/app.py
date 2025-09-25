@@ -19,10 +19,12 @@ load_dotenv()
 
 app = FastAPI(title="Dogfinder Web")
 
-# CORS middleware - allows frontend on port 3000 to call this API
+# CORS middleware - allows frontend on port 3000 and Vercel to call this API
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://dogfinder-web.vercel.app",
+    "https://www.dogfinder-web.vercel.app",
 ]
 
 app.add_middleware(
