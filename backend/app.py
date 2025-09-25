@@ -66,7 +66,10 @@ def api_dogs(
     limit: int = Query(20, ge=1, le=100),
     response: Response = None,
 ) -> JSONResponse:
-    # No manual CORS headers; CORSMiddleware will add the correct ones
+    # Add explicit CORS headers as backup
+    if response:
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
@@ -79,7 +82,10 @@ def api_dogs(
     cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(sizes)}:{sort}:{page}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
-        return JSONResponse(cached)
+        response = JSONResponse(cached)
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
 
     try:
         result = search_animals(
@@ -95,7 +101,10 @@ def api_dogs(
         )
         cache_set(cache_key, result, ttl_seconds=120)
         
-        return JSONResponse(result)
+        response = JSONResponse(result)
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
     except Exception as e:
         # return error payload instead of 500, helps debugging
         raise HTTPException(status_code=400, detail=str(e))
