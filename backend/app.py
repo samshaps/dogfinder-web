@@ -19,10 +19,10 @@ load_dotenv()
 
 app = FastAPI(title="Dogfinder Web")
 
-# CORS middleware - secure configuration for production
+# CORS configuration — allow specific origins and credentials
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000", 
+    "http://127.0.0.1:3000",
     "https://dogfinder-web.vercel.app",
     "https://www.dogfinder-web.vercel.app",
 ]
@@ -35,31 +35,22 @@ if custom_domain:
         f"https://www.{custom_domain}",
     ])
 
-# CORS middleware - disabled, using explicit headers instead
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=False,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# Use FastAPI CORSMiddleware to handle simple and preflight CORS properly
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["*"]
+)
 
 
 @app.get("/healthz")
-def healthcheck(response: Response) -> PlainTextResponse:
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
+def healthcheck() -> PlainTextResponse:
     return PlainTextResponse("ok")
 
 
-@app.options("/api/dogs")
-def api_dogs_options(response: Response) -> Response:
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
+# Preflight requests will be handled by CORSMiddleware; no manual OPTIONS route needed
 
 
 @app.get("/api/dogs")
@@ -75,11 +66,7 @@ def api_dogs(
     limit: int = Query(20, ge=1, le=100),
     response: Response = None,
 ) -> JSONResponse:
-    # Add CORS headers
-    if response:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+    # No manual CORS headers; CORSMiddleware will add the correct ones
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
@@ -92,12 +79,7 @@ def api_dogs(
     cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(sizes)}:{sort}:{page}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
-        response = JSONResponse(cached)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
+        return JSONResponse(cached)
 
     try:
         result = search_animals(
@@ -113,13 +95,7 @@ def api_dogs(
         )
         cache_set(cache_key, result, ttl_seconds=120)
         
-        # Create response with explicit CORS headers
-        response = JSONResponse(result)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
+        return JSONResponse(result)
     except Exception as e:
         # return error payload instead of 500, helps debugging
         raise HTTPException(status_code=400, detail=str(e))
