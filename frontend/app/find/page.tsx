@@ -111,7 +111,7 @@ export default function FindPage() {
     { value: 'high', label: 'High', description: '2+ hrs/day · Needs runs/hikes/training' }
   ];
 
-  const handleInputChange = (field: string, value: string | string[]) => {
+  const handleInputChange = (field: string, value: string | number | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
