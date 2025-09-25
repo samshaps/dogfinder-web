@@ -8,7 +8,7 @@ import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning }
 import PhotoCarousel from '@/components/PhotoCarousel';
 
 // AI Reasoning Generator - Creates contextual recommendations based on dog data
-function generateAIReasoning(dog: Dog, userPreferences: any = {}) {
+function generateAIReasoning(dog: Dog, userPreferences: Record<string, unknown> = {}) {
   const reasons = [];
   const concerns = [];
   
@@ -365,7 +365,7 @@ function PhotoModal({ dog, isOpen, onClose }: { dog: Dog | null; isOpen: boolean
 }
 
 // Dog Card Component for Top Picks
-function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: any }) {
+function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
   const [showCopied, setShowCopied] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<AIReasoning | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -504,7 +504,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
 }
 
 // Standard Dog Card Component
-function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: any }) {
+function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
   const [showCopied, setShowCopied] = useState(false);
   const [shortAIReasoning, setShortAIReasoning] = useState<string>('');
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -658,7 +658,7 @@ function Pagination({ currentPage, totalPages, onPageChange }: {
   
   // Calculate page range
   let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  const endPage = Math.min(totalPages, startPage + maxVisible - 1);
   
   if (endPage - startPage + 1 < maxVisible) {
     startPage = Math.max(1, endPage - maxVisible + 1);
@@ -827,7 +827,7 @@ export default function ResultsPage() {
     }
     
     fetchDogs();
-  }, [searchParams, currentPage, sortBy]);
+  }, [searchQuery, currentPage, sortBy]);
   
   if (loading) {
     return (

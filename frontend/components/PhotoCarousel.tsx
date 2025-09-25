@@ -27,27 +27,12 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const preloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Don't render if no photos or only one photo
-  if (!photos || photos.length <= 1) {
-    return (
-      <div className={`relative aspect-square overflow-hidden rounded-lg ${className}`}>
-        <img
-          src={photos?.[0]?.url || '/placeholder-dog.jpg'}
-          alt={photos?.[0]?.alt || `${dogName} photo`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
-      </div>
-    );
-  }
-
   // Filter out error images
-  const validPhotos = photos.filter((_, index) => !errorImages.has(index));
-  const validIndices = photos.map((_, index) => index).filter(index => !errorImages.has(index));
+  const validPhotos = photos?.filter((_, index) => !errorImages.has(index)) || [];
+  const validIndices = photos?.map((_, index) => index).filter(index => !errorImages.has(index)) || [];
   const currentValidIndex = validIndices.indexOf(currentIndex);
   const actualCurrentIndex = currentValidIndex >= 0 ? currentValidIndex : 0;
+
 
   // Auto-hide controls after 1.5s
   const showControlsTemporarily = useCallback(() => {
@@ -179,6 +164,22 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
     preloadImage(actualCurrentIndex + 1);
     preloadImage(actualCurrentIndex === 0 ? validPhotos.length - 1 : actualCurrentIndex - 1);
   }, [actualCurrentIndex, validPhotos.length, preloadImage]);
+
+  // Don't render if no photos or only one photo
+  if (!photos || photos.length <= 1) {
+    return (
+      <div className={`relative aspect-square overflow-hidden rounded-lg ${className}`}>
+        <img
+          src={photos?.[0]?.url || '/placeholder-dog.jpg'}
+          alt={photos?.[0]?.alt || `${dogName} photo`}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+      </div>
+    );
+  }
 
   // If all images errored out, show placeholder
   if (validPhotos.length === 0) {

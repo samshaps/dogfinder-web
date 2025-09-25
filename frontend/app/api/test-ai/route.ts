@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
 
 export async function GET() {
   try {
@@ -11,8 +12,7 @@ export async function GET() {
       });
     }
 
-    const openai = require('openai');
-    const client = new openai.OpenAI({
+    const client = new OpenAI({
       apiKey: process.env.OPENAI_SECRET,
     });
 

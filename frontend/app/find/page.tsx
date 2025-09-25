@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Ruler, Heart, Filter, Info } from 'lucide-react';
+import Link from 'next/link';
+import { Search, MapPin, Ruler } from 'lucide-react';
 import BreedSelector from '@/components/BreedSelector';
 
 // Helper component for pill controls
@@ -113,7 +114,7 @@ export default function FindPage() {
     { value: 'high', label: 'High', description: '2+ hrs/day · Needs runs/hikes/training' }
   ];
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -123,7 +124,7 @@ export default function FindPage() {
   const handleArrayToggle = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field as keyof typeof prev].includes(value)
+      [field]: (prev[field as keyof typeof prev] as string[]).includes(value)
         ? (prev[field as keyof typeof prev] as string[]).filter(item => item !== value)
         : [...(prev[field as keyof typeof prev] as string[]), value]
     }));
@@ -164,15 +165,15 @@ export default function FindPage() {
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <a href="/" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                   Home
-                </a>
-                <a href="/find" className="text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md text-sm font-medium">
+                </Link>
+                <Link href="/find" className="text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md text-sm font-medium">
                   Find a Dog
-                </a>
-                <a href="/about" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                </Link>
+                <Link href="/about" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                   About
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -201,7 +202,7 @@ export default function FindPage() {
                 onChange={(e) => handleInputChange('zip', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <p className="text-sm text-gray-500 mt-1">We'll show you dogs within your area</p>
+              <p className="text-sm text-gray-500 mt-1">We&apos;ll show you dogs within your area</p>
             </div>
 
             {/* Radius */}

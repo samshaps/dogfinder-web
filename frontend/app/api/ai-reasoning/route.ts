@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import OpenAI from 'openai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +13,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ OpenAI API key found');
 
     console.log('🤖 Initializing OpenAI client...');
-    const openai = require('openai');
-    const client = new openai.OpenAI({
+    const client = new OpenAI({
       apiKey: process.env.OPENAI_SECRET,
     });
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       try {
         const reasoning = JSON.parse(aiResponse);
         return NextResponse.json({ reasoning });
-      } catch (parseError) {
+      } catch {
         // If JSON parsing fails, create a structured response
         const reasoning = {
           primary: aiResponse.substring(0, 150),

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Clock, Brain, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export default function HomePage() {
   const smoothScrollTo = (targetId: string) => {
@@ -81,7 +81,7 @@ export default function HomePage() {
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               DogYenta matches you with the perfect rescue dog based on your needs.
               <br />
-              Because finding your new best friend shouldn't feel like a full-time job.
+              Because finding your new best friend shouldn&apos;t feel like a full-time job.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -123,7 +123,7 @@ export default function HomePage() {
                 Talk to the yenta
               </h3>
               <p className="text-gray-600">
-                Tell DogYenta about your lifestyle and what you're looking for—location, breed preferences, size, temperament, and must-haves.
+                Tell DogYenta about your lifestyle and what you&apos;re looking for—location, breed preferences, size, temperament, and must-haves.
               </p>
             </div>
 
@@ -136,7 +136,7 @@ export default function HomePage() {
                 AI analysis
               </h3>
               <p className="text-gray-600">
-                Our AI reviews each new Petfinder listing—tags, foster descriptions, and photos—to understand the dog's personality and fit.
+                Our AI reviews each new Petfinder listing—tags, foster descriptions, and photos—to understand the dog&apos;s personality and fit.
               </p>
             </div>
 
@@ -149,7 +149,7 @@ export default function HomePage() {
                 Your matches, delivered
               </h3>
               <p className="text-gray-600">
-                We combine your preferences with the AI's analysis to highlight the dogs most likely to be your perfect match.
+                We combine your preferences with the AI&apos;s analysis to highlight the dogs most likely to be your perfect match.
               </p>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function HomePage() {
                 <span className="ml-2 text-xl font-bold text-gray-900">DogYenta</span>
               </div>
               <p className="text-gray-600 mb-4">
-                We respect your privacy. We don't store your data or share it with third parties.
+                We respect your privacy. We don&apos;t store your data or share it with third parties.
               </p>
             </div>
             <div>

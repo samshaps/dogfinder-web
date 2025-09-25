@@ -83,14 +83,14 @@ function buildQueryString(params: SearchParams): string {
 }
 
 // Transform raw Petfinder data to our Dog interface
-function transformDogData(rawDog: any): Dog {
+function transformDogData(rawDog: Record<string, unknown>): Dog {
   const breeds = [];
   if (rawDog.breeds?.primary) breeds.push(rawDog.breeds.primary);
   if (rawDog.breeds?.secondary) breeds.push(rawDog.breeds.secondary);
   
   const photos = [];
   if (rawDog.photos && rawDog.photos.length > 0) {
-    rawDog.photos.forEach((photo: any) => {
+    rawDog.photos.forEach((photo: Record<string, unknown>) => {
       if (photo.large) photos.push(photo.large);
       else if (photo.medium) photos.push(photo.medium);
       else if (photo.small) photos.push(photo.small);
