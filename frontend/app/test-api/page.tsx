@@ -63,17 +63,15 @@ export default function TestApiPage() {
               <div className="p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{dog.name}</h3>
                 <p className="text-gray-600 mb-2">
-                  {dog.breeds?.primary || 'Unknown Breed'} • {dog.age} • {dog.size}
+                  {(dog.breeds && dog.breeds.length > 0 ? dog.breeds.join(', ') : 'Unknown Breed')} • {dog.age} • {dog.size}
                 </p>
-                <p className="text-sm text-gray-500 mb-4">
-                  {dog.contact?.address?.city}, {dog.contact?.address?.state}
-                </p>
+                <p className="text-sm text-gray-500 mb-4">{dog.location}</p>
                 {dog.description && (
                   <p className="text-sm text-gray-700 line-clamp-3">{dog.description}</p>
                 )}
                 <div className="mt-4">
                   <a
-                    href={dog.url}
+                    href={dog.petfinderUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"

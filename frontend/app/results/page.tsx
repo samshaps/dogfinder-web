@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Share2, ExternalLink, MapPin, AlertTriangle, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog } from '@/lib/api';
 import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning } from '@/lib/ai-service';
@@ -880,12 +881,12 @@ export default function ResultsPage() {
             <p className="text-gray-500 mb-6">
               Try expanding your search radius or adjusting your preferences.
             </p>
-            <a
+            <Link
               href="/find"
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Adjust Search
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -908,9 +909,9 @@ export default function ResultsPage() {
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <a className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/find">Find a Dog</a>
-                <a className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/about">About</a>
-                <a className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/contact">Contact</a>
+                <Link className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/find">Find a Dog</Link>
+                <Link className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/about">About</Link>
+                <Link className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium" href="/contact">Contact</Link>
               </div>
             </div>
           </div>
