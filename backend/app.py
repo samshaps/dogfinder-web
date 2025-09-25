@@ -44,6 +44,16 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Additional CORS middleware as backup
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
 
 @app.get("/healthz")
 def healthcheck() -> PlainTextResponse:
@@ -66,10 +76,6 @@ def api_dogs(
     limit: int = Query(20, ge=1, le=100),
     response: Response = None,
 ) -> JSONResponse:
-    # Add explicit CORS headers as backup
-    if response:
-        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
