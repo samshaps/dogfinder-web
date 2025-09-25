@@ -35,12 +35,12 @@ if custom_domain:
         f"https://www.{custom_domain}",
     ])
 
-# CORS middleware - allow all origins for now to fix the issue
+# CORS middleware - simple configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins temporarily
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
