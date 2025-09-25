@@ -81,7 +81,6 @@ def api_dogs(
     sort: str = Query("freshness", regex="^(freshness|distance)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    response: Response = None,
 ) -> JSONResponse:
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
@@ -98,6 +97,8 @@ def api_dogs(
         response = JSONResponse(cached)
         response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
         return response
 
     try:
@@ -117,6 +118,8 @@ def api_dogs(
         response = JSONResponse(result)
         response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
         return response
     except Exception as e:
         # return error payload instead of 500, helps debugging
