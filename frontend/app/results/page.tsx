@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Share2, ExternalLink, MapPin, AlertTriangle, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog } from '@/lib/api';
@@ -8,6 +8,7 @@ import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning }
 import PhotoCarousel from '@/components/PhotoCarousel';
 
 // AI Reasoning Generator - Creates contextual recommendations based on dog data
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generateAIReasoning(dog: Dog, userPreferences: Record<string, unknown> = {}) {
   const reasons = [];
   const concerns = [];
@@ -233,6 +234,7 @@ function generateAIReasoning(dog: Dog, userPreferences: Record<string, unknown> 
 }
 
 // Short AI reasoning for All Matches section (50 characters max)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generateShortAIReasoning(dog: Dog) {
   const reasons = [];
   
@@ -365,7 +367,7 @@ function PhotoModal({ dog, isOpen, onClose }: { dog: Dog | null; isOpen: boolean
 }
 
 // Dog Card Component for Top Picks
-function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
+function TopPickCard({ dog, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
   const [showCopied, setShowCopied] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<AIReasoning | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -504,7 +506,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
 }
 
 // Standard Dog Card Component
-function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
+function DogCard({ dog, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
   const [showCopied, setShowCopied] = useState(false);
   const [shortAIReasoning, setShortAIReasoning] = useState<string>('');
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -740,7 +742,7 @@ export default function ResultsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Extract search parameters
-  const searchQuery = {
+  const searchQuery = useMemo(() => ({
     zip: searchParams.get('zip') || '',
     radius: parseInt(searchParams.get('radius') || '50'),
     age: searchParams.get('age')?.split(',') || [],
@@ -751,7 +753,7 @@ export default function ResultsPage() {
     energy: searchParams.get('energy') || '',
     page: currentPage,
     limit: 12
-  };
+  }), [searchParams, currentPage]);
 
   // Extract user preferences for AI reasoning
   const userPreferences = {

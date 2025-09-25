@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Photo {
@@ -28,8 +28,8 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
   const preloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Filter out error images
-  const validPhotos = photos?.filter((_, index) => !errorImages.has(index)) || [];
-  const validIndices = photos?.map((_, index) => index).filter(index => !errorImages.has(index)) || [];
+  const validPhotos = useMemo(() => photos?.filter((_, index) => !errorImages.has(index)) || [], [photos, errorImages]);
+  const validIndices = useMemo(() => photos?.map((_, index) => index).filter(index => !errorImages.has(index)) || [], [photos, errorImages]);
   const currentValidIndex = validIndices.indexOf(currentIndex);
   const actualCurrentIndex = currentValidIndex >= 0 ? currentValidIndex : 0;
 
@@ -150,11 +150,13 @@ export default function PhotoCarousel({ photos, dogName, className = '' }: Photo
   // Cleanup timeouts
   useEffect(() => {
     return () => {
-      if (hideControlsTimeoutRef.current) {
-        clearTimeout(hideControlsTimeoutRef.current);
+      const hideTimeout = hideControlsTimeoutRef.current;
+      const preloadTimeout = preloadTimeoutRef.current;
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
       }
-      if (preloadTimeoutRef.current) {
-        clearTimeout(preloadTimeoutRef.current);
+      if (preloadTimeout) {
+        clearTimeout(preloadTimeout);
       }
     };
   }, []);

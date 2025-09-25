@@ -32,16 +32,13 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
     <div className="space-y-3">
       {showDescriptions && (
         <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-          {options.map((option) => (
-            <span key={option.value} className="inline-flex items-center">
-              <span className="font-medium">{option.label}</span>
-              <span className="ml-1">({option.description})</span>
-            </span>
-          )).reduce((acc, curr, index) => [
-            ...acc,
-            index > 0 && <span key={`sep-${index}`} className="text-gray-400">·</span>,
-            curr
-          ], [])}
+        {options.map((option, index) => (
+          <span key={option.value} className="inline-flex items-center">
+            {index > 0 && <span className="text-gray-400 mr-2">·</span>}
+            <span className="font-medium">{option.label}</span>
+            <span className="ml-1">({option.description})</span>
+          </span>
+        ))}
         </div>
       )}
       <div className="flex flex-wrap gap-2">
@@ -121,14 +118,6 @@ export default function FindPage() {
     }));
   };
 
-  const handleArrayToggle = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: (prev[field as keyof typeof prev] as string[]).includes(value)
-        ? (prev[field as keyof typeof prev] as string[]).filter(item => item !== value)
-        : [...(prev[field as keyof typeof prev] as string[]), value]
-    }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
