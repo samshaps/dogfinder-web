@@ -300,6 +300,7 @@ function ResultsPageContent() {
     age: searchQuery.age,
     size: searchQuery.size,
     includeBreeds: searchQuery.includeBreeds,
+    excludeBreeds: searchQuery.excludeBreeds,  // ADD MISSING EXCLUDEBREEDS
     temperament: searchQuery.temperament,
     energy: searchQuery.energy,
     guidance: searchQuery.guidance  // ADD GUIDANCE TO USER PREFERENCES

@@ -42,6 +42,7 @@ export interface SearchParams {
   size?: string | string[];
   temperament?: string | string[];
   energy?: string;
+  guidance?: string;  // Add guidance parameter
   sort?: 'freshness' | 'distance' | 'age' | 'size';
   page?: number;
   limit?: number;
@@ -96,6 +97,7 @@ function buildQueryString(params: SearchParams): string {
     searchParams.set('temperament', temperamentValue);
   }
   if (params.energy) searchParams.set('energy', params.energy);
+  if (params.guidance) searchParams.set('guidance', params.guidance);  // Add guidance parameter handling
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.page) searchParams.set('page', params.page.toString());
   if (params.limit) searchParams.set('limit', params.limit.toString());

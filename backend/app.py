@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import FastAPI, Response, Query, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,7 @@ app = FastAPI(title="Dogfinder Web")
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://dogfinder-web.vercel.app",  # Keep this for fallback
+    "https://dogfinder-web.vercel.app",
     "https://www.dogfinder-web.vercel.app",
     "https://dogyenta.com",  # Your custom domain
     "https://www.dogyenta.com",  # www version
@@ -48,6 +49,77 @@ app.add_middleware(
 )
 
 
+def parse_guidance_for_size_filtering(guidance: str | None) -> dict[str, any]:
+    """
+    Parse guidance text to extract size preferences.
+    Returns a dict with size filtering parameters.
+    """
+    if not guidance:
+        return {"filter_sizes": None, "exclude_sizes": None}
+    
+    guidance_lower = guidance.lower()
+    
+    # Look for large dog preferences
+    large_patterns = [
+        r'\b(?:largest|larger|large|big|bigger|biggest|xl|xlarge|x-large)\b',
+        r'\b(?:giant|massive|huge)\b',
+        r'\bnothing\s+small\b',
+        r'\bno\s+small\b',
+        r'\bexclude\s+small\b'
+    ]
+    
+    # Look for small dog preferences  
+    small_patterns = [
+        r'\b(?:smallest|smaller|small|tiny|little|miniature|mini)\b',
+        r'\bnothing\s+large\b',
+        r'\bno\s+large\b', 
+        r'\bexclude\s+large\b'
+    ]
+    
+    # Check for large preferences
+    wants_large = any(re.search(pattern, guidance_lower) for pattern in large_patterns)
+    wants_small = any(re.search(pattern, guidance_lower) for pattern in small_patterns)
+    
+    # If clear bias toward large dogs, filter for large sizes
+    if wants_large and not wants_small:
+        return {"filter_sizes": ["Large", "Extra Large", "XL"], "exclude_sizes": ["Small"]}
+    
+    # If clear bias toward small dogs, filter for small sizes  
+    elif wants_small and not wants_large:
+        return {"filter_sizes": ["Small"], "exclude_sizes": ["Large", "Extra Large", "XL"]}
+    
+    # No clear size preference found
+    return {"filter_sizes": None, "exclude_sizes": None}
+
+
+def apply_guidance_filtering(dogs: list[dict], guidance_filter: dict) -> list[dict]:
+    """
+    Apply size filtering based on guidance parsing results.
+    """
+    if not guidance_filter["filter_sizes"] and not guidance_filter["exclude_sizes"]:
+        return dogs
+    
+    filtered_dogs = []
+    for dog in dogs:
+        dog_size = (dog.get("size") or "").strip()
+        if not dog_size:
+            continue
+            
+        # If we want specific sizes, check if dog matches
+        if guidance_filter["filter_sizes"]:
+            if not any(size.lower() in dog_size.lower() for size in guidance_filter["filter_sizes"]):
+                continue
+        
+        # If we want to exclude sizes, check if dog should be excluded  
+        if guidance_filter["exclude_sizes"]:
+            if any(size.lower() in dog_size.lower() for size in guidance_filter["exclude_sizes"]):
+                continue
+                
+        filtered_dogs.append(dog)
+    
+    return filtered_dogs
+
+
 @app.get("/healthz")
 def healthcheck() -> PlainTextResponse:
     return PlainTextResponse("ok")
@@ -64,10 +136,16 @@ def api_dogs(
     includeBreeds: str | None = Query(None),
     excludeBreeds: str | None = Query(None),
     size: str | None = Query(None, description="csv of sizes Small,Medium,Large,XL"),
+    guidance: str | None = Query(None, description="natural language guidance for filtering"),
     sort: str = Query("freshness", regex="^(freshness|distance)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    response: Response = None,
 ) -> JSONResponse:
+    # Add explicit CORS headers as backup
+    if response:
+        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
@@ -77,10 +155,29 @@ def api_dogs(
     exclude_list = [b.strip() for b in (excludeBreeds or "").split(",") if b.strip()]
     sizes = [s.strip() for s in (size or "").split(",") if s.strip()]
 
-    cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(sizes)}:{sort}:{page}:{limit}"
+    # Parse guidance for additional filtering
+    guidance_filter = parse_guidance_for_size_filtering(guidance)
+    
+    # Combine guidance filtering with explicit size filtering
+    final_sizes = sizes[:] if sizes else []
+    
+    # If guidance suggests large dogs and no explicit size filter
+    if guidance_filter["filter_sizes"] and not sizes:
+        final_sizes = guidance_filter["filter_sizes"]
+    elif guidance_filter["filter_sizes"] and sizes:
+        # Merge guidance with existing size preference
+        for size in guidance_filter["filter_sizes"]:
+            if size not in final_sizes:
+                final_sizes.append(size)
+    
+    cache_key = f"dogs:{','.join(zips)}:{radius}:{age}:{','.join(include_list)}:{','.join(exclude_list)}:{','.join(final_sizes)}:{guidance}:{sort}:{page}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
-        return JSONResponse(cached)
+        # Apply post-search filtering based on guidance if needed
+        result = cached.copy()
+        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"]):
+            result["items"] = apply_guidance_filtering(result.get("items", []), guidance_filter)
+        return JSONResponse(result)
 
     try:
         result = search_animals(
@@ -89,11 +186,17 @@ def api_dogs(
             ages_csv=age,
             include_breeds=include_list,
             exclude_breeds=exclude_list,
-            sizes=sizes,
+            sizes=final_sizes,  # Use combined size filtering
             page=page,
             page_size=limit,
             sort=sort,
         )
+        
+        # Apply additional guidance filtering if needed
+        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"]):
+            items = result.get("items", [])
+            result["items"] = apply_guidance_filtering(items, guidance_filter)
+        
         cache_set(cache_key, result, ttl_seconds=120)
         
         return JSONResponse(result)

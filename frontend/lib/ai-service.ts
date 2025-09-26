@@ -27,6 +27,7 @@ export interface UserPreferences {
   age?: string[];
   size?: string[];
   includeBreeds?: string[];
+  excludeBreeds?: string[];  // ADD MISSING EXCLUDEBREEDS
   temperament?: string[];
   energy?: string;
   guidance?: string;  // ADD GUIDANCE FIELD
@@ -126,6 +127,7 @@ function createTopPickPrompt(dog: Dog, userPreferences: UserPreferences): string
   const userAge = userPreferences.age?.join(', ') || 'any age';
   const userSize = userPreferences.size?.join(', ') || 'any size';
   const userBreeds = userPreferences.includeBreeds?.join(', ') || 'any breed';
+  const userExcludeBreeds = userPreferences.excludeBreeds?.join(', ') || 'none';
   const userTemperament = userPreferences.temperament?.join(', ') || 'any temperament';
   const userEnergy = userPreferences.energy || 'any energy level';
   const userGuidance = userPreferences.guidance || ''; // ADD GUIDANCE
@@ -144,6 +146,7 @@ USER PREFERENCES:
 - Preferred ages: ${userAge}
 - Preferred sizes: ${userSize}
 - Preferred breeds: ${userBreeds}
+- Excluded breeds: ${userExcludeBreeds}
 - Preferred temperament: ${userTemperament}
 - Preferred energy level: ${userEnergy}${userGuidance ? `\n- Guidance notes: ${userGuidance}` : ''}
 
@@ -152,7 +155,9 @@ Generate a personalized recommendation with:
 2. ADDITIONAL REASONS (max 2, each under 50 characters): Supporting points
 3. CONCERNS (if any): Potential challenges to consider
 
-Focus on specific breed characteristics, age benefits, size advantages, and temperament matches. Be warm, encouraging, and specific about why this particular dog fits this user's lifestyle.${userGuidance ? ` \n\nIMPORTANT: The user specifically mentioned: "${userGuidance}". Make sure this preference is considered when making your recommendation.` : ''}
+Focus on specific breed characteristics, age benefits, size advantages, and temperament matches. Be warm, encouraging, and specific about why this particular dog fits this user's lifestyle.
+
+${userExcludeBreeds !== 'none' ? `IMPORTANT EXCLUSIONS: The user wants to avoid the following breeds: ${userExcludeBreeds}. If this dog is one of these breeds, DO NOT recommend them as a good match, even if other attributes fit.` : ''}${userGuidance ? ` \n\nIMPORTANT: The user specifically mentioned: "${userGuidance}". Make sure this preference is considered when making your recommendation.` : ''}
 
 Respond in JSON format:
 {
@@ -172,14 +177,20 @@ function createAllMatchPrompt(dog: Dog, userPreferences: UserPreferences): strin
   const userAge = userPreferences.age?.join(', ') || 'any age';
   const userSize = userPreferences.size?.join(', ') || 'any size';
   const userBreeds = userPreferences.includeBreeds?.join(', ') || 'any breed';
+  const userExcludeBreeds = userPreferences.excludeBreeds?.join(', ') || 'none';
+  const userTemperament = userPreferences.temperament?.join(', ') || 'any temperament';
+  const userEnergy = userPreferences.energy || 'any energy level';
   const userGuidance = userPreferences.guidance || ''; // ADD GUIDANCE
 
   return `You are an expert dog adoption counselor. Create a very brief, compelling reason why this dog would be a good match.
 
 DOG: ${dog.name} - ${breedInfo} - ${ageInfo} - ${sizeInfo} - ${temperamentInfo}
-USER WANTS: ${userAge} - ${userSize} - ${userBreeds}${userGuidance ? `\nUSER GUIDANCE: ${userGuidance}` : ''}
+USER WANTS: ${userAge} - ${userSize} - ${userBreeds} - ${userTemperament} - ${userEnergy}
+USER EXCLUDES: ${userExcludeBreeds}${userGuidance ? `\nUSER GUIDANCE: ${userGuidance}` : ''}
 
-Generate ONE short reason (max 50 characters) why this dog matches the user's preferences. Focus on the most compelling trait.${userGuidance ? ` \nIMPORTANT: Consider the user's guidance: "${userGuidance}" when making your recommendation.` : ''}
+Generate ONE short reason (max 50 characters) why this dog matches the user's preferences. Focus on the most compelling trait.
+
+${userExcludeBreeds !== 'none' ? `WARNING: If this dog is breed(s): ${userExcludeBreeds}, recommend CAUTION or AVOID mentioning as a good match.` : ''}${userGuidance ? ` \nIMPORTANT: Consider the user's guidance: "${userGuidance}" when making your recommendation.` : ''}
 
 Examples:
 - "Gentle family dog"
