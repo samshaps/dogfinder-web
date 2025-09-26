@@ -29,6 +29,7 @@ export interface UserPreferences {
   includeBreeds?: string[];
   temperament?: string[];
   energy?: string;
+  guidance?: string;  // ADD GUIDANCE FIELD
 }
 
 export interface AIReasoning {
@@ -42,7 +43,9 @@ export async function generateTopPickReasoning(
   dog: Dog, 
   userPreferences: UserPreferences
 ): Promise<AIReasoning> {
+  console.log('🔍 DEBUG: User Preferences being used:', userPreferences); // DEBUG LOG
   const prompt = createTopPickPrompt(dog, userPreferences);
+  console.log('📤 DEBUG: Prompt sent to AI includes guidance:', userPreferences.guidance ? 'YES' : 'NO'); // DEBUG LOG
   
   try {
     console.log('🚀 Calling OpenAI API for Top Pick reasoning...');
@@ -60,7 +63,19 @@ export async function generateTopPickReasoning(
 
     const data = await response.json();
     console.log('🎯 OpenAI response received:', data);
-    return data.reasoning;
+    
+    // HANDLE MIXED RESPONSE TYPES - convert string responses to objects
+    let reasoning = data.reasoning;
+    if (typeof reasoning === 'string') {
+      // Convert string response to proper object format
+      reasoning = {
+        primary: reasoning.substring(0, 150),
+        additional: [],
+        concerns: []
+      };
+    }
+    
+    return reasoning;
   } catch (error) {
     console.error('❌ AI reasoning error, using fallback:', error);
     // Fallback to basic reasoning
@@ -73,6 +88,7 @@ export async function generateAllMatchReasoning(
   dog: Dog, 
   userPreferences: UserPreferences
 ): Promise<string> {
+  console.log('🔍 DEBUG: All Match user preferences:', userPreferences); // DEBUG LOG
   const prompt = createAllMatchPrompt(dog, userPreferences);
   
   try {
@@ -112,6 +128,7 @@ function createTopPickPrompt(dog: Dog, userPreferences: UserPreferences): string
   const userBreeds = userPreferences.includeBreeds?.join(', ') || 'any breed';
   const userTemperament = userPreferences.temperament?.join(', ') || 'any temperament';
   const userEnergy = userPreferences.energy || 'any energy level';
+  const userGuidance = userPreferences.guidance || ''; // ADD GUIDANCE
 
   return `You are an expert dog adoption counselor. Analyze this dog and explain why they would be a great match for this user.
 
@@ -128,14 +145,14 @@ USER PREFERENCES:
 - Preferred sizes: ${userSize}
 - Preferred breeds: ${userBreeds}
 - Preferred temperament: ${userTemperament}
-- Preferred energy level: ${userEnergy}
+- Preferred energy level: ${userEnergy}${userGuidance ? `\n- Guidance notes: ${userGuidance}` : ''}
 
 Generate a personalized recommendation with:
 1. PRIMARY REASON (max 150 characters): Why this dog is perfect for this user
 2. ADDITIONAL REASONS (max 2, each under 50 characters): Supporting points
 3. CONCERNS (if any): Potential challenges to consider
 
-Focus on specific breed characteristics, age benefits, size advantages, and temperament matches. Be warm, encouraging, and specific about why this particular dog fits this user's lifestyle.
+Focus on specific breed characteristics, age benefits, size advantages, and temperament matches. Be warm, encouraging, and specific about why this particular dog fits this user's lifestyle.${userGuidance ? ` \n\nIMPORTANT: The user specifically mentioned: "${userGuidance}". Make sure this preference is considered when making your recommendation.` : ''}
 
 Respond in JSON format:
 {
@@ -155,13 +172,14 @@ function createAllMatchPrompt(dog: Dog, userPreferences: UserPreferences): strin
   const userAge = userPreferences.age?.join(', ') || 'any age';
   const userSize = userPreferences.size?.join(', ') || 'any size';
   const userBreeds = userPreferences.includeBreeds?.join(', ') || 'any breed';
+  const userGuidance = userPreferences.guidance || ''; // ADD GUIDANCE
 
   return `You are an expert dog adoption counselor. Create a very brief, compelling reason why this dog would be a good match.
 
 DOG: ${dog.name} - ${breedInfo} - ${ageInfo} - ${sizeInfo} - ${temperamentInfo}
-USER WANTS: ${userAge} - ${userSize} - ${userBreeds}
+USER WANTS: ${userAge} - ${userSize} - ${userBreeds}${userGuidance ? `\nUSER GUIDANCE: ${userGuidance}` : ''}
 
-Generate ONE short reason (max 50 characters) why this dog matches the user's preferences. Focus on the most compelling trait.
+Generate ONE short reason (max 50 characters) why this dog matches the user's preferences. Focus on the most compelling trait.${userGuidance ? ` \nIMPORTANT: Consider the user's guidance: "${userGuidance}" when making your recommendation.` : ''}
 
 Examples:
 - "Gentle family dog"
