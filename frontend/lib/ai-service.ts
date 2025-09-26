@@ -54,8 +54,8 @@ export async function generateTopPickReasoning(
   const guidanceText = userPreferences.guidance || '';
   if (guidanceText) {
     console.log('🎯 KEY DEBUG: Guidance text to be considered:', guidanceText);
-    console.log('🎯 KEY DEBUG: Does prompt contain guidance emphasis?', prompt.includes('IMPORTANT: The user specifically mentioned'));
-    console.log('🎯 KEY DEBUG: Full guidance section in prompt:', prompt.substring(prompt.indexOf('IMPORTANT:') || 0, prompt.indexOf('IMPORTANT:') + 200 || prompt.length));
+    console.log('🎯 KEY DEBUG: Does prompt contain guidance emphasis?', prompt.includes('🔥 CRITICAL USER GUIDANCE'));
+    console.log('🎯 KEY DEBUG: Full guidance section in prompt:', prompt.substring(prompt.indexOf('🔥 CRITICAL USER GUIDANCE') || 0, prompt.indexOf('🔥 CRITICAL USER GUIDANCE') + 300 || prompt.length));
   }
   
   try {

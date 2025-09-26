@@ -49,15 +49,31 @@ app.add_middleware(
 )
 
 
-def parse_guidance_for_size_filtering(guidance: str | None) -> dict[str, any]:
+def parse_guidance_for_filtering(guidance: str | None) -> dict[str, any]:
     """
-    Parse guidance text to extract size preferences.
-    Returns a dict with size filtering parameters.
+    Parse guidance text to extract filtering preferences (size, names, etc.).
+    Returns a dict with filtering parameters.
     """
     if not guidance:
-        return {"filter_sizes": None, "exclude_sizes": None}
+        return {"filter_sizes": None, "exclude_sizes": None, "exclude_names": None}
     
     guidance_lower = guidance.lower()
+    
+    # Find named dog exclusions
+    # Patterns like: "do not show sharon" or "no sharon" or "exclude sharon"
+    name_exclude_patterns = [
+        r'do not show me any dogs named (\w+)',
+        r'do not show me \w+ named (\w+)',
+        r'exclude.*named (\w+)',
+        r'no.*named (\w+)',
+        r'not.*named (\w+)'
+    ]
+    
+    exclude_names = []
+    for pattern in name_exclude_patterns:
+        match = re.search(pattern, guidance_lower)
+        if match:
+            exclude_names.append(match.group(1).capitalize())
     
     # Look for large dog preferences
     large_patterns = [
@@ -80,27 +96,41 @@ def parse_guidance_for_size_filtering(guidance: str | None) -> dict[str, any]:
     wants_large = any(re.search(pattern, guidance_lower) for pattern in large_patterns)
     wants_small = any(re.search(pattern, guidance_lower) for pattern in small_patterns)
     
+    size_filters = {"filter_sizes": None, "exclude_sizes": None}
+    
     # If clear bias toward large dogs, filter for large sizes
     if wants_large and not wants_small:
-        return {"filter_sizes": ["Large", "Extra Large", "XL"], "exclude_sizes": ["Small"]}
+        size_filters = {"filter_sizes": ["Large", "Extra Large", "XL"], "exclude_sizes": ["Small"]}
     
     # If clear bias toward small dogs, filter for small sizes  
     elif wants_small and not wants_large:
-        return {"filter_sizes": ["Small"], "exclude_sizes": ["Large", "Extra Large", "XL"]}
+        size_filters = {"filter_sizes": ["Small"], "exclude_sizes": ["Large", "Extra Large", "XL"]}
     
-    # No clear size preference found
-    return {"filter_sizes": None, "exclude_sizes": None}
+    return {
+        **size_filters, 
+        "exclude_names": exclude_names if exclude_names else None
+    }
 
 
 def apply_guidance_filtering(dogs: list[dict], guidance_filter: dict) -> list[dict]:
     """
-    Apply size filtering based on guidance parsing results.
+    Apply filtering based on guidance parsing results (size, names, etc.).
     """
-    if not guidance_filter["filter_sizes"] and not guidance_filter["exclude_sizes"]:
+    filter_applies = (guidance_filter["filter_sizes"] or 
+                    guidance_filter["exclude_sizes"] or 
+                    guidance_filter["exclude_names"])
+    if not filter_applies:
         return dogs
     
     filtered_dogs = []
     for dog in dogs:
+        # Name exclusions
+        if guidance_filter["exclude_names"]:
+            dog_name = (dog.get("name") or "").strip()
+            if any(excluded_name.lower() in dog_name.lower() for excluded_name in guidance_filter["exclude_names"]):
+                continue
+        
+        # Size filtering
         dog_size = (dog.get("size") or "").strip()
         if not dog_size:
             continue
@@ -156,9 +186,11 @@ def api_dogs(
     sizes = [s.strip() for s in (size or "").split(",") if s.strip()]
 
     # Parse guidance for additional filtering
-    guidance_filter = parse_guidance_for_size_filtering(guidance)
+    guidance_filter = parse_guidance_for_filtering(guidance)
     print(f"🔍 BACKEND DEBUG: Guidance received: '{guidance}'")
     print(f"🔍 BACKEND DEBUG: Guidance filter result: {guidance_filter}")
+    if guidance_filter["exclude_names"]:
+        print(f"🔍 BACKEND DEBUG: EXCLUDING names: {guidance_filter['exclude_names']}")
     
     # Combine guidance filtering with explicit size filtering
     final_sizes = sizes[:] if sizes else []
@@ -177,7 +209,7 @@ def api_dogs(
     if cached is not None:
         # Apply post-search filtering based on guidance if needed
         result = cached.copy()
-        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"]):
+        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"] or guidance_filter["exclude_names"]):
             result["items"] = apply_guidance_filtering(result.get("items", []), guidance_filter)
         return JSONResponse(result)
 
@@ -195,7 +227,7 @@ def api_dogs(
         )
         
         # Apply additional guidance filtering if needed
-        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"]):
+        if guidance_filter and (guidance_filter["filter_sizes"] or guidance_filter["exclude_sizes"] or guidance_filter["exclude_names"]):
             items = result.get("items", [])
             result["items"] = apply_guidance_filtering(items, guidance_filter)
         
