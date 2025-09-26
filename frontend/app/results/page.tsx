@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Share2, ExternalLink, MapPin, AlertTriangle, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Share2, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog } from '@/lib/api';
 import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning } from '@/lib/ai-service';
 import PhotoCarousel from '@/components/PhotoCarousel';
@@ -50,14 +49,17 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
     }
   };
 
+  // Convert dog.photos (string[]) to Photo[] format
+  const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
+
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
       <div className="relative">
         <div className="aspect-square relative">
-          {dog.photos && dog.photos.length > 0 ? (
+          {photos.length > 0 ? (
             <PhotoCarousel
-              photos={dog.photos}
-              onPhotoClick={(photos, index) => onPhotoClick(dog)}
+              photos={photos}
+              dogName={dog.name}
             />
           ) : (
             <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -176,13 +178,16 @@ function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClic
     }
   };
 
+  // Convert dog.photos (string[]) to Photo[] format
+  const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       <div className="aspect-square relative">
-        {dog.photos && dog.photos.length > 0 ? (
+        {photos.length > 0 ? (
           <PhotoCarousel
-            photos={dog.photos}
-            onPhotoClick={(photos, index) => onPhotoClick(dog)}
+            photos={photos}
+            dogName={dog.name}
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -274,7 +279,6 @@ function ResultsPageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedDog, setSelectedDog] = useState<Dog | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Extract search parameters
   const searchQuery = useMemo(() => ({
@@ -309,11 +313,9 @@ function ResultsPageContent() {
   // Modal handlers
   const handlePhotoClick = (dog: Dog) => {
     setSelectedDog(dog);
-    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
     setSelectedDog(null);
   };
 
@@ -392,6 +394,9 @@ function ResultsPageContent() {
       </div>
     );
   }
+
+  // Convert selectedDog.photos for modal if needed
+  const modalPhotos = selectedDog?.photos?.map(photoUrl => ({ url: photoUrl, alt: `${selectedDog.name}'s photo` })) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -509,8 +514,8 @@ function ResultsPageContent() {
             </div>
             <div className="p-4">
               <PhotoCarousel
-                photos={selectedDog.photos}
-                onPhotoClick={(photos, index) => {}}
+                photos={modalPhotos}
+                dogName={selectedDog.name}
               />
             </div>
           </div>
