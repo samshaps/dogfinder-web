@@ -67,12 +67,7 @@ def api_dogs(
     sort: str = Query("freshness", regex="^(freshness|distance)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    response: Response = None,
 ) -> JSONResponse:
-    # Add explicit CORS headers as backup
-    if response:
-        response.headers["Access-Control-Allow-Origin"] = "https://dogfinder-web.vercel.app"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
     # Prepare inputs
     zips = [z.strip() for z in (zip or os.getenv("ZIP_CODES", "").strip()).split(",") if z.strip()]
     if not zips:
