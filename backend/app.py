@@ -27,6 +27,7 @@ origins = [
     "https://www.dogfinder-web.vercel.app",
     "https://dogyenta.com",  # Your custom domain
     "https://www.dogyenta.com",  # www version
+    "https://staging.dogyenta.com",  # Staging environment
 ]
 
 # Add any custom domain you'll use
