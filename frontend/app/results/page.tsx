@@ -306,6 +306,15 @@ function ResultsPageContent() {
     guidance: searchQuery.guidance  // ADD GUIDANCE TO USER PREFERENCES
   };
   
+  // DEBUG TRACE GUIDANCE
+  console.log('🔍 RESULTS PAGE DEBUG: searchQuery extracted:', {
+    guidance: searchQuery.guidance,
+    age: searchQuery.age,
+    size: searchQuery.size,
+    excludeBreeds: searchQuery.excludeBreeds
+  });
+  console.log('🔍 RESULTS PAGE DEBUG: userPreferences for AI:', userPreferences);
+  
   // Filter dogs to only include those with photos
   const filterDogsWithPhotos = (dogs: Dog[]) => {
     return dogs.filter(dog => dog.photos && dog.photos.length > 0);

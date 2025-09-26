@@ -44,9 +44,19 @@ export async function generateTopPickReasoning(
   dog: Dog, 
   userPreferences: UserPreferences
 ): Promise<AIReasoning> {
-  console.log('🔍 DEBUG: User Preferences being used:', userPreferences); // DEBUG LOG
+  console.log('🔍 DEBUG: User Preferences being used:', userPreferences);
+  console.log('🐕 DEBUG: Dog being analyzed:', dog.name, dog.breeds, dog.size);
   const prompt = createTopPickPrompt(dog, userPreferences);
-  console.log('📤 DEBUG: Prompt sent to AI includes guidance:', userPreferences.guidance ? 'YES' : 'NO'); // DEBUG LOG
+  console.log('📤 DEBUG: Prompt sent to AI includes guidance:', userPreferences.guidance || 'NONE');
+  console.log('🤖 DEBUG: Full prompt being sent:', prompt.substring(0, 500) + '...'); // Log first 500 chars
+  
+  // CRITICAL DEBUG: Check if guidance is properly emphasizing to AI  
+  const guidanceText = userPreferences.guidance || '';
+  if (guidanceText) {
+    console.log('🎯 KEY DEBUG: Guidance text to be considered:', guidanceText);
+    console.log('🎯 KEY DEBUG: Does prompt contain guidance emphasis?', prompt.includes('IMPORTANT: The user specifically mentioned'));
+    console.log('🎯 KEY DEBUG: Full guidance section in prompt:', prompt.substring(prompt.indexOf('IMPORTANT:') || 0, prompt.indexOf('IMPORTANT:') + 200 || prompt.length));
+  }
   
   try {
     console.log('🚀 Calling OpenAI API for Top Pick reasoning...');
@@ -75,6 +85,9 @@ export async function generateTopPickReasoning(
         concerns: []
       };
     }
+    
+    console.log('✅ FINAL reasoning for', dog.name, ':', reasoning);
+    console.log('🎯 Does reasoning respect guidance?', userPreferences.guidance, '->', reasoning.primary.includes('large') || reasoning.primary.includes('size') || reasoning.primary.toLowerCase().includes(userPreferences.guidance?.toLowerCase().substring(0, 10) || 'no match'));
     
     return reasoning;
   } catch (error) {
@@ -152,12 +165,14 @@ USER PREFERENCES:
 
 Generate a personalized recommendation with:
 1. PRIMARY REASON (max 150 characters): Why this dog is perfect for this user
-2. ADDITIONAL REASONS (max 2, each under 50 characters): Supporting points
+2. ADDITIONAL REASONS (max 2, each under 50 characters): Supporting points  
 3. CONCERNS (if any): Potential challenges to consider
 
 Focus on specific breed characteristics, age benefits, size advantages, and temperament matches. Be warm, encouraging, and specific about why this particular dog fits this user's lifestyle.
 
-${userExcludeBreeds !== 'none' ? `IMPORTANT EXCLUSIONS: The user wants to avoid the following breeds: ${userExcludeBreeds}. If this dog is one of these breeds, DO NOT recommend them as a good match, even if other attributes fit.` : ''}${userGuidance ? ` \n\nIMPORTANT: The user specifically mentioned: "${userGuidance}". Make sure this preference is considered when making your recommendation.` : ''}
+⚠️ IMPORTANT: If this dog does NOT match the user's specific guidance or preferences, state this clearly in the CONCERNS section rather than making a positive recommendation.
+
+${userExcludeBreeds !== 'none' ? `\n\n🚫 IMPORTANT EXCLUSIONS: The user wants to avoid the following breeds: ${userExcludeBreeds}. If this dog is one of these breeds, DO NOT recommend them as a good match, even if other attributes fit.` : ''}${userGuidance ? `\n\n🔥 CRITICAL USER GUIDANCE: The user specifically stated: "${userGuidance}". MUST ensure this dog matches this preference or reject the recommendation. If the dog doesn't fit this guidance, DO NOT recommend it.` : ''}
 
 Respond in JSON format:
 {

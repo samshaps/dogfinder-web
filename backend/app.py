@@ -157,6 +157,8 @@ def api_dogs(
 
     # Parse guidance for additional filtering
     guidance_filter = parse_guidance_for_size_filtering(guidance)
+    print(f"🔍 BACKEND DEBUG: Guidance received: '{guidance}'")
+    print(f"🔍 BACKEND DEBUG: Guidance filter result: {guidance_filter}")
     
     # Combine guidance filtering with explicit size filtering
     final_sizes = sizes[:] if sizes else []
