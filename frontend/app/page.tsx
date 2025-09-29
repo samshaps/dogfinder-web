@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Search } from 'lucide-react';
 
 export default function HomePage() {
@@ -33,7 +34,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -72,40 +73,63 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <div className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              The smarter way to find your perfect{' '}
-              <span className="text-blue-600">rescue dog</span>.
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              DogYenta matches you with the perfect rescue dog based on your needs.
-              <br />
-              Because finding your new best friend shouldn&apos;t feel like a full-time job.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/find"
-                className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Find My Top Matches
-              </Link>
-              <button
-                onClick={() => smoothScrollTo('how-it-works')}
-                className="border border-gray-300 text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-50 transition-colors"
-              >
-                See how it works
-              </button>
+        <div className="max-w-7xl mx-auto px-6 pt-8 sm:pt-10 lg:pt-12 pb-12 sm:pb-16 lg:pb-20 min-h-[calc(100vh-64px)] flex flex-col justify-center">
+          <div className="grid items-center gap-10 lg:grid-cols-12">
+            {/* Left: Copy */}
+            <div className="lg:col-span-7 text-left flex flex-col justify-center">
+              <div>
+                <h1 className="hero-title font-extrabold tracking-tight leading-tight text-balance text-4xl sm:text-5xl lg:text-7xl max-w-[16ch] mb-6 text-gray-900">
+                  The smarter way to find your
+                  <br className="hidden lg:block" />
+                  <span className="text-blue-600">rescue dog.</span>
+                </h1>
+                <p className="hero-copy mt-5 text-slate-600 text-lg lg:text-xl leading-relaxed max-w-[55ch]">
+                  Personalized rescue-dog matches for your lifestyle.
+                  <br />
+                  Because finding your best friend shouldn&apos;t feel like a full-time job.
+                </p>
+                {/* CTA block nested under copy */}
+                <div className="mt-8 ml-6 pl-6">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Link
+                      href="/find"
+                      className="rounded-3xl bg-blue-600 px-8 py-5 text-white text-base lg:text-lg font-semibold shadow-sm hover:bg-blue-700 active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 w-full sm:w-auto"
+                    >
+                      Find My Top Matches
+                    </Link>
+                    <button
+                      onClick={() => smoothScrollTo('how-it-works')}
+                      className="rounded-3xl bg-white px-8 py-5 text-slate-900 text-base lg:text-lg font-semibold ring-1 ring-slate-200 hover:bg-slate-50 w-full sm:w-auto"
+                    >
+                      See how it works
+                    </button>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">Powered by Petfinder • Updated daily</p>
+                </div>
+              </div>
+            
             </div>
-            <p className="text-sm text-gray-500 mt-6">
-              Powered by Petfinder data
-            </p>
+            {/* Right: Illustration */}
+            <div className="lg:col-span-5">
+              <div className="relative mx-auto w-full max-w-[600px] lg:max-w-[640px]">
+              <Image
+                  src="/hero-dogyenta.png"
+                  alt="Matchmaker surrounded by happy rescue dogs"
+                  width={1240}
+                  height={1240}
+                  priority
+                  sizes="(max-width: 1024px) 90vw, 640px"
+                  className="w-full h-auto max-h-[500px] lg:max-h-[560px]"
+                />
+              </div>
+            </div>
           </div>
+          
         </div>
       </div>
 
       {/* How It Works Section */}
-      <div id="how-it-works" className="py-20 bg-gray-50">
+      <div id="how-it-works" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">

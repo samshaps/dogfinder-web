@@ -74,30 +74,21 @@ type RawDog = {
 function buildQueryString(params: SearchParams): string {
   const searchParams = new URLSearchParams();
   
+  const setCSV = (key: string, value?: string | string[]) => {
+    if (value === undefined || value === null) return;
+    const str = Array.isArray(value) ? value.filter(Boolean).join(',') : String(value).trim();
+    if (str.length > 0) searchParams.set(key, str);
+  };
+
   if (params.zip) searchParams.set('zip', params.zip);
   if (params.radius) searchParams.set('radius', params.radius.toString());
-  if (params.age) {
-    const ageValue = Array.isArray(params.age) ? params.age.join(',') : params.age;
-    searchParams.set('age', ageValue);
-  }
-  if (params.includeBreeds) {
-    const breedsValue = Array.isArray(params.includeBreeds) ? params.includeBreeds.join(',') : params.includeBreeds;
-    searchParams.set('includeBreeds', breedsValue);
-  }
-  if (params.excludeBreeds) {
-    const breedsValue = Array.isArray(params.excludeBreeds) ? params.excludeBreeds.join(',') : params.excludeBreeds;
-    searchParams.set('excludeBreeds', breedsValue);
-  }
-  if (params.size) {
-    const sizeValue = Array.isArray(params.size) ? params.size.join(',') : params.size;
-    searchParams.set('size', sizeValue);
-  }
-  if (params.temperament) {
-    const temperamentValue = Array.isArray(params.temperament) ? params.temperament.join(',') : params.temperament;
-    searchParams.set('temperament', temperamentValue);
-  }
-  if (params.energy) searchParams.set('energy', params.energy);
-  if (params.guidance) searchParams.set('guidance', params.guidance);  // Add guidance parameter handling
+  setCSV('age', params.age);
+  setCSV('includeBreeds', params.includeBreeds);
+  setCSV('excludeBreeds', params.excludeBreeds);
+  setCSV('size', params.size);
+  setCSV('temperament', params.temperament);
+  if (params.energy && params.energy.trim().length > 0) searchParams.set('energy', params.energy);
+  if (params.guidance && params.guidance.trim().length > 0) searchParams.set('guidance', params.guidance);
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.page) searchParams.set('page', params.page.toString());
   if (params.limit) searchParams.set('limit', params.limit.toString());
@@ -155,7 +146,53 @@ function transformDogData(raw: RawDog): Dog {
 
 // Fetch dogs with search parameters
 export async function searchDogs(params: SearchParams = {}): Promise<DogsResponse> {
+  // Expand structured prefs with guidance before hitting the backend so the backend fetch includes expanded filters
+  try {
+    const { mergeGuidanceIntoPrefs } = await import('@/utils/matching');
+    // If guidance text exists, normalize it via the LLM endpoint first
+    if (params.guidance && params.guidance.trim().length > 0) {
+      try {
+        const normResp = await fetch('/api/normalize-guidance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guidance: params.guidance })
+        });
+        if (normResp.ok) {
+          const norm = await normResp.json();
+          // Merge normalized preferences into the params (do not overwrite explicit selections)
+          const normAge = Array.isArray(norm.age) ? norm.age : undefined;
+          const normSize = Array.isArray(norm.size) ? norm.size : undefined;
+          const normTemps = Array.isArray(norm.temperament) ? norm.temperament : undefined;
+          const normEnergy = typeof norm.energy === 'string' ? norm.energy : undefined;
+          params = {
+            ...params,
+            age: params.age || normAge,
+            size: params.size || normSize,
+            temperament: params.temperament || normTemps,
+            energy: params.energy || (normEnergy as any)
+          };
+        }
+      } catch {}
+    }
+    const eff = mergeGuidanceIntoPrefs({
+      age: Array.isArray(params.age) ? params.age as string[] : (params.age ? String(params.age).split(',') : undefined),
+      size: Array.isArray(params.size) ? params.size as string[] : (params.size ? String(params.size).split(',') : undefined),
+      includeBreeds: Array.isArray(params.includeBreeds) ? params.includeBreeds as string[] : (params.includeBreeds ? String(params.includeBreeds).split(',') : undefined),
+      excludeBreeds: Array.isArray(params.excludeBreeds) ? params.excludeBreeds as string[] : (params.excludeBreeds ? String(params.excludeBreeds).split(',') : undefined),
+      temperament: Array.isArray(params.temperament) ? params.temperament as string[] : (params.temperament ? String(params.temperament).split(',') : undefined),
+      energy: params.energy as any,
+      guidance: params.guidance,
+    });
+    params = { ...params, age: eff.age, size: eff.size, temperament: eff.temperament, energy: eff.energy as any };
+    // Debug log (prints in Next dev terminal for SSR, and in browser on CSR)
+    // eslint-disable-next-line no-console
+    console.log('🔎 Expanded search params:', { age: params.age, size: params.size, energy: params.energy, temperament: params.temperament, guidance: params.guidance });
+  } catch {
+    // No-op if dynamic import fails in some environments
+  }
   const queryString = buildQueryString(params);
+  // eslint-disable-next-line no-console
+  console.log('🔎 Fetching:', `${API_BASE}/api/dogs${queryString}`);
   const response = await fetch(`${API_BASE}/api/dogs${queryString}`, {
     cache: 'no-store', // Always fetch fresh data
   });

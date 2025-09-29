@@ -98,3 +98,4 @@ jobs:
           echo "Frontend: dogyenta.com"
           echo "Backend: dogfinder-web.onrender.com"
           echo "Deployment should happen automatically"
+

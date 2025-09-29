@@ -6,9 +6,12 @@ import Link from 'next/link';
 import { Share2, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog } from '@/lib/api';
 import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning } from '@/lib/ai-service';
+import { buildAnalysis, selectTopPicks, type Analysis, type UserPreferences } from '@/utils/matching';
+import { dedupeChips, removeContradictions, improveConcernPhrasing, improveMatchPhrasing } from '@/utils/text';
 import PhotoCarousel from '@/components/PhotoCarousel';
+import PreferencesSummary from '@/components/PreferencesSummary';
 
-function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
+function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: UserPreferences; analysis?: Analysis }) {
   const [showCopied, setShowCopied] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<AIReasoning | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -18,9 +21,11 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
     async function loadAIReasoning() {
       try {
         console.log('🤖 Loading AI reasoning for Top Pick:', dog.name);
-        console.log('📝 User preferences:', userPreferences); // Add debug for guidance
+        console.log('📝 User preferences:', userPreferences);
+        console.log('🐕 Dog data:', { name: dog.name, breeds: dog.breeds, size: dog.size, age: dog.age, tags: dog.tags });
+        console.log('🎯 Analysis:', analysis);
         setIsLoadingAI(true);
-        const reasoning = await generateTopPickReasoning(dog, userPreferences || {});
+        const reasoning = await generateTopPickReasoning(dog, userPreferences || {}, analysis || buildAnalysis(dog, userPreferences || {}));
         console.log('✅ AI reasoning loaded:', reasoning);
         setAiReasoning(reasoning);
       } catch (error) {
@@ -37,7 +42,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
     }
     
     loadAIReasoning();
-  }, [dog, userPreferences]);
+  }, [dog, userPreferences, analysis]);
   
   const handleShare = async () => {
     try {
@@ -75,6 +80,25 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
           <p className="text-sm text-gray-600">{dog.breeds.join(', ')}</p>
         </div>
         
+        {/* (Removed) Matches chips: we now fold key matches into the blue reasoning card */}
+
+        {/* Things to consider */}
+        {analysis && (analysis.unmetPrefs.length > 0 || analysis.mismatches.length > 0) && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Things to consider:</p>
+            <div className="flex flex-wrap gap-1">
+              {(() => {
+                const allConcerns = [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches];
+                return dedupeChips(allConcerns).slice(0, 3).map((concern, index) => (
+                  <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
+                    {improveConcernPhrasing(concern)}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* AI Match Reason - Dynamic */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
@@ -90,12 +114,67 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
                 </div>
               ) : aiReasoning ? (
                 <>
-                  <p className="text-sm text-blue-800 mb-2">{aiReasoning.primary}</p>
-                  {aiReasoning.additional.length > 0 && (
-                    <div className="space-y-1">
-                      {aiReasoning.additional.map((reason, index) => (
-                        <p key={index} className="text-xs text-blue-700">• {reason}</p>
-                      ))}
+                  {(() => {
+                    // Compose one smooth sentence from the start: no em-dashes; use commas and "and"
+                    const humanJoin = (arr: string[]) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+                    const toClause = (label: string) => {
+                      const mSize = label.match(/\b(Small|Medium|Large|XL|Extra Large)\b/i);
+                      if (mSize) return `${mSize[0]} size fits your needs`;
+                      const mAge = label.match(/\b(Baby|Young|Adult|Senior)\b/i);
+                      if (mAge) return `${mAge[0]} age matches your preference`;
+                      const mEnergy = label.match(/Energy level matches \((low|medium|high)\)/i);
+                      if (mEnergy) return `${mEnergy[1]} energy`;
+                      if (/hypoallergenic/i.test(label)) return 'hypoallergenic temperament';
+                      return improveMatchPhrasing(label);
+                    };
+
+                    // Gather candidate clauses from matched preferences
+                    const traitClauses: string[] = [];
+                    if (analysis && analysis.matchedPrefs.length > 0) {
+                      const { matches } = removeContradictions(
+                        analysis.matchedPrefs.map(p => p.label),
+                        [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches]
+                      );
+                      const unique = dedupeChips(matches).map(toClause).filter(Boolean);
+                      traitClauses.push(...unique);
+                    }
+
+                    // Additional AI phrases can be appended as natural short clauses
+                    const extra = (aiReasoning.additional || []).filter(Boolean).map(s => s.replace(/\.+\s*$/, ''));
+
+                    // If AI provided a primary, weave clauses around it; otherwise synthesize from traits
+                    let primary = (aiReasoning.primary || '').replace(/\.+\s*$/, '');
+                    const canon = primary.toLowerCase();
+                    const filteredTraits = traitClauses.filter(c => {
+                      const lc = c.toLowerCase();
+                      return !(
+                        (/(baby|young|adult|senior) age/.test(lc) && /(baby|young|adult|senior)\b/.test(canon)) ||
+                        (/size fits your needs/.test(lc) && /(small|medium|large|xl|extra\s+large)\b/.test(canon)) ||
+                        (/energy/.test(lc) && /energy/.test(canon)) ||
+                        (/hypoallergenic/.test(lc) && /hypoallergenic/.test(canon))
+                      );
+                    });
+
+                    // Limit to at most 2 supporting clauses for readability
+                    const support = humanJoin([...filteredTraits.slice(0, 2), ...extra.slice(0, 1)]);
+                    let sentence: string;
+                    if (primary) {
+                      sentence = support ? `${primary}, ${support}.` : `${primary}.`;
+                    } else if (support) {
+                      sentence = `${support.charAt(0).toUpperCase()}${support.slice(1)}.`;
+                    } else {
+                      sentence = 'A promising match based on your preferences.';
+                    }
+                    return <p className="text-sm text-blue-800 mb-2">{sentence}</p>;
+                  })()}
+                  {aiReasoning.concerns.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <p className="text-xs font-medium text-amber-700 mb-1">Concerns:</p>
+                      <div className="space-y-1">
+                        {aiReasoning.concerns.map((concern, index) => (
+                          <p key={index} className="text-xs text-amber-600">• {concern}</p>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </>
@@ -141,7 +220,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhoto
   );
 }
 
-function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: Record<string, unknown> }) {
+function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: UserPreferences; analysis?: Analysis }) {
   const [showCopied, setShowCopied] = useState(false);
   const [shortAIReasoning, setShortAIReasoning] = useState<string>('');
   const [isLoadingAI, setIsLoadingAI] = useState(true);
@@ -151,9 +230,10 @@ function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClic
     async function loadAIReasoning() {
       try {
         console.log('🤖 Loading AI reasoning for All Match:', dog.name);
-        console.log('📝 User preferences:', userPreferences); // Add debug for guidance
+        console.log('📝 User preferences:', userPreferences);
+        console.log('🎯 Analysis:', analysis);
         setIsLoadingAI(true);
-        const reasoning = await generateAllMatchReasoning(dog, userPreferences || {});
+        const reasoning = await generateAllMatchReasoning(dog, userPreferences || {}, analysis || buildAnalysis(dog, userPreferences || {}));
         console.log('✅ AI reasoning loaded:', reasoning);
         setShortAIReasoning(reasoning);
       } catch (error) {
@@ -166,7 +246,7 @@ function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClic
     }
     
     loadAIReasoning();
-  }, [dog, userPreferences]);
+  }, [dog, userPreferences, analysis]);
   
   const handleShare = async () => {
     try {
@@ -206,6 +286,43 @@ function DogCard({ dog, onPhotoClick, userPreferences }: { dog: Dog; onPhotoClic
           <div className="text-sm text-gray-600">
             {dog.age} • {dog.size}
           </div>
+          
+          {/* Matches your preferences */}
+          {analysis && analysis.matchedPrefs.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs font-medium text-emerald-700 mb-1">✅ <span className="font-semibold">Matches</span>:</p>
+              <div className="flex flex-wrap gap-1">
+                {(() => {
+                  const { matches } = removeContradictions(
+                    analysis.matchedPrefs.map(p => p.label),
+                    [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches]
+                  );
+                  return dedupeChips(matches).slice(0, 2).map((label, index) => (
+                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                      {improveMatchPhrasing(label)}
+                    </span>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Things to consider */}
+          {analysis && (analysis.unmetPrefs.length > 0 || analysis.mismatches.length > 0) && (
+            <div className="mb-2">
+              <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Consider:</p>
+              <div className="flex flex-wrap gap-1">
+                {(() => {
+                  const allConcerns = [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches];
+                  return dedupeChips(allConcerns).slice(0, 1).map((concern, index) => (
+                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
+                      {improveConcernPhrasing(concern)}
+                    </span>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
           
           <div className="flex justify-between text-sm text-gray-600">
             {dog.tags.slice(0, 2).map((tag, index) => (
@@ -273,6 +390,7 @@ function ResultsPageContent() {
   const searchParams = useSearchParams();
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [topPicks, setTopPicks] = useState<Dog[]>([]);
+  const [showFallbackBanner, setShowFallbackBanner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('freshness');
@@ -296,7 +414,7 @@ function ResultsPageContent() {
   }), [searchParams, currentPage]);
 
   // Extract user preferences for AI reasoning  
-  const userPreferences = {
+  const userPreferences: UserPreferences = {
     age: searchQuery.age,
     size: searchQuery.size,
     includeBreeds: searchQuery.includeBreeds,
@@ -311,6 +429,7 @@ function ResultsPageContent() {
     guidance: searchQuery.guidance,
     age: searchQuery.age,
     size: searchQuery.size,
+    temperament: searchQuery.temperament,
     excludeBreeds: searchQuery.excludeBreeds
   });
   console.log('🔍 RESULTS PAGE DEBUG: userPreferences for AI:', userPreferences);
@@ -364,9 +483,11 @@ function ResultsPageContent() {
         setDogs(dogsWithPhotos);
         setTotalPages(Math.ceil(dogsWithPhotos.length / response.pageSize));
         
-        // For now, simulate top picks by taking first 3 dogs with photos
-        // In a real app, this would come from AI ranking
-        setTopPicks(dogsWithPhotos.slice(0, 3));
+        // Use AI to select top picks based on user preferences
+        console.log('🎯 AI TOP PICKS: Starting AI-based selection...');
+        const { dogs: aiTopPicks, showFallbackBanner: showBanner } = await selectTopPicks(dogsWithPhotos, userPreferences, 3);
+        setTopPicks(aiTopPicks);
+        setShowFallbackBanner(showBanner);
         
       } catch (err) {
         console.error('Error fetching dogs:', err);
@@ -427,7 +548,7 @@ function ResultsPageContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Results Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
             Found {dogs.length} dogs
           </h1>
@@ -445,28 +566,111 @@ function ResultsPageContent() {
           </div>
         </div>
 
+        {/* Smart expansion hint banner when result count is low */}
+        {dogs.length > 0 && dogs.length < 3 && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-800">
+            <p className="font-semibold mb-1">Not many results</p>
+            <p className="text-sm">
+              We found {dogs.length} dog{dogs.length===1?'':'s'} for your current filters. Try widening your search.
+              {(() => {
+                // Heuristic: suggest relaxing the most restrictive filter inferred from the query
+                const suggestions: string[] = [];
+                const sizes = searchQuery.size ? (Array.isArray(searchQuery.size) ? searchQuery.size : String(searchQuery.size).split(',')) : [];
+                const ages = searchQuery.age ? (Array.isArray(searchQuery.age) ? searchQuery.age : String(searchQuery.age).split(',')) : [];
+                const hasEnergy = !!searchQuery.energy;
+                if (sizes.length === 1) suggestions.push(`add another size (e.g., ${sizes[0]==='small'?'medium or large':'another size'})`);
+                if (ages.length === 1) suggestions.push(`allow more ages (e.g., add Young or Adult)`);
+                if (hasEnergy) suggestions.push(`remove the energy restriction`);
+                const text = suggestions.length ? ` You could ${suggestions[0]}.` : '';
+                return text;
+              })()}
+            </p>
+          </div>
+        )}
+
+        {/* Zero results banner */}
+        {dogs.length === 0 && (
+          <div className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-900">
+            <p className="font-semibold mb-1">No dogs matched your filters</p>
+            <p className="text-sm mb-2">
+              Try broadening your search: increase the radius, add more sizes or ages, or clear the energy filter.
+            </p>
+            <div className="text-sm text-amber-800">
+              {(() => {
+                const tips: string[] = [];
+                const sizes = searchQuery.size || [];
+                const ages = searchQuery.age || [];
+                if (sizes.length <= 1) tips.push('include more sizes');
+                if (ages.length <= 1) tips.push('allow more ages');
+                if (searchQuery.energy) tips.push('remove the energy restriction');
+                tips.push('expand the distance');
+                return `Suggestions: ${tips.join(', ')}.`;
+              })()}
+            </div>
+            <div className="mt-3">
+              <Link href="/find" className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Adjust search</Link>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback Banner */}
+        {showFallbackBanner && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-2">
+              <div className="flex-shrink-0 w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">
+                <span className="text-amber-600 text-sm">⚠️</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-800 mb-1">No perfect hypoallergenic matches found</p>
+                <p className="text-sm text-amber-700">Here are some close alternatives with important caveats.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        
+
         {/* Top Picks Section */}
-        {topPicks.length > 0 && (
+        {dogs.length > 0 && topPicks.length > 0 && (
           <div className="mb-12">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Yenta says… meet your matches!</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Yenta matched these to your preferences</h2>
               <p className="text-gray-600">Our AI has curated these dogs for you based on your preferences.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {topPicks.map((dog) => (
-                <TopPickCard key={dog.id} dog={dog} onPhotoClick={handlePhotoClick} userPreferences={userPreferences} />
-              ))}
+              {topPicks.map((dog) => {
+                const analysis = buildAnalysis(dog, userPreferences);
+                return (
+                  <TopPickCard 
+                    key={dog.id} 
+                    dog={dog} 
+                    onPhotoClick={handlePhotoClick} 
+                    userPreferences={userPreferences}
+                    analysis={analysis}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* All Matches Section */}
+        {dogs.length > 0 && (
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {dogs.map((dog) => (
-              <DogCard key={dog.id} dog={dog} onPhotoClick={handlePhotoClick} userPreferences={userPreferences} />
-            ))}
+            {dogs.map((dog) => {
+              const analysis = buildAnalysis(dog, userPreferences);
+              return (
+                <DogCard 
+                  key={dog.id} 
+                  dog={dog} 
+                  onPhotoClick={handlePhotoClick} 
+                  userPreferences={userPreferences}
+                  analysis={analysis}
+                />
+              );
+            })}
           </div>
           
           {/* Pagination */}
@@ -507,6 +711,7 @@ function ResultsPageContent() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Photo Modal */}

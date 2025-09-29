@@ -33,3 +33,4 @@ def test_main_import():
     assert callable(fetch_all_animals)
     assert callable(search_animals) 
     assert callable(get_animal_by_id)
+
