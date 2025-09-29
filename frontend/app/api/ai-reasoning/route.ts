@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { tryParseReasoning, tryParseShortReasoning } from '@/utils/parseLLM';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +33,8 @@ export async function POST(request: NextRequest) {
       ],
       max_tokens: type === 'top-pick' ? 300 : 100,
       temperature: 0.7,
+      // Request structured output for better JSON parsing
+      response_format: type === 'top-pick' ? { type: "json_object" } : undefined
     });
 
     const aiResponse = response.choices[0]?.message?.content?.trim();
@@ -42,12 +45,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'top-pick') {
-      // Parse JSON response for top picks
-      try {
-        const reasoning = JSON.parse(aiResponse);
-        return NextResponse.json({ reasoning });
-      } catch {
-        // If JSON parsing fails, create a structured response
+      // Parse JSON response for top picks with intelligent parsing
+      const parsed = tryParseReasoning(aiResponse);
+      if (parsed) {
+        return NextResponse.json({ reasoning: parsed });
+      } else {
+        // If parsing fails, create a structured response
         const reasoning = {
           primary: aiResponse.substring(0, 150),
           additional: [],
@@ -56,8 +59,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ reasoning });
       }
     } else {
-      // Return short response for all matches
-      const shortReasoning = aiResponse.substring(0, 50);
+      // Return short response for all matches with intelligent parsing
+      const parsed = tryParseShortReasoning(aiResponse);
+      const shortReasoning = parsed || aiResponse.substring(0, 50);
       return NextResponse.json({ reasoning: shortReasoning });
     }
 

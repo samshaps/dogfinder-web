@@ -42,6 +42,7 @@ export interface SearchParams {
   size?: string | string[];
   temperament?: string | string[];
   energy?: string;
+  guidance?: string;  // Add guidance parameter
   sort?: 'freshness' | 'distance' | 'age' | 'size';
   page?: number;
   limit?: number;
@@ -73,29 +74,21 @@ type RawDog = {
 function buildQueryString(params: SearchParams): string {
   const searchParams = new URLSearchParams();
   
+  const setCSV = (key: string, value?: string | string[]) => {
+    if (value === undefined || value === null) return;
+    const str = Array.isArray(value) ? value.filter(Boolean).join(',') : String(value).trim();
+    if (str.length > 0) searchParams.set(key, str);
+  };
+
   if (params.zip) searchParams.set('zip', params.zip);
   if (params.radius) searchParams.set('radius', params.radius.toString());
-  if (params.age) {
-    const ageValue = Array.isArray(params.age) ? params.age.join(',') : params.age;
-    searchParams.set('age', ageValue);
-  }
-  if (params.includeBreeds) {
-    const breedsValue = Array.isArray(params.includeBreeds) ? params.includeBreeds.join(',') : params.includeBreeds;
-    searchParams.set('includeBreeds', breedsValue);
-  }
-  if (params.excludeBreeds) {
-    const breedsValue = Array.isArray(params.excludeBreeds) ? params.excludeBreeds.join(',') : params.excludeBreeds;
-    searchParams.set('excludeBreeds', breedsValue);
-  }
-  if (params.size) {
-    const sizeValue = Array.isArray(params.size) ? params.size.join(',') : params.size;
-    searchParams.set('size', sizeValue);
-  }
-  if (params.temperament) {
-    const temperamentValue = Array.isArray(params.temperament) ? params.temperament.join(',') : params.temperament;
-    searchParams.set('temperament', temperamentValue);
-  }
-  if (params.energy) searchParams.set('energy', params.energy);
+  setCSV('age', params.age);
+  setCSV('includeBreeds', params.includeBreeds);
+  setCSV('excludeBreeds', params.excludeBreeds);
+  setCSV('size', params.size);
+  setCSV('temperament', params.temperament);
+  if (params.energy && params.energy.trim().length > 0) searchParams.set('energy', params.energy);
+  if (params.guidance && params.guidance.trim().length > 0) searchParams.set('guidance', params.guidance);
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.page) searchParams.set('page', params.page.toString());
   if (params.limit) searchParams.set('limit', params.limit.toString());
@@ -153,24 +146,97 @@ function transformDogData(raw: RawDog): Dog {
 
 // Fetch dogs with search parameters
 export async function searchDogs(params: SearchParams = {}): Promise<DogsResponse> {
-  const queryString = buildQueryString(params);
-  const response = await fetch(`${API_BASE}/api/dogs${queryString}`, {
-    cache: 'no-store', // Always fetch fresh data
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  // Expand structured prefs with guidance before hitting the backend so the backend fetch includes expanded filters
+  try {
+    const { mergeGuidanceIntoPrefs } = await import('@/utils/matching');
+    // If guidance text exists, normalize it via the LLM endpoint first
+    if (params.guidance && params.guidance.trim().length > 0) {
+      try {
+        const normResp = await fetch('/api/normalize-guidance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guidance: params.guidance })
+        });
+        if (normResp.ok) {
+          const norm = await normResp.json();
+          // Merge normalized preferences into the params (do not overwrite explicit selections)
+          const normAge = Array.isArray(norm.age) ? norm.age : undefined;
+          const normSize = Array.isArray(norm.size) ? norm.size : undefined;
+          const normTemps = Array.isArray(norm.temperament) ? norm.temperament : undefined;
+          const normEnergy = typeof norm.energy === 'string' ? norm.energy : undefined;
+          params = {
+            ...params,
+            age: params.age || normAge,
+            size: params.size || normSize,
+            temperament: params.temperament || normTemps,
+            energy: params.energy || (normEnergy as any)
+          };
+        }
+      } catch {}
+    }
+    const eff = mergeGuidanceIntoPrefs({
+      age: Array.isArray(params.age) ? params.age as string[] : (params.age ? String(params.age).split(',') : undefined),
+      size: Array.isArray(params.size) ? params.size as string[] : (params.size ? String(params.size).split(',') : undefined),
+      includeBreeds: Array.isArray(params.includeBreeds) ? params.includeBreeds as string[] : (params.includeBreeds ? String(params.includeBreeds).split(',') : undefined),
+      excludeBreeds: Array.isArray(params.excludeBreeds) ? params.excludeBreeds as string[] : (params.excludeBreeds ? String(params.excludeBreeds).split(',') : undefined),
+      temperament: Array.isArray(params.temperament) ? params.temperament as string[] : (params.temperament ? String(params.temperament).split(',') : undefined),
+      energy: params.energy as any,
+      guidance: params.guidance,
+    });
+    params = { ...params, age: eff.age, size: eff.size, temperament: eff.temperament, energy: eff.energy as any };
+    // Debug log (prints in Next dev terminal for SSR, and in browser on CSR)
+    // eslint-disable-next-line no-console
+    console.log('🔎 Expanded search params:', { age: params.age, size: params.size, energy: params.energy, temperament: params.temperament, guidance: params.guidance });
+  } catch {
+    // No-op if dynamic import fails in some environments
   }
-  
-  const rawData = await response.json();
-  
-  // Transform the raw data to our expected format
-  return {
-    items: rawData.items.map(transformDogData),
-    page: rawData.page,
-    pageSize: rawData.pageSize,
-    total: rawData.total
+  // Support multiple zip codes by batching calls and merging
+  const zips: string[] = (params.zip || '')
+    .split(',')
+    .map(z => z.trim())
+    .filter(Boolean);
+
+  const fetchForZip = async (zip: string): Promise<DogsResponse> => {
+    const qs = buildQueryString({ ...params, zip });
+    // eslint-disable-next-line no-console
+    console.log('🔎 Fetching:', `${API_BASE}/api/dogs${qs}`);
+    const resp = await fetch(`${API_BASE}/api/dogs${qs}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+    const data = await resp.json();
+    return {
+      items: data.items.map(transformDogData),
+      page: data.page,
+      pageSize: data.pageSize,
+      total: data.total,
+    } as DogsResponse;
   };
+
+  let merged: Dog[] = [];
+  if (zips.length > 1) {
+    const results = await Promise.allSettled(zips.map(zip => fetchForZip(zip)));
+    const seen = new Set<string>();
+    results.forEach(r => {
+      if (r.status === 'fulfilled') {
+        r.value.items.forEach(d => {
+          // Deduplicate by id; fallback to url if id missing
+          const key = d.id || d.url;
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(d);
+          }
+        });
+      }
+    });
+    return {
+      items: merged,
+      page: 1,
+      pageSize: merged.length,
+      total: merged.length,
+    };
+  } else {
+    const single = await fetchForZip(zips[0] || (params.zip || ''));
+    return single;
+  }
 }
 
 // Alias for searchDogs to match the results page import

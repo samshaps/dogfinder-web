@@ -3,19 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Ruler } from 'lucide-react';
-import BreedSelector from '@/components/BreedSelector';
+import { Search, MapPin, Ruler, X, Info } from 'lucide-react';
+// Removed breed selector - using free text fields instead
 
 // Helper component for pill controls
 interface PillControlProps {
-  options: Array<{ value: string; label: string; description: string }>;
+  options: Array<{ value: string; label: string; description: string; icon?: string }>;
   selectedValues: string[];
   onChange: (values: string[]) => void;
   multiSelect?: boolean;
   showDescriptions?: boolean;
+  cardStyle?: boolean;
 }
 
-function PillControl({ options, selectedValues, onChange, multiSelect = true, showDescriptions = true }: PillControlProps) {
+function PillControl({ options, selectedValues, onChange, multiSelect = true, showDescriptions = true, cardStyle = false }: PillControlProps) {
   const handleToggle = (value: string) => {
     if (multiSelect) {
       if (selectedValues.includes(value)) {
@@ -41,7 +42,7 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
         ))}
         </div>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className={`flex flex-wrap gap-3 ${cardStyle ? 'grid grid-cols-2 md:grid-cols-4 gap-4' : ''}`}>
         {options.map((option) => {
           const isSelected = selectedValues.includes(option.value);
           return (
@@ -49,13 +50,32 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
               key={option.value}
               type="button"
               onClick={() => handleToggle(option.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                isSelected
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+              className={`${
+                cardStyle 
+                  ? `p-4 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    }`
+                  : `px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                    }`
               }`}
             >
-              {option.label}
+              {cardStyle ? (
+                <div className="text-center">
+                  {option.icon && <div className="text-2xl mb-2">{option.icon}</div>}
+                  <div className="font-semibold text-sm">{option.label}</div>
+                  <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+                </div>
+              ) : (
+                <span className="flex items-center gap-2">
+                  {option.icon && <span>{option.icon}</span>}
+                  {option.label}
+                </span>
+              )}
             </button>
           );
         })}
@@ -67,8 +87,7 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
 export default function FindPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    zip: '',
-    radius: 50,
+    zipCodes: [] as string[],
     age: [] as string[],
     size: [] as string[],
     includeBreeds: [] as string[],
@@ -77,6 +96,11 @@ export default function FindPage() {
     energy: '',
     guidance: ''
   });
+  
+  const [newZipCode, setNewZipCode] = useState('');
+  const [newIncludeBreed, setNewIncludeBreed] = useState('');
+  const [newExcludeBreed, setNewExcludeBreed] = useState('');
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const ageOptions = [
     { value: 'baby', label: 'Baby', description: '0–6 months' },
@@ -86,10 +110,10 @@ export default function FindPage() {
   ];
   
   const sizeOptions = [
-    { value: 'small', label: 'Small', description: '< 25 lbs' },
-    { value: 'medium', label: 'Medium', description: '25–50 lbs' },
-    { value: 'large', label: 'Large', description: '50–90 lbs' },
-    { value: 'xl', label: 'XL', description: '90+ lbs' }
+    { value: 'small', label: 'Small', description: '< 25 lbs', icon: '🐕' },
+    { value: 'medium', label: 'Medium', description: '25–50 lbs', icon: '🐕‍🦺' },
+    { value: 'large', label: 'Large', description: '50–90 lbs', icon: '🐕‍🦺' },
+    { value: 'xl', label: 'XL', description: '90+ lbs', icon: '🐕‍🦺' }
   ];
   
   const temperamentOptions = [
@@ -106,9 +130,9 @@ export default function FindPage() {
   ];
   
   const energyOptions = [
-    { value: 'low', label: 'Low', description: '~30 min/day · Short walks + naps' },
-    { value: 'medium', label: 'Medium', description: '~1 hr/day · Playtime + walks' },
-    { value: 'high', label: 'High', description: '2+ hrs/day · Needs runs/hikes/training' }
+    { value: 'low', label: 'Low', description: '~30 min/day · Short walks + naps', icon: '💤' },
+    { value: 'medium', label: 'Medium', description: '~1 hr/day · Playtime + walks', icon: '🙂' },
+    { value: 'high', label: 'High', description: '2+ hrs/day · Needs runs/hikes/training', icon: '🏃' }
   ];
 
   const handleInputChange = (field: string, value: string | number | string[]) => {
@@ -118,22 +142,104 @@ export default function FindPage() {
     }));
   };
 
+  // Handle adding zip codes
+  const handleAddZipCode = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newZipCode.trim()) {
+      e.preventDefault();
+      const zipCode = newZipCode.trim();
+      // Validate zip code (5 digits)
+      if (/^\d{5}$/.test(zipCode)) {
+        if (!formData.zipCodes.includes(zipCode)) {
+          setFormData(prev => ({
+            ...prev,
+            zipCodes: [...prev.zipCodes, zipCode]
+          }));
+        }
+        setNewZipCode('');
+      }
+    }
+  };
+
+  const handleRemoveZipCode = (zipCode: string) => {
+    setFormData(prev => ({
+      ...prev,
+      zipCodes: prev.zipCodes.filter(z => z !== zipCode)
+    }));
+  };
+
+  // Handle adding include breeds
+  const handleAddIncludeBreed = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newIncludeBreed.trim()) {
+      e.preventDefault();
+      if (!formData.includeBreeds.includes(newIncludeBreed.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          includeBreeds: [...prev.includeBreeds, newIncludeBreed.trim()]
+        }));
+      }
+      setNewIncludeBreed('');
+    }
+  };
+
+  const handleRemoveIncludeBreed = (breed: string) => {
+    setFormData(prev => ({
+      ...prev,
+      includeBreeds: prev.includeBreeds.filter(b => b !== breed)
+    }));
+  };
+
+  // Handle adding exclude breeds
+  const handleAddExcludeBreed = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newExcludeBreed.trim()) {
+      e.preventDefault();
+      if (!formData.excludeBreeds.includes(newExcludeBreed.trim())) {
+        setFormData(prev => ({
+          ...prev,
+          excludeBreeds: [...prev.excludeBreeds, newExcludeBreed.trim()]
+        }));
+      }
+      setNewExcludeBreed('');
+    }
+  };
+
+  const handleRemoveExcludeBreed = (breed: string) => {
+    setFormData(prev => ({
+      ...prev,
+      excludeBreeds: prev.excludeBreeds.filter(b => b !== breed)
+    }));
+  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Capture any in-progress text entries that weren't confirmed with Enter
+    const pending = { ...formData };
+    const maybeZip = newZipCode.trim();
+    if (/^\d{5}$/.test(maybeZip) && !pending.zipCodes.includes(maybeZip)) {
+      pending.zipCodes = [...pending.zipCodes, maybeZip];
+    }
+    const inc = newIncludeBreed.trim();
+    if (inc.length > 0 && !pending.includeBreeds.includes(inc)) {
+      pending.includeBreeds = [...pending.includeBreeds, inc];
+    }
+    const exc = newExcludeBreed.trim();
+    if (exc.length > 0 && !pending.excludeBreeds.includes(exc)) {
+      pending.excludeBreeds = [...pending.excludeBreeds, exc];
+    }
+
     // Build query parameters
     const params = new URLSearchParams();
-    if (formData.zip) params.set('zip', formData.zip);
-    params.set('radius', formData.radius.toString());
-    if (formData.age.length > 0) params.set('age', formData.age.join(','));
-    if (formData.size.length > 0) params.set('size', formData.size.join(','));
-    if (formData.includeBreeds.length > 0) params.set('includeBreeds', formData.includeBreeds.join(','));
-    if (formData.excludeBreeds.length > 0) params.set('excludeBreeds', formData.excludeBreeds.join(','));
-    if (formData.temperament.length > 0) params.set('temperament', formData.temperament.join(','));
-    if (formData.energy) params.set('energy', formData.energy);
-    if (formData.guidance) params.set('guidance', formData.guidance);
-
+    if (pending.zipCodes.length > 0) params.set('zip', pending.zipCodes.join(','));
+    params.set('radius', '50'); // Hardcoded to 50 miles
+    if (pending.age.length > 0) params.set('age', pending.age.join(','));
+    if (pending.size.length > 0) params.set('size', pending.size.join(','));
+    if (pending.includeBreeds.length > 0) params.set('includeBreeds', pending.includeBreeds.join(','));
+    if (pending.excludeBreeds.length > 0) params.set('excludeBreeds', pending.excludeBreeds.join(','));
+    if (pending.temperament.length > 0) params.set('temperament', pending.temperament.join(','));
+    if (pending.energy) params.set('energy', pending.energy);
+    if (pending.guidance) params.set('guidance', pending.guidance);
+    
     // Navigate to results page
     router.push(`/results?${params.toString()}`);
   };
@@ -173,8 +279,8 @@ export default function FindPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Find your perfect dog</h1>
-            <p className="text-gray-600">Tell us about your lifestyle and preferences to get personalized matches</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Let's make you a match</h1>
+            <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.  </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -182,47 +288,97 @@ export default function FindPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <MapPin className="w-4 h-4 inline mr-2" />
-                Location
+                Zip Codes (50 mile radius)
               </label>
               <input
                 type="text"
-                placeholder="Enter your zip code"
-                value={formData.zip}
-                onChange={(e) => handleInputChange('zip', e.target.value)}
+                placeholder="Enter 5-digit zip code and press Enter"
+                value={newZipCode}
+                onChange={(e) => setNewZipCode(e.target.value)}
+                onKeyDown={handleAddZipCode}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <p className="text-sm text-gray-500 mt-1">We&apos;ll show you dogs within your area</p>
+              {formData.zipCodes.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.zipCodes.map((zipCode) => (
+                    <div key={zipCode} className="flex items-center bg-blue-100 border border-blue-300 rounded-full px-3 py-1">
+                      <span className="text-sm font-medium text-blue-800 mr-2">{zipCode}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveZipCode(zipCode)}
+                        className="p-1 text-blue-600 hover:bg-blue-200 rounded-full transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mt-1">Type a zip code and press Enter to add it. Add multiple zip codes to search broader areas.</p>
             </div>
 
-            {/* Radius */}
+            {/* Breeds to Include */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Ruler className="w-4 h-4 inline mr-2" />
-                Radius (miles)
+                Breeds to Include/Consider
               </label>
-              <div className="flex items-center space-x-4">
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  value={formData.radius}
-                  onChange={(e) => handleInputChange('radius', parseInt(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="text-lg font-semibold text-gray-900 min-w-[3rem] text-center">
-                  {formData.radius}
-                </span>
-              </div>
+              <input
+                type="text"
+                placeholder="Enter breed (e.g., 'Lab mix', 'Golden Retriever', 'Pit Bull') and press Enter"
+                value={newIncludeBreed}
+                onChange={(e) => setNewIncludeBreed(e.target.value)}
+                onKeyDown={handleAddIncludeBreed}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {formData.includeBreeds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.includeBreeds.map((breed) => (
+                    <div key={breed} className="flex items-center bg-green-100 border border-green-300 rounded-full px-3 py-1">
+                      <span className="text-sm font-medium text-green-800 mr-2">{breed}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveIncludeBreed(breed)}
+                        className="p-1 text-green-600 hover:bg-green-200 rounded-full transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mt-1">Enter any breed names, mixes, or descriptions you&apos;d like to see</p>
             </div>
 
-            {/* Breeds */}
+            {/* Breeds to Exclude */}
             <div>
-              <BreedSelector
-                includeBreeds={formData.includeBreeds}
-                excludeBreeds={formData.excludeBreeds}
-                onIncludeChange={(breeds) => handleInputChange('includeBreeds', breeds)}
-                onExcludeChange={(breeds) => handleInputChange('excludeBreeds', breeds)}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Breeds to Exclude
+              </label>
+              <input
+                type="text"
+                placeholder="Enter breed to avoid and press Enter"
+                value={newExcludeBreed}
+                onChange={(e) => setNewExcludeBreed(e.target.value)}
+                onKeyDown={handleAddExcludeBreed}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+              {formData.excludeBreeds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.excludeBreeds.map((breed) => (
+                    <div key={breed} className="flex items-center bg-red-100 border border-red-300 rounded-full px-3 py-1">
+                      <span className="text-sm font-medium text-red-800 mr-2">{breed}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExcludeBreed(breed)}
+                        className="p-1 text-red-600 hover:bg-red-200 rounded-full transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mt-1">Enter any breeds you&apos;d prefer to avoid</p>
             </div>
 
             {/* Age */}
@@ -233,7 +389,8 @@ export default function FindPage() {
                 selectedValues={formData.age}
                 onChange={(values) => handleInputChange('age', values)}
                 multiSelect={true}
-                showDescriptions={true}
+                showDescriptions={false}
+                cardStyle={true}
               />
             </div>
 
@@ -245,7 +402,8 @@ export default function FindPage() {
                 selectedValues={formData.size}
                 onChange={(values) => handleInputChange('size', values)}
                 multiSelect={true}
-                showDescriptions={true}
+                showDescriptions={false}
+                cardStyle={true}
               />
             </div>
 
@@ -257,7 +415,8 @@ export default function FindPage() {
                 selectedValues={formData.energy ? [formData.energy] : []}
                 onChange={(values) => handleInputChange('energy', values[0] || '')}
                 multiSelect={false}
-                showDescriptions={true}
+                showDescriptions={false}
+                cardStyle={true}
               />
             </div>
 
@@ -270,16 +429,42 @@ export default function FindPage() {
                 onChange={(values) => handleInputChange('temperament', values)}
                 multiSelect={true}
                 showDescriptions={false}
+                cardStyle={false}
               />
             </div>
 
             {/* Guidance */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Guidance
-              </label>
+              <div className="flex items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tell us about your lifestyle
+                </label>
+                <div className="relative ml-2">
+                  <button
+                    type="button"
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                  {showTooltip && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-80 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-10">
+                      <div className="space-y-2">
+                        <div><strong>Living situation:</strong> Apartment, house, yard access.</div>
+                        <div><strong>Household composition:</strong> Kids, roommates, other pets.</div>
+                        <div><strong>Daily activity level:</strong> Sedentary, walks, jogging, hiking, frequent travel.</div>
+                        <div><strong>Schedule & availability:</strong> Long workdays vs. work from home.</div>
+                        <div><strong>Experience with dogs:</strong> First-time owner vs. experienced.</div>
+                        <div><strong>Deal-breakers:</strong> Can't handle shedding, barking, high vet costs, etc.</div>
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
               <textarea
-                placeholder="Tell us about your lifestyle, home, and preferences. The more details, the better the matches!"
+                placeholder="I live in a two-bedroom apartment with no yard but a park nearby. My wife and I work from home most days, so the dog won't be left alone for long. We don't have kids yet, but we often host friends who bring their dogs. We're active and go jogging 3–4 times a week. This will be our first dog, so we'd like one that's affectionate, easy to train, and not super high-maintenance. We'd prefer to avoid breeds that shed heavily or need constant grooming."
                 value={formData.guidance}
                 onChange={(e) => handleInputChange('guidance', e.target.value)}
                 rows={4}
