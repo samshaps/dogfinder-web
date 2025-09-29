@@ -21,6 +21,34 @@ export interface AIScore {
 
 // Removed: filterMismatchedDogs and createScoringPrompt - now using deterministic analysis
 
+// Remove obvious redundancy introduced by the LLM (e.g., repeated breed clauses)
+function dedupePrimarySentence(text: string): string {
+  if (!text) return text;
+  let s = text.replace(/\s{2,}/g, ' ').trim();
+  // Collapse duplicate "<something> matches your entered breed(s)"
+  s = s.replace(/(\b[\w\-\s]{2,40}? matches your entered breed\(s\))(?:,?\s*\1)+/gi, '$1');
+  // Split by commas and ' and ' to dedupe soft-duplicate fragments while preserving order
+  const fragments: string[] = [];
+  const seen = new Set<string>();
+  s.split(/,\s*/).forEach(part => {
+    // Further split by ' and ' only if short
+    const subs = part.split(/\s+and\s+/);
+    subs.forEach(sub => {
+      const key = sub.toLowerCase().trim();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        fragments.push(sub.trim());
+      }
+    });
+  });
+  // Rebuild; if it ends up empty, return original
+  const rebuilt = fragments.join(', ');
+  if (rebuilt && rebuilt.length < s.length + 10) s = rebuilt;
+  // Clean duplicate words around conjunctions
+  s = s.replace(/(,?\s*and\s*,?\s*)+/gi, ' and ');
+  return s;
+}
+
 // Generate AI reasoning for Top Picks using deterministic analysis
 export async function generateTopPickReasoning(
   dog: Dog, 
@@ -136,14 +164,10 @@ export async function generateTopPickReasoning(
       console.log('ℹ️ Primary sanitization skipped:', e);
     }
     
-    // Post-processing guardrails
-    // If unmetPrefs exist but concerns are empty, add them
-    if (filteredAnalysis.unmetPrefs.length > 0 && reasoning.concerns.length === 0) {
-      reasoning.concerns = [
-        ...filteredAnalysis.unmetPrefs.map((x: any) => x.label),
-        ...analysis.mismatches
-      ];
-    }
+    // Post-processing guardrails: remove concerns to avoid negative tone
+    reasoning.concerns = [];
+    // De-duplicate repetitive clauses produced by the model
+    reasoning.primary = dedupePrimarySentence(reasoning.primary);
     
     // Never claim hypoallergenic unless in matchedPrefs
     const hasHypoMatch = filteredAnalysis.matchedPrefs.some((p: any) => p.key === 'temperament' && /hypoallergenic/i.test(p.label));
@@ -242,11 +266,15 @@ function createTopPickPrompt(dog: Dog, userPreferences: UserPreferences, analysi
   const sizeInfo = dog.size;
   const locationInfo = `${dog.location.city}, ${dog.location.state}`;
 
+  // Check if user actually provided any preferences
+  const hasUserPrefs = !!(userPreferences.age?.length || userPreferences.size?.length || 
+                         userPreferences.includeBreeds?.length || userPreferences.excludeBreeds?.length ||
+                         userPreferences.energy || userPreferences.temperament?.length || userPreferences.guidance);
+
   // Debug logging for age values
   console.log('🔍 DEBUG: User age preferences:', userPreferences.age);
   console.log('🔍 DEBUG: Dog age:', dog.age);
-  console.log('🔍 DEBUG: Dog age type:', typeof dog.age);
-  console.log('🔍 DEBUG: User age types:', userPreferences.age?.map(a => typeof a));
+  console.log('🔍 DEBUG: Has user prefs:', hasUserPrefs);
   console.log('🔍 DEBUG: Age match check (exact):', userPreferences.age?.includes(dog.age));
   
   // Case-insensitive check
@@ -255,12 +283,36 @@ function createTopPickPrompt(dog: Dog, userPreferences: UserPreferences, analysi
   const ageMatchInsensitive = userAgesLower?.includes(dogAgeLower);
   console.log('🔍 DEBUG: Age match check (case-insensitive):', ageMatchInsensitive);
 
+  if (!hasUserPrefs) {
+    // When no user preferences provided, use neutral language
+    return `You convert structured adoption analysis into JSON with a friendly, human voice:
+- primary (≤150 chars): Write ONE complete, natural sentence about the dog's general appeal. Since no preferences were provided, focus on the dog's inherent qualities and broad appeal. Do NOT reference "your preference" or "matches your needs".
+- additional: up to 2 short supporting phrases (≤50 chars) only if truly necessary; otherwise leave empty.
+- concerns: Leave empty since no preferences were provided.
+
+EXAMPLES for primary:
+- "Recent listing with broad appeal and gentle temperament"
+- "Popular with adopters right now — well-rounded family dog"
+- "Great potential companion with balanced energy"
+
+DOG: ${dog.name} (${breedInfo}) • ${ageInfo} • ${sizeInfo} • ${locationInfo}
+
+ANALYSIS:
+  matches: [${analysis.matches.join(', ')}]
+  mismatches: [${analysis.mismatches.join(', ')}]
+  matchedPrefs: [${analysis.matchedPrefs.map(p => `{key:"${p.key}", label:"${p.label}"}`).join(', ')}]
+  score: ${analysis.score}
+
+Return minified JSON only. No backticks / fences. The JSON must be exactly of the form below:
+{"primary":"...", "additional":["..."], "concerns":["..."]}`;
+  }
+
   return `You convert structured adoption analysis into JSON with a friendly, human voice:
 - primary (≤150 chars): Write ONE complete, natural sentence in second person, like a warm adoption counselor. Weave at least TWO matched preferences by name into a single flowing sentence (e.g., "Adult age matches your preference and Medium size suits your apartment"). Do NOT use '+' signs, lists, fragments, or bullets.
 - additional: up to 2 short supporting phrases (≤50 chars) only if truly necessary; otherwise leave empty.
 - concerns: List unmet preferences as practical advice (no bullets required in UI). Use phrases like "This dog is a shedding breed and does not meet your hypoallergenic requirement" instead of "Not hypoallergenic."
 
-CRITICAL: The primary reason MUST reference specific user preferences by name. Use phrases like:
+CRITICAL: The primary reason MUST reference specific user preferences by name. If a breed was a fuzzy match (e.g., goldendoodle → poodle family), treat this as a POSITIVE match and phrase it affirmatively (e.g., "Goldendoodle counts in the poodle family"). Use phrases like:
 - "Adult age matches your preference" (not just "adult dog")
 - "Medium size fits your apartment needs" (not just "medium size")
 - "Hypoallergenic temperament meets your allergy requirements" (not just "hypoallergenic")
@@ -277,7 +329,7 @@ Do NOT mark this as a mismatch unless the dog is outside ALL of the selected cat
 ✅ Dog = ${dog.age}, User = ${userPreferences.age?.join(' OR ') || 'any'} → "Matches your age preference."
 ❌ Dog = Senior, User = ${userPreferences.age?.join(' OR ') || 'any'} → "Does not match age preferences."
 
-FORBIDDEN: Generic phrases like "located in...", "perfect for you" (use once max), "great companion" without specifics.
+FORBIDDEN: Generic phrases like "located in...", negative statements such as "not in preferred breeds" or "no fuzzy match". If a fuzzy match exists, speak positively about the family match; if none exists, simply omit breed mention rather than flagging it.
 
 DOG: ${dog.name} (${breedInfo}) • ${ageInfo} • ${sizeInfo} • ${locationInfo}
 USER_PREFERENCES:
@@ -306,11 +358,15 @@ Return minified JSON only. No backticks / fences. The JSON must be exactly of th
 function createAllMatchPrompt(dog: Dog, userPreferences: UserPreferences, analysis: Analysis, defaultsNote: string = 'none'): string {
   const breedInfo = dog.breeds.join(', ');
 
+  // Check if user actually provided any preferences
+  const hasUserPrefs = !!(userPreferences.age?.length || userPreferences.size?.length || 
+                         userPreferences.includeBreeds?.length || userPreferences.excludeBreeds?.length ||
+                         userPreferences.energy || userPreferences.temperament?.length || userPreferences.guidance);
+
   // Debug logging for age values
   console.log('🔍 DEBUG (All Matches): User age preferences:', userPreferences.age);
   console.log('🔍 DEBUG (All Matches): Dog age:', dog.age);
-  console.log('🔍 DEBUG (All Matches): Dog age type:', typeof dog.age);
-  console.log('🔍 DEBUG (All Matches): User age types:', userPreferences.age?.map(a => typeof a));
+  console.log('🔍 DEBUG (All Matches): Has user prefs:', hasUserPrefs);
   console.log('🔍 DEBUG (All Matches): Age match check (exact):', userPreferences.age?.includes(dog.age));
   
   // Case-insensitive check
@@ -318,6 +374,28 @@ function createAllMatchPrompt(dog: Dog, userPreferences: UserPreferences, analys
   const userAgesLower = userPreferences.age?.map(a => a?.toLowerCase()?.trim());
   const ageMatchInsensitive = userAgesLower?.includes(dogAgeLower);
   console.log('🔍 DEBUG (All Matches): Age match check (case-insensitive):', ageMatchInsensitive);
+
+  if (!hasUserPrefs) {
+    // When no user preferences provided, use neutral language
+    return `Produce one ≤50 char blurb as a single natural phrase about the dog's general appeal.
+Never reference "your preference" or "matches your needs" since no preferences were provided.
+Use neutral, positive language about the dog itself.
+
+EXAMPLES:
+- "Recent listing with broad appeal"
+- "Popular with adopters right now" 
+- "Great potential companion"
+- "Well-rounded family dog"
+
+DOG: ${dog.name} • ${breedInfo}
+ANALYSIS:
+  matches: [${analysis.matches.join(', ')}]
+  mismatches: [${analysis.mismatches.join(', ')}]
+  matchedPrefs: [${analysis.matchedPrefs.map(p => `{key:"${p.key}", label:"${p.label}"}`).join(', ')}]
+  score: ${analysis.score}
+
+Return minified text only. No backticks / fences:`;
+  }
 
   return `Produce one ≤50 char blurb as a single natural phrase referencing ONE matched preference by name.
 Never reference unmetPrefs or mismatches. Never claim hypoallergenic unless matchedPrefs contains it. Avoid '+' signs or lists.
@@ -355,8 +433,6 @@ ANALYSIS:
 DEFAULTS_NOTE: ${defaultsNote}
 
 If ANALYSIS.expansions exists, you may add one short clause acknowledging expansion, but still reference matchedPrefs by name only.
-
-IMPORTANT: If matchedPrefs is empty or only includes default-derived items, produce a neutral phrase (e.g., "Recent listing with broad appeal"). Do not cite defaults as preferences.
 
 Return minified text only. No backticks / fences:`;
 }

@@ -213,17 +213,32 @@ export default function FindPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Capture any in-progress text entries that weren't confirmed with Enter
+    const pending = { ...formData };
+    const maybeZip = newZipCode.trim();
+    if (/^\d{5}$/.test(maybeZip) && !pending.zipCodes.includes(maybeZip)) {
+      pending.zipCodes = [...pending.zipCodes, maybeZip];
+    }
+    const inc = newIncludeBreed.trim();
+    if (inc.length > 0 && !pending.includeBreeds.includes(inc)) {
+      pending.includeBreeds = [...pending.includeBreeds, inc];
+    }
+    const exc = newExcludeBreed.trim();
+    if (exc.length > 0 && !pending.excludeBreeds.includes(exc)) {
+      pending.excludeBreeds = [...pending.excludeBreeds, exc];
+    }
+
     // Build query parameters
     const params = new URLSearchParams();
-    if (formData.zipCodes.length > 0) params.set('zip', formData.zipCodes.join(','));
+    if (pending.zipCodes.length > 0) params.set('zip', pending.zipCodes.join(','));
     params.set('radius', '50'); // Hardcoded to 50 miles
-    if (formData.age.length > 0) params.set('age', formData.age.join(','));
-    if (formData.size.length > 0) params.set('size', formData.size.join(','));
-    if (formData.includeBreeds.length > 0) params.set('includeBreeds', formData.includeBreeds.join(','));
-    if (formData.excludeBreeds.length > 0) params.set('excludeBreeds', formData.excludeBreeds.join(','));
-    if (formData.temperament.length > 0) params.set('temperament', formData.temperament.join(','));
-    if (formData.energy) params.set('energy', formData.energy);
-    if (formData.guidance) params.set('guidance', formData.guidance);
+    if (pending.age.length > 0) params.set('age', pending.age.join(','));
+    if (pending.size.length > 0) params.set('size', pending.size.join(','));
+    if (pending.includeBreeds.length > 0) params.set('includeBreeds', pending.includeBreeds.join(','));
+    if (pending.excludeBreeds.length > 0) params.set('excludeBreeds', pending.excludeBreeds.join(','));
+    if (pending.temperament.length > 0) params.set('temperament', pending.temperament.join(','));
+    if (pending.energy) params.set('energy', pending.energy);
+    if (pending.guidance) params.set('guidance', pending.guidance);
     
     // Navigate to results page
     router.push(`/results?${params.toString()}`);
@@ -264,8 +279,8 @@ export default function FindPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Find your perfect dog</h1>
-            <p className="text-gray-600">Tell us about your lifestyle and preferences to get personalized matches</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Let's make you a match</h1>
+            <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.  </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">

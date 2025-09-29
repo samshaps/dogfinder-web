@@ -82,22 +82,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Do
         
         {/* (Removed) Matches chips: we now fold key matches into the blue reasoning card */}
 
-        {/* Things to consider */}
-        {analysis && (analysis.unmetPrefs.length > 0 || analysis.mismatches.length > 0) && (
-          <div className="mb-3">
-            <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Things to consider:</p>
-            <div className="flex flex-wrap gap-1">
-              {(() => {
-                const allConcerns = [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches];
-                return dedupeChips(allConcerns).slice(0, 3).map((concern, index) => (
-                  <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
-                    {improveConcernPhrasing(concern)}
-                  </span>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
+        {/* Things to consider removed per simplified AI UI */}
 
         {/* AI Match Reason - Dynamic */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -167,16 +152,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Do
                     }
                     return <p className="text-sm text-blue-800 mb-2">{sentence}</p>;
                   })()}
-                  {aiReasoning.concerns.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-blue-200">
-                      <p className="text-xs font-medium text-amber-700 mb-1">Concerns:</p>
-                      <div className="space-y-1">
-                        {aiReasoning.concerns.map((concern, index) => (
-                          <p key={index} className="text-xs text-amber-600">• {concern}</p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Concerns removed from AI card */}
                 </>
               ) : (
                 <p className="text-sm text-blue-800">Great potential as a loving companion</p>
@@ -287,25 +263,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; o
             {dog.age} • {dog.size}
           </div>
           
-          {/* Matches your preferences */}
-          {analysis && analysis.matchedPrefs.length > 0 && (
-            <div className="mb-2">
-              <p className="text-xs font-medium text-emerald-700 mb-1">✅ <span className="font-semibold">Matches</span>:</p>
-              <div className="flex flex-wrap gap-1">
-                {(() => {
-                  const { matches } = removeContradictions(
-                    analysis.matchedPrefs.map(p => p.label),
-                    [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches]
-                  );
-                  return dedupeChips(matches).slice(0, 2).map((label, index) => (
-                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
-                      {improveMatchPhrasing(label)}
-                    </span>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
+          {/* Matches chips removed for simplified UI */}
 
           {/* Things to consider */}
           {analysis && (analysis.unmetPrefs.length > 0 || analysis.mismatches.length > 0) && (
@@ -324,20 +282,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; o
             </div>
           )}
           
-          <div className="flex justify-between text-sm text-gray-600">
-            {dog.tags.slice(0, 2).map((tag, index) => (
-              <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                {tag}
-              </span>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            {dog.tags.slice(2, 4).map((tag, index) => (
-              <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                {tag}
-              </span>
-            ))}
-          </div>
+          {/* Removed tag bubbles for cleaner UI */}
         </div>
         
         <div className="flex items-center gap-1 mb-3">

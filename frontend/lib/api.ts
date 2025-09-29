@@ -190,26 +190,53 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
   } catch {
     // No-op if dynamic import fails in some environments
   }
-  const queryString = buildQueryString(params);
-  // eslint-disable-next-line no-console
-  console.log('🔎 Fetching:', `${API_BASE}/api/dogs${queryString}`);
-  const response = await fetch(`${API_BASE}/api/dogs${queryString}`, {
-    cache: 'no-store', // Always fetch fresh data
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
-  }
-  
-  const rawData = await response.json();
-  
-  // Transform the raw data to our expected format
-  return {
-    items: rawData.items.map(transformDogData),
-    page: rawData.page,
-    pageSize: rawData.pageSize,
-    total: rawData.total
+  // Support multiple zip codes by batching calls and merging
+  const zips: string[] = (params.zip || '')
+    .split(',')
+    .map(z => z.trim())
+    .filter(Boolean);
+
+  const fetchForZip = async (zip: string): Promise<DogsResponse> => {
+    const qs = buildQueryString({ ...params, zip });
+    // eslint-disable-next-line no-console
+    console.log('🔎 Fetching:', `${API_BASE}/api/dogs${qs}`);
+    const resp = await fetch(`${API_BASE}/api/dogs${qs}`, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+    const data = await resp.json();
+    return {
+      items: data.items.map(transformDogData),
+      page: data.page,
+      pageSize: data.pageSize,
+      total: data.total,
+    } as DogsResponse;
   };
+
+  let merged: Dog[] = [];
+  if (zips.length > 1) {
+    const results = await Promise.allSettled(zips.map(zip => fetchForZip(zip)));
+    const seen = new Set<string>();
+    results.forEach(r => {
+      if (r.status === 'fulfilled') {
+        r.value.items.forEach(d => {
+          // Deduplicate by id; fallback to url if id missing
+          const key = d.id || d.url;
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(d);
+          }
+        });
+      }
+    });
+    return {
+      items: merged,
+      page: 1,
+      pageSize: merged.length,
+      total: merged.length,
+    };
+  } else {
+    const single = await fetchForZip(zips[0] || (params.zip || ''));
+    return single;
+  }
 }
 
 // Alias for searchDogs to match the results page import

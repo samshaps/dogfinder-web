@@ -125,6 +125,7 @@ export type Analysis = {
 };
 
 import { tokenizeGuidance } from "@/utils/guidance";
+import { expandUserBreeds, breedHit } from "@/utils/breedFuzzy";
 
 export type EffectivePrefs = UserPreferences & {
   expansionNotes?: string[];
@@ -298,14 +299,15 @@ export function buildAnalysis(dog: Dog, prefs: UserPreferences): Analysis {
     };
   }
   if (eff.includeBreeds?.length) {
-    const hit = eff.includeBreeds.some(b => dog.breeds.some(db => db.toLowerCase().includes(b.toLowerCase())));
+    const canon = expandUserBreeds(eff.includeBreeds);
+    const hit = canon.some(c => breedHit({ breeds: dog.breeds, tags: dog.tags }, c.canonical));
     if (hit) {
       matches.push("Preferred breed");
-      matchedPrefs.push({ key: "breeds", label: dog.breeds.join(", "), origin: "user" });
+      matchedPrefs.push({ key: "breeds", label: `${dog.breeds.join(", ")} matches your entered breed(s)`, origin: "user" });
     } else {
       score -= 10;
-      mismatches.push("Not in preferred breeds");
-      unmetPrefs.push({ key: "breeds", label: dog.breeds.join(", ") });
+      mismatches.push("Not in preferred breeds (fuzzy)");
+      unmetPrefs.push({ key: "breeds", label: `No fuzzy match for ${canon.map(c => c.canonical).join(", ")}` });
     }
   }
 

@@ -59,18 +59,16 @@ export function tryParseReasoning(response: string): ParsedReasoning | null {
   // Try direct JSON parsing first
   try {
     const parsed = JSON.parse(jsonText);
-    if (isValidReasoningObject(parsed)) {
-      return clampReasoningLengths(parsed);
-    }
+    const coerced = coerceReasoningObject(parsed);
+    if (coerced) return clampReasoningLengths(coerced);
   } catch {
     // Not direct JSON, try extracting JSON block
     const jsonBlock = extractJsonBlock(jsonText);
     if (jsonBlock) {
       try {
         const parsed = JSON.parse(jsonBlock);
-        if (isValidReasoningObject(parsed)) {
-          return clampReasoningLengths(parsed);
-        }
+        const coerced = coerceReasoningObject(parsed);
+        if (coerced) return clampReasoningLengths(coerced);
       } catch {
         // JSON block found but not valid reasoning format
       }
@@ -83,16 +81,15 @@ export function tryParseReasoning(response: string): ParsedReasoning | null {
 /**
  * Validates that a parsed object has the correct reasoning structure
  */
-function isValidReasoningObject(obj: any): obj is ParsedReasoning {
-  return (
-    obj &&
-    typeof obj === 'object' &&
-    typeof obj.primary === 'string' &&
-    Array.isArray(obj.additional) &&
-    Array.isArray(obj.concerns) &&
-    obj.additional.every((item: any) => typeof item === 'string') &&
-    obj.concerns.every((item: any) => typeof item === 'string')
-  );
+function coerceReasoningObject(obj: any): ParsedReasoning | null {
+  if (!obj || typeof obj !== 'object') return null;
+  if (typeof obj.primary !== 'string') return null;
+  const additional = Array.isArray(obj.additional) ? obj.additional : [];
+  const concerns = Array.isArray(obj.concerns) ? obj.concerns : [];
+  // Ensure string arrays
+  const addStrings = additional.filter((i: any) => typeof i === 'string');
+  const conStrings = concerns.filter((i: any) => typeof i === 'string');
+  return { primary: obj.primary, additional: addStrings, concerns: conStrings };
 }
 
 /**
