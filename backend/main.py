@@ -399,6 +399,7 @@ def cache_set(key: str, val: Any, ttl_seconds: int = 600):  # Increased to 10 mi
 
 def check_rate_limit(identifier: str = "global", max_requests: int = 10, window_seconds: int = 60) -> bool:
     """Simple rate limiter - returns True if request is allowed, False if rate limited"""
+    global _RATE_LIMIT
     now = _time.time()
     key = f"rate:{identifier}"
     
