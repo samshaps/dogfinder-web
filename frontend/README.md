@@ -1,3 +1,9 @@
+Local dev tips:
+
+- Ensure a backend is running at http://127.0.0.1:8000 or set NEXT_PUBLIC_API_BASE in .env.local
+  - Create frontend/.env.local with:
+    - NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

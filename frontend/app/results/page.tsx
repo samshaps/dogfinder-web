@@ -4,45 +4,68 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Share2, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { listDogs, type Dog } from '@/lib/api';
-import { generateTopPickReasoning, generateAllMatchReasoning, type AIReasoning } from '@/lib/ai-service';
-import { buildAnalysis, selectTopPicks, type Analysis, type UserPreferences } from '@/utils/matching';
-import { dedupeChips, removeContradictions, improveConcernPhrasing, improveMatchPhrasing } from '@/utils/text';
+import { listDogs, type Dog as APIDog } from '@/lib/api';
+import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/schemas';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import PreferencesSummary from '@/components/PreferencesSummary';
+import { COPY_MAX } from '@/lib/constants/copyLimits';
 
-function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: UserPreferences; analysis?: Analysis }) {
+// Convert API Dog to schemas Dog
+function mapAPIDogToDog(apiDog: APIDog): Dog {
+  return {
+    id: apiDog.id,
+    name: apiDog.name,
+    breeds: apiDog.breeds,
+    age: apiDog.age.toLowerCase(),
+    size: apiDog.size.toLowerCase(),
+    energy: apiDog.tags.includes('high energy') ? 'high' : apiDog.tags.includes('low energy') ? 'low' : 'medium',
+    temperament: apiDog.tags.filter(tag => 
+      ['affectionate', 'playful', 'calm', 'quiet', 'kid-friendly', 'cat-friendly', 'low-maintenance'].includes(tag.toLowerCase())
+    ),
+    location: { 
+      zip: `${apiDog.location.city}, ${apiDog.location.state}`, 
+      distanceMi: apiDog.location.distanceMi 
+    },
+    hypoallergenic: apiDog.tags.some(tag => tag.toLowerCase().includes('hypoallergenic')),
+    shedLevel: apiDog.tags.some(tag => tag.toLowerCase().includes('low shed')) ? 'low' : 
+               apiDog.tags.some(tag => tag.toLowerCase().includes('high shed')) ? 'high' : 'med',
+    groomingLoad: apiDog.tags.some(tag => tag.toLowerCase().includes('low grooming')) ? 'low' :
+                  apiDog.tags.some(tag => tag.toLowerCase().includes('high grooming')) ? 'high' : 'med',
+    barky: apiDog.tags.some(tag => tag.toLowerCase().includes('barky')),
+    rawDescription: apiDog.tags.join(', '),
+    gender: apiDog.gender || 'Unknown',
+    photos: apiDog.photos,
+    publishedAt: apiDog.publishedAt,
+    city: apiDog.location.city,
+    state: apiDog.location.state,
+    tags: apiDog.tags,
+    url: apiDog.url,
+    shelter: apiDog.shelter
+  };
+}
+
+function pickCitedPreference(userPreferences?: UserPreferences): string | null {
+  if (!userPreferences) return null;
+  if (userPreferences.age && userPreferences.age.length > 0) return `${userPreferences.age[0]} age`;
+  if (userPreferences.size && userPreferences.size.length > 0) return `${userPreferences.size[0]} size`;
+  if (userPreferences.energy) return `${userPreferences.energy} energy`;
+  if (userPreferences.temperament && userPreferences.temperament.length > 0) return userPreferences.temperament[0];
+  return null;
+}
+
+function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog; onPhotoClick: (dog: APIDog) => void; userPreferences?: UserPreferences; analysis?: any }) {
   const [showCopied, setShowCopied] = useState(false);
-  const [aiReasoning, setAiReasoning] = useState<AIReasoning | null>(null);
-  const [isLoadingAI, setIsLoadingAI] = useState(true);
   
-  // Load AI reasoning when component mounts
-  useEffect(() => {
-    async function loadAIReasoning() {
-      try {
-        console.log('🤖 Loading AI reasoning for Top Pick:', dog.name);
-        console.log('📝 User preferences:', userPreferences);
-        console.log('🐕 Dog data:', { name: dog.name, breeds: dog.breeds, size: dog.size, age: dog.age, tags: dog.tags });
-        console.log('🎯 Analysis:', analysis);
-        setIsLoadingAI(true);
-        const reasoning = await generateTopPickReasoning(dog, userPreferences || {}, analysis || buildAnalysis(dog, userPreferences || {}));
-        console.log('✅ AI reasoning loaded:', reasoning);
-        setAiReasoning(reasoning);
-      } catch (error) {
-        console.error('❌ Failed to load AI reasoning, using fallback:', error);
-        // Fallback to basic reasoning
-        setAiReasoning({
-          primary: "Great potential as a loving companion",
-          additional: [],
-          concerns: []
-        });
-      } finally {
-        setIsLoadingAI(false);
-      }
-    }
-    
-    loadAIReasoning();
-  }, [dog, userPreferences, analysis]);
+  // Use the analysis data directly from the new matching system
+  const aiReasoning = analysis?.reasons?.primary150 ? {
+    primary: analysis.reasons.primary150,
+    additional: [],
+    concerns: []
+  } : null;
+  const fallbackPrimary = (() => {
+    const cite = pickCitedPreference(userPreferences);
+    return cite ? `Matches your ${cite}.` : 'Great potential as a loving companion';
+  })();
   
   const handleShare = async () => {
     try {
@@ -92,71 +115,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Do
             </div>
             <div>
               <p className="text-sm font-medium text-blue-900 mb-1">Why this dog is perfect for you:</p>
-              {isLoadingAI ? (
-                <div className="animate-pulse">
-                  <div className="h-4 bg-blue-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-blue-200 rounded w-1/2"></div>
-                </div>
-              ) : aiReasoning ? (
-                <>
-                  {(() => {
-                    // Compose one smooth sentence from the start: no em-dashes; use commas and "and"
-                    const humanJoin = (arr: string[]) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
-                    const toClause = (label: string) => {
-                      const mSize = label.match(/\b(Small|Medium|Large|XL|Extra Large)\b/i);
-                      if (mSize) return `${mSize[0]} size fits your needs`;
-                      const mAge = label.match(/\b(Baby|Young|Adult|Senior)\b/i);
-                      if (mAge) return `${mAge[0]} age matches your preference`;
-                      const mEnergy = label.match(/Energy level matches \((low|medium|high)\)/i);
-                      if (mEnergy) return `${mEnergy[1]} energy`;
-                      if (/hypoallergenic/i.test(label)) return 'hypoallergenic temperament';
-                      return improveMatchPhrasing(label);
-                    };
-
-                    // Gather candidate clauses from matched preferences
-                    const traitClauses: string[] = [];
-                    if (analysis && analysis.matchedPrefs.length > 0) {
-                      const { matches } = removeContradictions(
-                        analysis.matchedPrefs.map(p => p.label),
-                        [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches]
-                      );
-                      const unique = dedupeChips(matches).map(toClause).filter(Boolean);
-                      traitClauses.push(...unique);
-                    }
-
-                    // Additional AI phrases can be appended as natural short clauses
-                    const extra = (aiReasoning.additional || []).filter(Boolean).map(s => s.replace(/\.+\s*$/, ''));
-
-                    // If AI provided a primary, weave clauses around it; otherwise synthesize from traits
-                    let primary = (aiReasoning.primary || '').replace(/\.+\s*$/, '');
-                    const canon = primary.toLowerCase();
-                    const filteredTraits = traitClauses.filter(c => {
-                      const lc = c.toLowerCase();
-                      return !(
-                        (/(baby|young|adult|senior) age/.test(lc) && /(baby|young|adult|senior)\b/.test(canon)) ||
-                        (/size fits your needs/.test(lc) && /(small|medium|large|xl|extra\s+large)\b/.test(canon)) ||
-                        (/energy/.test(lc) && /energy/.test(canon)) ||
-                        (/hypoallergenic/.test(lc) && /hypoallergenic/.test(canon))
-                      );
-                    });
-
-                    // Limit to at most 2 supporting clauses for readability
-                    const support = humanJoin([...filteredTraits.slice(0, 2), ...extra.slice(0, 1)]);
-                    let sentence: string;
-                    if (primary) {
-                      sentence = support ? `${primary}, ${support}.` : `${primary}.`;
-                    } else if (support) {
-                      sentence = `${support.charAt(0).toUpperCase()}${support.slice(1)}.`;
-                    } else {
-                      sentence = 'A promising match based on your preferences.';
-                    }
-                    return <p className="text-sm text-blue-800 mb-2">{sentence}</p>;
-                  })()}
-                  {/* Concerns removed from AI card */}
-                </>
-              ) : (
-                <p className="text-sm text-blue-800">Great potential as a loving companion</p>
-              )}
+              <p className="text-sm text-blue-800">{aiReasoning ? aiReasoning.primary : fallbackPrimary}</p>
             </div>
           </div>
         </div>
@@ -196,33 +155,12 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Do
   );
 }
 
-function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; onPhotoClick: (dog: Dog) => void; userPreferences?: UserPreferences; analysis?: Analysis }) {
+function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog; onPhotoClick: (dog: APIDog) => void; userPreferences?: UserPreferences; analysis?: any }) {
   const [showCopied, setShowCopied] = useState(false);
-  const [shortAIReasoning, setShortAIReasoning] = useState<string>('');
-  const [isLoadingAI, setIsLoadingAI] = useState(true);
   
-  // Load AI reasoning when component mounts
-  useEffect(() => {
-    async function loadAIReasoning() {
-      try {
-        console.log('🤖 Loading AI reasoning for All Match:', dog.name);
-        console.log('📝 User preferences:', userPreferences);
-        console.log('🎯 Analysis:', analysis);
-        setIsLoadingAI(true);
-        const reasoning = await generateAllMatchReasoning(dog, userPreferences || {}, analysis || buildAnalysis(dog, userPreferences || {}));
-        console.log('✅ AI reasoning loaded:', reasoning);
-        setShortAIReasoning(reasoning);
-      } catch (error) {
-        console.error('❌ Failed to load AI reasoning, using fallback:', error);
-        // Fallback to basic reasoning
-        setShortAIReasoning('Great companion');
-      } finally {
-        setIsLoadingAI(false);
-      }
-    }
-    
-    loadAIReasoning();
-  }, [dog, userPreferences, analysis]);
+  // Use the analysis data directly from the new matching system
+  // All Matches: no AI guidance rendered
+  const shortAIReasoning = '';
   
   const handleShare = async () => {
     try {
@@ -265,22 +203,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; o
           
           {/* Matches chips removed for simplified UI */}
 
-          {/* Things to consider */}
-          {analysis && (analysis.unmetPrefs.length > 0 || analysis.mismatches.length > 0) && (
-            <div className="mb-2">
-              <p className="text-xs font-medium text-amber-800 mb-1">⚠️ Consider:</p>
-              <div className="flex flex-wrap gap-1">
-                {(() => {
-                  const allConcerns = [...analysis.unmetPrefs.map(p => p.label), ...analysis.mismatches];
-                  return dedupeChips(allConcerns).slice(0, 1).map((concern, index) => (
-                    <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800">
-                      {improveConcernPhrasing(concern)}
-                    </span>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
+          {/* Things to consider removed */}
           
           {/* Removed tag bubbles for cleaner UI */}
         </div>
@@ -298,17 +221,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; o
           <span className="text-xs text-gray-600">{dog.shelter.name}</span>
         </div>
         
-        {/* AI Note - Short Dynamic */}
-        <div className="flex items-center gap-1">
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-            <Home className="w-3 h-3" />
-            {isLoadingAI ? (
-              <div className="animate-pulse bg-blue-200 h-3 w-16 rounded"></div>
-            ) : (
-              shortAIReasoning || 'Great companion'
-            )}
-          </div>
-        </div>
+        {/* AI Note removed for All Matches */}
         
         <div className="mt-4 flex gap-2">
           <a
@@ -333,15 +246,16 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: Dog; o
 
 function ResultsPageContent() {
   const searchParams = useSearchParams();
-  const [dogs, setDogs] = useState<Dog[]>([]);
-  const [topPicks, setTopPicks] = useState<Dog[]>([]);
+  const [dogs, setDogs] = useState<APIDog[]>([]);
+  const [topPicks, setTopPicks] = useState<APIDog[]>([]);
+  const [matchingResults, setMatchingResults] = useState<MatchingResults | null>(null);
   const [showFallbackBanner, setShowFallbackBanner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('freshness');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedDog, setSelectedDog] = useState<Dog | null>(null);
+  const [selectedDog, setSelectedDog] = useState<APIDog | null>(null);
   
   // Extract search parameters
   const searchQuery = useMemo(() => ({
@@ -354,19 +268,35 @@ function ResultsPageContent() {
     temperament: searchParams.get('temperament')?.split(',') || [],
     energy: searchParams.get('energy') || '',
     guidance: searchParams.get('guidance') || '',  // ADD GUIDANCE EXTRACTION
+    t_age: searchParams.get('t_age') === '1',
+    t_size: searchParams.get('t_size') === '1',
+    t_energy: searchParams.get('t_energy') === '1',
+    t_temperament: searchParams.get('t_temperament') === '1',
+    t_breedsInclude: searchParams.get('t_breedsInclude') === '1',
+    t_breedsExclude: searchParams.get('t_breedsExclude') === '1',
     page: currentPage,
     limit: 12
   }), [searchParams, currentPage]);
 
   // Extract user preferences for AI reasoning  
   const userPreferences: UserPreferences = {
-    age: searchQuery.age,
-    size: searchQuery.size,
-    includeBreeds: searchQuery.includeBreeds,
-    excludeBreeds: searchQuery.excludeBreeds,  // ADD MISSING EXCLUDEBREEDS
-    temperament: searchQuery.temperament,
-    energy: searchQuery.energy,
-    guidance: searchQuery.guidance  // ADD GUIDANCE TO USER PREFERENCES
+    zipCodes: [searchQuery.zip].filter(Boolean),
+    radiusMi: searchQuery.radius,
+    breedsInclude: searchQuery.t_breedsInclude ? searchQuery.includeBreeds : undefined,
+    breedsExclude: searchQuery.t_breedsExclude ? searchQuery.excludeBreeds : undefined,
+    age: searchQuery.t_age ? (searchQuery.age as ("baby" | "young" | "adult" | "senior")[]) : undefined,
+    size: searchQuery.t_size ? (searchQuery.size as ("small" | "medium" | "large" | "xl")[]) : undefined,
+    energy: searchQuery.t_energy ? ((searchQuery.energy || undefined) as "low" | "medium" | "high" | undefined) : undefined,
+    temperament: searchQuery.t_temperament ? (searchQuery.temperament as ("eager-to-please" | "intelligent" | "focused" | "adaptable" | "independent-thinker" | "loyal" | "protective" | "confident" | "gentle" | "sensitive" | "playful" | "calm-indoors" | "alert-watchful" | "quiet" | "companion-driven")[]) : undefined,
+    guidance: searchQuery.guidance,
+    touched: {
+      age: searchQuery.t_age,
+      size: searchQuery.t_size,
+      energy: searchQuery.t_energy,
+      temperament: searchQuery.t_temperament,
+      breedsInclude: searchQuery.t_breedsInclude,
+      breedsExclude: searchQuery.t_breedsExclude,
+    }
   };
   
   // DEBUG TRACE GUIDANCE
@@ -380,12 +310,12 @@ function ResultsPageContent() {
   console.log('🔍 RESULTS PAGE DEBUG: userPreferences for AI:', userPreferences);
   
   // Filter dogs to only include those with photos
-  const filterDogsWithPhotos = (dogs: Dog[]) => {
+  const filterDogsWithPhotos = (dogs: APIDog[]) => {
     return dogs.filter(dog => dog.photos && dog.photos.length > 0);
   };
 
   // Modal handlers
-  const handlePhotoClick = (dog: Dog) => {
+  const handlePhotoClick = (dog: APIDog) => {
     setSelectedDog(dog);
   };
 
@@ -394,7 +324,7 @@ function ResultsPageContent() {
   };
 
   // Create a fingerprint for de-duplication (frontend safety net)
-  const createDogFingerprint = (dog: Dog): string => {
+  const createDogFingerprint = (dog: APIDog): string => {
     const name = (dog.name || '').trim().toLowerCase();
     const breeds = dog.breeds.join(',').toLowerCase();
     const age = (dog.age || '').trim().toLowerCase();
@@ -428,11 +358,67 @@ function ResultsPageContent() {
         setDogs(dogsWithPhotos);
         setTotalPages(Math.ceil(dogsWithPhotos.length / response.pageSize));
         
-        // Use AI to select top picks based on user preferences
-        console.log('🎯 AI TOP PICKS: Starting AI-based selection...');
-        const { dogs: aiTopPicks, showFallbackBanner: showBanner } = await selectTopPicks(dogsWithPhotos, userPreferences, 3);
-        setTopPicks(aiTopPicks);
-        setShowFallbackBanner(showBanner);
+        // Use the new matching API to get top picks and all matches
+        console.log('🎯 NEW MATCHING: Starting matching process...');
+        try {
+          const matchingResponse = await fetch('/api/match-dogs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userPreferences: userPreferences,
+              dogs: dogsWithPhotos.map(mapAPIDogToDog)
+            })
+          });
+          
+          if (!matchingResponse.ok) {
+            throw new Error(`Matching API error: ${matchingResponse.status}`);
+          }
+          
+          const payload = await matchingResponse.json();
+          // eslint-disable-next-line no-console
+          console.log('🧩 Matching payload:', payload);
+          const results: MatchingResults = payload?.results ?? payload;
+          // eslint-disable-next-line no-console
+          console.log('🧩 Matching results summary:', {
+            topMatches: results?.topMatches?.length || 0,
+            allMatches: results?.allMatches?.length || 0,
+            expansionNotes: results?.expansionNotes?.length || 0,
+          });
+          setMatchingResults(results);
+          // eslint-disable-next-line no-console
+          console.log('🧩 Reasons presence:', {
+            topHasReasons: (results?.topMatches || []).filter(m => m?.reasons?.primary150)?.length,
+            allHasBlurbs: (results?.allMatches || []).filter(m => m?.reasons?.blurb50)?.length,
+          });
+          if ((results?.topMatches || []).length > 0) {
+            const sample = (results.topMatches[0] || {}).reasons;
+            // eslint-disable-next-line no-console
+            console.log('🧩 Sample top reason:', sample);
+          }
+          
+          // Extract top picks from matching results (convert back to API dogs)
+          const topPicksDogs = (results?.topMatches ?? []).map((match: any) => 
+            dogsWithPhotos.find(dog => dog.id === match.dogId)
+          ).filter(Boolean) as APIDog[];
+          // eslint-disable-next-line no-console
+          console.log('🧩 Top picks resolved to', topPicksDogs.length, 'dogs');
+          
+          if (topPicksDogs.length === 0) {
+            // Fallback: take first 3 dogs with photos
+            setTopPicks(dogsWithPhotos.slice(0, 3));
+            setShowFallbackBanner(false);
+          } else {
+            setTopPicks(topPicksDogs);
+            setShowFallbackBanner(false);
+          }
+        } catch (matchingError) {
+          console.error('❌ Matching API error:', matchingError);
+          // Fallback to simple filtering if matching API fails
+          setTopPicks(dogsWithPhotos.slice(0, 3));
+          setShowFallbackBanner(false);
+        }
         
       } catch (err) {
         console.error('Error fetching dogs:', err);
@@ -584,7 +570,8 @@ function ResultsPageContent() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {topPicks.map((dog) => {
-                const analysis = buildAnalysis(dog, userPreferences);
+                // Find the analysis for this dog from matching results
+                const analysis = matchingResults?.topMatches?.find(match => match.dogId === dog.id);
                 return (
                   <TopPickCard 
                     key={dog.id} 
@@ -605,12 +592,13 @@ function ResultsPageContent() {
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {dogs.map((dog) => {
-              const analysis = buildAnalysis(dog, userPreferences);
+              // Find the analysis for this dog from matching results
+              const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
               return (
                 <DogCard 
-                  key={dog.id} 
-                  dog={dog} 
-                  onPhotoClick={handlePhotoClick} 
+                  key={dog.id}
+                  dog={dog}
+                  onPhotoClick={handlePhotoClick}
                   userPreferences={userPreferences}
                   analysis={analysis}
                 />

@@ -137,8 +137,8 @@ export function tryParseShortReasoning(response: string): string | null {
     }
   }
   
-  // Return the text itself if it's reasonable length
-  if (text.length <= 50 && text.length > 0) {
+  // Return the text itself if it's reasonable length and not just empty JSON
+  if (text.length <= 50 && text.length > 0 && text !== '{}') {
     return text;
   }
   
