@@ -34,8 +34,15 @@ export async function GET(request: NextRequest) {
         try {
           const errorData = await response.json();
           if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
-            console.log('🚫 Rate limit detected, redirecting to cute error page');
-            return NextResponse.redirect(new URL('/rate-limit', request.url));
+            console.log('🚫 Rate limit detected, returning special error');
+            return NextResponse.json(
+              { 
+                error: 'RATE_LIMIT_EXCEEDED',
+                message: 'We\'ve been hugged to death! Please try again in a few minutes.',
+                redirectTo: '/rate-limit'
+              },
+              { status: 429 }
+            );
           }
         } catch (e) {
           // If we can't parse the error, continue with normal error handling

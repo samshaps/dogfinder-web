@@ -229,7 +229,22 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
         throw e;
       }
     }
-    if (!resp || !resp.ok) throw new Error(`API error: ${resp?.status} ${resp?.statusText}`);
+    if (!resp || !resp.ok) {
+      // Check for rate limit error
+      if (resp.status === 429) {
+        try {
+          const errorData = await resp.json();
+          if (errorData.error === 'RATE_LIMIT_EXCEEDED') {
+            // Redirect to cute error page
+            window.location.href = '/rate-limit';
+            return { items: [], page: 1, pageSize: 12, total: 0 };
+          }
+        } catch (e) {
+          // If we can't parse the error, continue with normal error handling
+        }
+      }
+      throw new Error(`API error: ${resp?.status} ${resp?.statusText}`);
+    }
     const data = await resp.json();
     return {
       items: data.items.map(transformDogData),
