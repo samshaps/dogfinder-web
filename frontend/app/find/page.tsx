@@ -94,7 +94,15 @@ export default function FindPage() {
     excludeBreeds: [] as string[],
     temperament: [] as string[],
     energy: '',
-    guidance: ''
+    guidance: '',
+    touched: {
+      age: false,
+      size: false,
+      energy: false,
+      temperament: false,
+      breedsInclude: false,
+      breedsExclude: false,
+    }
   });
   
   const [newZipCode, setNewZipCode] = useState('');
@@ -117,16 +125,21 @@ export default function FindPage() {
   ];
   
   const temperamentOptions = [
-    { value: 'affectionate', label: 'Affectionate', description: 'Loves cuddles and attention' },
-    { value: 'good-with-kids', label: 'Good with kids', description: 'Gentle and patient with children' },
-    { value: 'good-with-dogs', label: 'Good with dogs', description: 'Gets along with other dogs' },
-    { value: 'good-with-cats', label: 'Good with cats', description: 'Compatible with cats' },
+    { value: 'eager-to-please', label: 'Eager to please', description: 'Quick to learn and obey' },
+    { value: 'intelligent', label: 'Intelligent', description: 'Smart and quick-witted' },
+    { value: 'focused', label: 'Focused', description: 'Concentrates on tasks well' },
+    { value: 'adaptable', label: 'Adaptable', description: 'Adjusts well to new situations' },
+    { value: 'independent-thinker', label: 'Independent thinker', description: 'Makes own decisions' },
+    { value: 'loyal', label: 'Loyal', description: 'Devoted and faithful' },
     { value: 'protective', label: 'Protective', description: 'Guards family and home' },
+    { value: 'confident', label: 'Confident', description: 'Self-assured and bold' },
+    { value: 'gentle', label: 'Gentle', description: 'Soft and tender nature' },
+    { value: 'sensitive', label: 'Sensitive', description: 'Emotionally responsive' },
     { value: 'playful', label: 'Playful', description: 'Loves games and toys' },
-    { value: 'independent', label: 'Independent', description: 'Can be left alone for periods' },
+    { value: 'calm-indoors', label: 'Calm indoors', description: 'Relaxed inside the home' },
+    { value: 'alert-watchful', label: 'Alert/watchful', description: 'Always aware of surroundings' },
     { value: 'quiet', label: 'Quiet', description: 'Low barking, calm demeanor' },
-    { value: 'easy-to-train', label: 'Easy to train', description: 'Quick to learn commands' },
-    { value: 'hypoallergenic', label: 'Hypoallergenic', description: 'Low shedding, allergy-friendly' }
+    { value: 'companion-driven', label: 'Companion-driven', description: 'Loves being near people' }
   ];
   
   const energyOptions = [
@@ -222,10 +235,12 @@ export default function FindPage() {
     const inc = newIncludeBreed.trim();
     if (inc.length > 0 && !pending.includeBreeds.includes(inc)) {
       pending.includeBreeds = [...pending.includeBreeds, inc];
+      pending.touched = { ...(pending.touched || {}), breedsInclude: true };
     }
     const exc = newExcludeBreed.trim();
     if (exc.length > 0 && !pending.excludeBreeds.includes(exc)) {
       pending.excludeBreeds = [...pending.excludeBreeds, exc];
+      pending.touched = { ...(pending.touched || {}), breedsExclude: true };
     }
 
     // Build query parameters
@@ -239,6 +254,9 @@ export default function FindPage() {
     if (pending.temperament.length > 0) params.set('temperament', pending.temperament.join(','));
     if (pending.energy) params.set('energy', pending.energy);
     if (pending.guidance) params.set('guidance', pending.guidance);
+    // touched flags → query params (t_field=1)
+    const t = pending.touched || {};
+    Object.entries(t).forEach(([k, v]) => { if (v) params.set(`t_${k}`, '1'); });
     
     // Navigate to results page
     router.push(`/results?${params.toString()}`);
@@ -387,7 +405,7 @@ export default function FindPage() {
               <PillControl
                 options={ageOptions}
                 selectedValues={formData.age}
-                onChange={(values) => handleInputChange('age', values)}
+                onChange={(values) => setFormData(prev => ({ ...prev, age: values, touched: { ...prev.touched, age: true } }))}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={true}
@@ -400,7 +418,7 @@ export default function FindPage() {
               <PillControl
                 options={sizeOptions}
                 selectedValues={formData.size}
-                onChange={(values) => handleInputChange('size', values)}
+                onChange={(values) => setFormData(prev => ({ ...prev, size: values, touched: { ...prev.touched, size: true } }))}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={true}
@@ -413,7 +431,7 @@ export default function FindPage() {
               <PillControl
                 options={energyOptions}
                 selectedValues={formData.energy ? [formData.energy] : []}
-                onChange={(values) => handleInputChange('energy', values[0] || '')}
+                onChange={(values) => setFormData(prev => ({ ...prev, energy: values[0] || '', touched: { ...prev.touched, energy: true } }))}
                 multiSelect={false}
                 showDescriptions={false}
                 cardStyle={true}
@@ -426,7 +444,7 @@ export default function FindPage() {
               <PillControl
                 options={temperamentOptions}
                 selectedValues={formData.temperament}
-                onChange={(values) => handleInputChange('temperament', values)}
+                onChange={(values) => setFormData(prev => ({ ...prev, temperament: values, touched: { ...prev.touched, temperament: true } }))}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={false}

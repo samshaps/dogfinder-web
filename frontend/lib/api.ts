@@ -1,6 +1,8 @@
 // API utility functions for communicating with the FastAPI backend
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
+// Prefer env base; in dev default to FastAPI backend directly
+const DEV_DEFAULT_BASE = 'http://127.0.0.1:8000';
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV !== 'production' ? DEV_DEFAULT_BASE : '');
 
 // Type definitions for our data (matching the FastAPI response)
 export interface Dog {
@@ -74,9 +76,14 @@ type RawDog = {
 function buildQueryString(params: SearchParams): string {
   const searchParams = new URLSearchParams();
   
+  const sanitizeToken = (t: string) => String(t).split('?')[0].trim();
   const setCSV = (key: string, value?: string | string[]) => {
     if (value === undefined || value === null) return;
-    const str = Array.isArray(value) ? value.filter(Boolean).join(',') : String(value).trim();
+    const parts = Array.isArray(value) ? value : String(value).split(',');
+    const cleaned = parts
+      .map(v => sanitizeToken(v))
+      .filter(Boolean);
+    const str = cleaned.join(',');
     if (str.length > 0) searchParams.set(key, str);
   };
 
@@ -87,7 +94,7 @@ function buildQueryString(params: SearchParams): string {
   setCSV('excludeBreeds', params.excludeBreeds);
   setCSV('size', params.size);
   setCSV('temperament', params.temperament);
-  if (params.energy && params.energy.trim().length > 0) searchParams.set('energy', params.energy);
+  if (params.energy && sanitizeToken(params.energy).length > 0) searchParams.set('energy', sanitizeToken(params.energy));
   if (params.guidance && params.guidance.trim().length > 0) searchParams.set('guidance', params.guidance);
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.page) searchParams.set('page', params.page.toString());
@@ -148,7 +155,8 @@ function transformDogData(raw: RawDog): Dog {
 export async function searchDogs(params: SearchParams = {}): Promise<DogsResponse> {
   // Expand structured prefs with guidance before hitting the backend so the backend fetch includes expanded filters
   try {
-    const { mergeGuidanceIntoPrefs } = await import('@/utils/matching');
+    // Guidance processing is now handled by the new matching system
+    // const { mergeGuidanceIntoPrefs } = await import('@/utils/matching');
     // If guidance text exists, normalize it via the LLM endpoint first
     if (params.guidance && params.guidance.trim().length > 0) {
       try {
@@ -174,7 +182,8 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
         }
       } catch {}
     }
-    const eff = mergeGuidanceIntoPrefs({
+    // Create effective preferences for the API call
+    const effectiveParams = {
       age: Array.isArray(params.age) ? params.age as string[] : (params.age ? String(params.age).split(',') : undefined),
       size: Array.isArray(params.size) ? params.size as string[] : (params.size ? String(params.size).split(',') : undefined),
       includeBreeds: Array.isArray(params.includeBreeds) ? params.includeBreeds as string[] : (params.includeBreeds ? String(params.includeBreeds).split(',') : undefined),
@@ -182,8 +191,8 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
       temperament: Array.isArray(params.temperament) ? params.temperament as string[] : (params.temperament ? String(params.temperament).split(',') : undefined),
       energy: params.energy as any,
       guidance: params.guidance,
-    });
-    params = { ...params, age: eff.age, size: eff.size, temperament: eff.temperament, energy: eff.energy as any };
+    };
+    params = { ...params, ...effectiveParams };
     // Debug log (prints in Next dev terminal for SSR, and in browser on CSR)
     // eslint-disable-next-line no-console
     console.log('🔎 Expanded search params:', { age: params.age, size: params.size, energy: params.energy, temperament: params.temperament, guidance: params.guidance });
@@ -198,10 +207,29 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
 
   const fetchForZip = async (zip: string): Promise<DogsResponse> => {
     const qs = buildQueryString({ ...params, zip });
+    const primaryUrl = `${API_BASE}/api/dogs${qs}`;
+    const fallbackUrl = `/api/dogs${qs}`;
     // eslint-disable-next-line no-console
-    console.log('🔎 Fetching:', `${API_BASE}/api/dogs${qs}`);
-    const resp = await fetch(`${API_BASE}/api/dogs${qs}`, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+    console.log('🔎 Fetching:', primaryUrl);
+    let resp: Response | null = null;
+    try {
+      resp = await fetch(primaryUrl, { cache: 'no-store' });
+      if (!resp.ok && API_BASE) {
+        // eslint-disable-next-line no-console
+        console.warn('⚠️ Primary API_BASE fetch failed, retrying without base:', resp.status, resp.statusText);
+        resp = await fetch(fallbackUrl, { cache: 'no-store' });
+      }
+    } catch (e) {
+      if (API_BASE) {
+        // Network error to API_BASE, retry without base
+        // eslint-disable-next-line no-console
+        console.warn('⚠️ Primary API_BASE fetch errored, retrying without base:', (e as Error)?.message);
+        resp = await fetch(fallbackUrl, { cache: 'no-store' });
+      } else {
+        throw e;
+      }
+    }
+    if (!resp || !resp.ok) throw new Error(`API error: ${resp?.status} ${resp?.statusText}`);
     const data = await resp.json();
     return {
       items: data.items.map(transformDogData),

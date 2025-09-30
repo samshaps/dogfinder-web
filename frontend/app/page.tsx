@@ -27,5 +27,17 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <HomePageClient />;
+  console.log('🏠 HomePage rendering...');
+  
+  try {
+    return <HomePageClient />;
+  } catch (error) {
+    console.error('❌ HomePage error:', error);
+    return (
+      <div>
+        <h1>Error loading page</h1>
+        <p>Something went wrong: {error instanceof Error ? error.message : 'Unknown error'}</p>
+      </div>
+    );
+  }
 }

@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
     // Temporarily ignore ESLint errors during builds to unblock preflight
     ignoreDuringBuilds: true,
   },
+  // Ensure correct monorepo/workspace root for file tracing and chunk resolution (moved out of experimental)
+  outputFileTracingRoot: path.join(__dirname, ".."), // /Users/samshap/Desktop/Dev/dogfinder-app
   images: {
     remotePatterns: [
       {
