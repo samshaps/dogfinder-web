@@ -288,6 +288,10 @@ def search_animals(
     page_size: int,
     sort: str,
 ) -> Dict[str, Any]:
+    # Check rate limit before making API calls
+    if not check_rate_limit("search", max_requests=5, window_seconds=60):
+        raise Exception("Rate limit exceeded. Please try again in a minute.")
+    
     token = get_token()
     all_animals: Dict[Any, Dict[str, Any]] = {}
     seen_fingerprints: set = set()
@@ -377,6 +381,7 @@ def get_animal_by_id(animal_id: str) -> Optional[Dict[str, Any]]:
 # -------- Simple in-memory TTL cache --------
 _CACHE: Dict[str, Tuple[float, Any]] = {}
 _ORG_CACHE: Dict[str, Tuple[float, Any]] = {}  # Cache for organization data
+_RATE_LIMIT: Dict[str, float] = {}  # Simple rate limiting
 
 def cache_get(key: str):
     now = _time.time()
@@ -389,8 +394,27 @@ def cache_get(key: str):
         return None
     return val
 
-def cache_set(key: str, val: Any, ttl_seconds: int = 120):
+def cache_set(key: str, val: Any, ttl_seconds: int = 600):  # Increased to 10 minutes
     _CACHE[key] = (_time.time() + ttl_seconds, val)
+
+def check_rate_limit(identifier: str = "global", max_requests: int = 10, window_seconds: int = 60) -> bool:
+    """Simple rate limiter - returns True if request is allowed, False if rate limited"""
+    now = _time.time()
+    key = f"rate:{identifier}"
+    
+    # Clean old entries
+    cutoff = now - window_seconds
+    _RATE_LIMIT = {k: v for k, v in _RATE_LIMIT.items() if v > cutoff}
+    
+    # Count requests in window
+    recent_requests = [v for v in _RATE_LIMIT.values() if v > cutoff]
+    
+    if len(recent_requests) >= max_requests:
+        return False
+    
+    # Record this request
+    _RATE_LIMIT[f"{key}:{now}"] = now
+    return True
 
 def fetch_all_animals():
     token = get_token()
