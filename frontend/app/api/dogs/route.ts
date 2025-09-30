@@ -29,23 +29,29 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       console.error('❌ Backend API error:', response.status, response.statusText);
       
-      // Check if it's a rate limit error (429 from Petfinder)
+      // Check if it's a rate limit error (429 from Petfinder) - check for 400 status
       if (response.status === 400) {
         try {
-          const errorData = await response.json();
-          if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
-            console.log('🚫 Rate limit detected, returning special error');
-            return NextResponse.json(
-              { 
-                error: 'RATE_LIMIT_EXCEEDED',
-                message: 'We\'ve been hugged to death! Please try again in a few minutes.',
-                redirectTo: '/rate-limit'
-              },
-              { status: 429 }
-            );
+          const errorText = await response.text();
+          console.log('📄 Backend error response:', errorText);
+          
+          // Parse the JSON and check for rate limit
+          if (errorText) {
+            const errorData = JSON.parse(errorText);
+            if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
+              console.log('🚫 Rate limit detected, returning 429');
+              return NextResponse.json(
+                { 
+                  error: 'RATE_LIMIT_EXCEEDED',
+                  message: 'We\'ve been hugged to death! Please try again in a few minutes.',
+                  redirectTo: '/rate-limit'
+                },
+                { status: 429 }
+              );
+            }
           }
         } catch (e) {
-          // If we can't parse the error, continue with normal error handling
+          console.error('❌ Error parsing backend response:', e);
         }
       }
       
