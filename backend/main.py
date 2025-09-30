@@ -49,6 +49,7 @@ EXCLUDED_BREEDS = {
 PETFINDER_TOKEN_URL = "https://api.petfinder.com/v2/oauth2/token"
 PETFINDER_ANIMALS_URL = "https://api.petfinder.com/v2/animals"
 PETFINDER_ANIMAL_DETAIL_URL = "https://api.petfinder.com/v2/animals/{id}"
+PETFINDER_ORGANIZATION_URL = "https://api.petfinder.com/v2/organizations/{id}"
 
 # Only consider last 24h
 NOW_UTC = datetime.now(timezone.utc)
@@ -197,6 +198,85 @@ def create_dog_fingerprint(dog: Dict[str, Any]) -> str:
     # Join with a separator that's unlikely to appear in the data
     return "|||".join(fingerprint_parts)
 
+def get_organization_by_id(organization_id: str, token: str) -> Optional[Dict[str, Any]]:
+    """Fetch organization details from Petfinder API with caching."""
+    # Check cache first
+    cache_key = f"org:{organization_id}"
+    now = _time.time()
+    entry = _ORG_CACHE.get(cache_key)
+    if entry:
+        exp, val = entry
+        if exp > now:
+            return val
+        else:
+            _ORG_CACHE.pop(cache_key, None)
+    
+    # Fetch from API
+    headers = {"Authorization": f"Bearer {token}"}
+    url = PETFINDER_ORGANIZATION_URL.format(id=organization_id)
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        data = r.json() or {}
+        org_data = data.get("organization")
+        
+        # Cache the result for 1 hour
+        if org_data:
+            _ORG_CACHE[cache_key] = (now + 3600, org_data)
+        
+        return org_data
+    except Exception as e:
+        print(f"Error fetching organization {organization_id}: {e}")
+        return None
+
+def extract_organization_info(animal: Dict[str, Any], token: str) -> Dict[str, Any]:
+    """Extract organization information from animal data for frontend compatibility."""
+    contact = animal.get("contact", {}) or {}
+    organization_id = animal.get("organization_id")
+    
+    # Try to get actual organization data from API
+    if organization_id:
+        org_data = get_organization_by_id(organization_id, token)
+        if org_data:
+            return {
+                "name": org_data.get("name", "Unknown Shelter"),
+                "email": org_data.get("email", contact.get("email", "")),
+                "phone": org_data.get("phone", contact.get("phone", ""))
+            }
+    
+    # Fallback to contact-based extraction if API call fails
+    address = contact.get("address", {}) or {}
+    city = address.get("city", "")
+    state = address.get("state", "")
+    email = contact.get("email", "")
+    
+    # Create organization name from location and email domain
+    org_name = "Unknown Shelter"
+    if city and state:
+        # Try to extract organization name from email domain
+        if email and "@" in email:
+            domain = email.split("@")[1]
+            # Remove common domain suffixes and use as organization name
+            org_name = domain.replace(".org", "").replace(".com", "").replace(".net", "")
+            # Capitalize and clean up
+            org_name = " ".join(word.capitalize() for word in org_name.replace(".", " ").replace("-", " ").split())
+            if not org_name:
+                org_name = f"Shelter in {city}, {state}"
+        else:
+            org_name = f"Shelter in {city}, {state}"
+    elif email and "@" in email:
+        domain = email.split("@")[1]
+        org_name = domain.replace(".org", "").replace(".com", "").replace(".net", "")
+        org_name = " ".join(word.capitalize() for word in org_name.replace(".", " ").replace("-", " ").split())
+    
+    return {
+        "name": org_name,
+        "email": email,
+        "phone": contact.get("phone", "")
+    }
+
 def search_animals(
     zips: List[str],
     distance_miles: int,
@@ -231,6 +311,9 @@ def search_animals(
                 aid = a.get("id")
                 if aid is None or aid in all_animals:
                     continue
+                
+                # Add organization information for frontend compatibility
+                a["organization"] = extract_organization_info(a, token)
                 
                 # Add to both tracking systems
                 all_animals[aid] = a
@@ -293,6 +376,7 @@ def get_animal_by_id(animal_id: str) -> Optional[Dict[str, Any]]:
 
 # -------- Simple in-memory TTL cache --------
 _CACHE: Dict[str, Tuple[float, Any]] = {}
+_ORG_CACHE: Dict[str, Tuple[float, Any]] = {}  # Cache for organization data
 
 def cache_get(key: str):
     now = _time.time()
@@ -332,6 +416,8 @@ def fetch_all_animals():
                 # Also check by ID as backup
                 aid = a.get("id")
                 if aid is not None and aid not in all_animals:
+                    # Add organization information for frontend compatibility
+                    a["organization"] = extract_organization_info(a, token)
                     all_animals[aid] = a
                     seen_fingerprints.add(fingerprint)
     # Sort by published_at desc
