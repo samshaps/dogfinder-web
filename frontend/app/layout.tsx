@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProviders } from "@/components/AuthProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,12 +32,25 @@ export default function RootLayout({
   
   return (
     <html lang="en">
+      <head>
+        {/* Umami Analytics */}
+        {process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL && 
+         process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            src={process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL}
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <AuthProviders>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </AuthProviders>
       </body>
     </html>
   );
