@@ -55,7 +55,10 @@ export type PaymentEvent =
 // Profile events
 export type ProfileEvent =
   | 'profile_viewed'
-  | 'profile_plan_changed';
+  | 'profile_plan_changed'
+  | 'preferences_saved'
+  | 'preferences_viewed'
+  | 'search_history_viewed';
 
 // All event types
 export type AnalyticsEvent =
