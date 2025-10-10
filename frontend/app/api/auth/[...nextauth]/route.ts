@@ -31,14 +31,28 @@ const handler = NextAuth({
     async signIn({ user, account, profile }) {
       // Create or update user in database
       try {
-        if (!user.email) return false;
+        console.log('🔍 NextAuth signIn callback started');
+        console.log('User:', { email: user.email, name: user.name, id: user.id });
+        console.log('Account:', { provider: account?.provider, providerAccountId: account?.providerAccountId });
+        
+        if (!user.email) {
+          console.log('❌ No user email provided');
+          return false;
+        }
+
+        // Test database connection first
+        console.log('🔍 Testing database connection...');
+        const testQuery = await query('SELECT NOW() as current_time');
+        console.log('✅ Database connection successful:', testQuery.rows[0]);
 
         const existingUser = await query(
           'SELECT id FROM users WHERE email = $1',
           [user.email]
         );
+        console.log('🔍 Existing user check:', existingUser.rows.length > 0 ? 'Found' : 'Not found');
 
         if (existingUser.rows.length === 0) {
+          console.log('🔍 Creating new user...');
           // Create new user
           const newUser = await query(
             `INSERT INTO users (email, name, image, provider, provider_account_id)
@@ -53,22 +67,39 @@ const handler = NextAuth({
               account?.providerAccountId || user.id
             ]
           );
+          console.log('✅ New user created:', newUser.rows[0]);
 
           // Create default plan for new user
           if (newUser.rows.length > 0) {
             const userId = newUser.rows[0].id;
+            console.log('🔍 Creating default plan for user:', userId);
             await query(
               `INSERT INTO plans (user_id, tier, status)
                VALUES ($1, $2, $3)
                ON CONFLICT (user_id) DO NOTHING`,
               [userId, 'free', 'active']
             );
+            console.log('✅ Default plan created');
           }
         }
 
+        console.log('✅ NextAuth signIn callback completed successfully');
         return true;
       } catch (error) {
-        console.error('Error creating user:', error);
+        console.error('❌ Error in NextAuth signIn callback:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          detail: error.detail,
+          hint: error.hint,
+          position: error.position,
+          where: error.where,
+          schema: error.schema,
+          table: error.table,
+          column: error.column,
+          dataType: error.dataType,
+          constraint: error.constraint
+        });
         return false;
       }
     },
