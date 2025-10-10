@@ -10,7 +10,7 @@ let pool: Pool | null = null;
 export function getPool(): Pool {
   if (!pool) {
     // Try POSTGRES_URL first (for Vercel/Supabase), then DATABASE_URL (for local development)
-    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    let connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
     
     if (!connectionString) {
       throw new Error('Neither POSTGRES_URL nor DATABASE_URL environment variable is set');
@@ -32,19 +32,33 @@ export function getPool(): Pool {
       vercelEnv: process.env.VERCEL_ENV
     });
     
-    // Force SSL for all Supabase connections
-    const sslConfig = isSupabase || isProduction || isStaging ? {
-      rejectUnauthorized: false, // Allow self-signed certificates for Supabase
-    } : undefined;
-    
-    console.log('🔍 SSL config:', sslConfig);
+    // For Supabase, modify the connection string to include SSL parameters
+    if (isSupabase || isProduction || isStaging) {
+      const sslParams = new URLSearchParams({
+        sslmode: 'require',
+        sslcert: 'disable',
+        sslkey: 'disable',
+        sslrootcert: 'disable'
+      });
+      
+      // Add SSL parameters to connection string
+      if (connectionString.includes('?')) {
+        connectionString += '&' + sslParams.toString();
+      } else {
+        connectionString += '?' + sslParams.toString();
+      }
+      
+      console.log('🔍 Modified connection string for SSL:', connectionString.replace(/password=[^&]*/, 'password=***'));
+    }
     
     pool = new Pool({
       connectionString,
       max: 20, // Maximum number of clients in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-      ssl: sslConfig,
+      ssl: isSupabase || isProduction || isStaging ? {
+        rejectUnauthorized: false,
+      } : undefined,
     });
 
     // Handle pool errors
