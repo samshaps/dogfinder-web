@@ -32,7 +32,6 @@ export function getPool(): Pool {
       connectionTimeoutMillis: 2000,
       ssl: isSupabase ? {
         rejectUnauthorized: false, // Allow self-signed certificates for Supabase
-        require: true,
       } : undefined,
     });
 
