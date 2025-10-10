@@ -40,19 +40,30 @@ const handler = NextAuth({
 
         if (existingUser.rows.length === 0) {
           // Create new user
-          await query(
-            `INSERT INTO users (email, name, avatar_url, provider, provider_id, plan_id)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (email) DO NOTHING`,
+          const newUser = await query(
+            `INSERT INTO users (email, name, image, provider, provider_account_id)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (email) DO NOTHING
+             RETURNING id`,
             [
               user.email,
               user.name || user.email,
               user.image || null,
               account?.provider || 'google',
-              account?.providerAccountId || user.id,
-              1 // Default to Free plan (plan_id = 1)
+              account?.providerAccountId || user.id
             ]
           );
+
+          // Create default plan for new user
+          if (newUser.rows.length > 0) {
+            const userId = newUser.rows[0].id;
+            await query(
+              `INSERT INTO plans (user_id, tier, status)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (user_id) DO NOTHING`,
+              [userId, 'free', 'active']
+            );
+          }
         }
 
         return true;
