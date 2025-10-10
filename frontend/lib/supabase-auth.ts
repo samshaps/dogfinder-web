@@ -33,7 +33,7 @@ export function getSupabaseClient() {
 /**
  * Check if user exists by email
  */
-export async function getUserByEmail(email: string) {
+export async function getUserByEmail(email: string): Promise<{ id: string } | null> {
   const client = getSupabaseClient();
   
   console.log('🔍 Checking if user exists:', email);
@@ -62,7 +62,7 @@ export async function createUser(userData: {
   image?: string;
   provider: string;
   provider_account_id: string;
-}) {
+}): Promise<{ id: string } | null> {
   const client = getSupabaseClient();
   
   console.log('🔍 Creating new user:', userData.email);

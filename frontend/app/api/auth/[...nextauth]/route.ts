@@ -64,7 +64,7 @@ const handler = NextAuth({
           });
 
           // Create default plan for new user
-          if (newUser) {
+          if (newUser?.id) {
             console.log('🔍 Creating default plan for user:', newUser.id);
             await createUserPlan(newUser.id);
             console.log('✅ Default plan created');
