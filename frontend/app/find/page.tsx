@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Ruler, X, Info } from 'lucide-react';
+import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
+import { useUser } from '@/lib/auth/user-context';
+import { trackEvent } from '@/lib/analytics/tracking';
+import Navigation from '@/components/Navigation';
 // Removed breed selector - using free text fields instead
 
 // Helper component for pill controls
@@ -86,6 +89,7 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
 
 export default function FindPage() {
   const router = useRouter();
+  const { user } = useUser();
   const [formData, setFormData] = useState({
     zipCodes: [] as string[],
     age: [] as string[],
@@ -109,6 +113,52 @@ export default function FindPage() {
   const [newIncludeBreed, setNewIncludeBreed] = useState('');
   const [newExcludeBreed, setNewExcludeBreed] = useState('');
   const [showTooltip, setShowTooltip] = useState(false);
+  const [savePreferences, setSavePreferences] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [preferencesSaved, setPreferencesSaved] = useState(false);
+
+  // Load saved preferences when user is authenticated
+  useEffect(() => {
+    const loadPreferences = async () => {
+      if (!user || preferencesLoaded) return;
+
+      try {
+        const response = await fetch('/api/preferences');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.preferences) {
+            const prefs = data.preferences;
+            setFormData({
+              zipCodes: prefs.zip_codes || [],
+              age: prefs.age_preferences || [],
+              size: prefs.size_preferences || [],
+              includeBreeds: prefs.include_breeds || [],
+              excludeBreeds: prefs.exclude_breeds || [],
+              temperament: prefs.temperament_traits || [],
+              energy: prefs.energy_level || '',
+              guidance: prefs.living_situation?.description || '',
+              touched: {
+                age: (prefs.age_preferences?.length || 0) > 0,
+                size: (prefs.size_preferences?.length || 0) > 0,
+                energy: !!prefs.energy_level,
+                temperament: (prefs.temperament_traits?.length || 0) > 0,
+                breedsInclude: (prefs.include_breeds?.length || 0) > 0,
+                breedsExclude: (prefs.exclude_breeds?.length || 0) > 0,
+              }
+            });
+            setSavePreferences(true);
+            console.log('✅ Loaded saved preferences');
+          }
+        }
+        setPreferencesLoaded(true);
+      } catch (error) {
+        console.error('Failed to load preferences:', error);
+        setPreferencesLoaded(true);
+      }
+    };
+
+    loadPreferences();
+  }, [user, preferencesLoaded]);
 
   const ageOptions = [
     { value: 'baby', label: 'Baby', description: '0–6 months' },
@@ -223,7 +273,7 @@ export default function FindPage() {
   };
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Capture any in-progress text entries that weren't confirmed with Enter
@@ -241,6 +291,42 @@ export default function FindPage() {
     if (exc.length > 0 && !pending.excludeBreeds.includes(exc)) {
       pending.excludeBreeds = [...pending.excludeBreeds, exc];
       pending.touched = { ...(pending.touched || {}), breedsExclude: true };
+    }
+
+    // Save preferences if user is authenticated and toggle is enabled
+    if (user && savePreferences) {
+      try {
+        const prefsPayload = {
+          zip_codes: pending.zipCodes,
+          age_preferences: pending.age,
+          size_preferences: pending.size,
+          energy_level: pending.energy,
+          include_breeds: pending.includeBreeds,
+          exclude_breeds: pending.excludeBreeds,
+          temperament_traits: pending.temperament,
+          living_situation: {
+            description: pending.guidance
+          }
+        };
+
+        const response = await fetch('/api/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(prefsPayload)
+        });
+
+        if (response.ok) {
+          setPreferencesSaved(true);
+          trackEvent('preferences_saved', {
+            user_id: user.id,
+            source: 'find_page'
+          });
+          setTimeout(() => setPreferencesSaved(false), 2000);
+          console.log('✅ Preferences saved');
+        }
+      } catch (error) {
+        console.error('Failed to save preferences:', error);
+      }
     }
 
     // Build query parameters
@@ -265,41 +351,48 @@ export default function FindPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 flex items-center">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">🐾</span>
-                </div>
-                <span className="ml-2 text-xl font-bold text-gray-900">DogYenta</span>
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Home
-                </Link>
-                <Link href="/find" className="text-blue-600 hover:text-blue-700 px-3 py-2 rounded-md text-sm font-medium">
-                  Find a Dog
-                </Link>
-                <Link href="/about" className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  About
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Let's make you a match</h1>
-            <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.  </p>
+            <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
           </div>
+
+          {/* Save Preferences Toggle */}
+          {user && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className={`relative inline-block w-12 h-6 transition-all duration-200 ease-in-out ${
+                    savePreferences ? 'bg-blue-600' : 'bg-gray-300'
+                  } rounded-full`}>
+                    <input
+                      type="checkbox"
+                      checked={savePreferences}
+                      onChange={(e) => setSavePreferences(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out ${
+                      savePreferences ? 'translate-x-6' : 'translate-x-0'
+                    }`} />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Save my preferences</span>
+                    <p className="text-sm text-gray-600">Remember these settings for next time</p>
+                  </div>
+                </div>
+                {preferencesSaved && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <Check className="w-5 h-5" />
+                    <span className="text-sm font-medium">Saved!</span>
+                  </div>
+                )}
+              </label>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Location */}
