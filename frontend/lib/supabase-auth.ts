@@ -110,6 +110,80 @@ export async function createUserPlan(userId: string) {
 }
 
 /**
+ * Get user preferences by user ID
+ */
+export async function getUserPreferences(userId: string): Promise<any | null> {
+  const client = getSupabaseClient();
+  
+  console.log('🔍 Getting user preferences for:', userId);
+  
+  const { data, error } = await client
+    .from('preferences' as any)
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .single();
+    
+  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    console.error('Error getting user preferences:', error);
+    throw error;
+  }
+  
+  console.log('✅ User preferences result:', data ? 'Found' : 'Not found');
+  return data;
+}
+
+/**
+ * Create or update user preferences
+ */
+export async function saveUserPreferences(userId: string, preferencesData: any): Promise<any> {
+  const client = getSupabaseClient();
+  
+  console.log('🔍 Saving user preferences for:', userId);
+  
+  // Check if preferences already exist
+  const { data: existingData } = await client
+    .from('preferences' as any)
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+    
+  if (existingData) {
+    // Update existing preferences
+    const { data, error } = await client
+      .from('preferences' as any)
+      .update(preferencesData)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
+      
+    if (error) {
+      console.error('Error updating preferences:', error);
+      throw error;
+    }
+    
+    console.log('✅ Preferences updated:', data);
+    return data;
+  } else {
+    // Create new preferences
+    const { data, error } = await client
+      .from('preferences' as any)
+      .insert([{ user_id: userId, ...preferencesData }])
+      .select('*')
+      .single();
+      
+    if (error) {
+      console.error('Error creating preferences:', error);
+      throw error;
+    }
+    
+    console.log('✅ Preferences created:', data);
+    return data;
+  }
+}
+
+/**
  * Test Supabase connection
  */
 export async function testSupabaseConnection(): Promise<boolean> {
