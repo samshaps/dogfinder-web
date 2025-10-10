@@ -32,8 +32,24 @@ export function getPool(): Pool {
       vercelEnv: process.env.VERCEL_ENV
     });
     
-    // For Supabase, modify the connection string to include SSL parameters
+    // For Supabase, try multiple SSL approaches
+    let poolConfig: any = {
+      connectionString,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    };
+
     if (isSupabase || isProduction || isStaging) {
+      console.log('🔍 Configuring SSL for Supabase/Production...');
+      
+      // Try the most permissive SSL config possible
+      poolConfig.ssl = {
+        rejectUnauthorized: false,
+        checkServerIdentity: () => undefined, // Disable hostname verification
+      };
+      
+      // Also try modifying connection string
       const sslParams = new URLSearchParams({
         sslmode: 'require',
         sslcert: 'disable',
@@ -41,25 +57,21 @@ export function getPool(): Pool {
         sslrootcert: 'disable'
       });
       
-      // Add SSL parameters to connection string
       if (connectionString.includes('?')) {
         connectionString += '&' + sslParams.toString();
       } else {
         connectionString += '?' + sslParams.toString();
       }
       
-      console.log('🔍 Modified connection string for SSL:', connectionString.replace(/password=[^&]*/, 'password=***'));
+      poolConfig.connectionString = connectionString;
+      console.log('🔍 Final connection config:', {
+        hasSSL: !!poolConfig.ssl,
+        sslConfig: poolConfig.ssl,
+        connectionString: connectionString.replace(/password=[^&]*/, 'password=***')
+      });
     }
     
-    pool = new Pool({
-      connectionString,
-      max: 20, // Maximum number of clients in pool
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-      ssl: isSupabase || isProduction || isStaging ? {
-        rejectUnauthorized: false,
-      } : undefined,
-    });
+    pool = new Pool(poolConfig);
 
     // Handle pool errors
     pool.on('error', (err) => {
