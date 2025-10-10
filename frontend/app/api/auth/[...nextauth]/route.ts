@@ -88,17 +88,17 @@ const handler = NextAuth({
       } catch (error) {
         console.error('❌ Error in NextAuth signIn callback:', error);
         console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          detail: error.detail,
-          hint: error.hint,
-          position: error.position,
-          where: error.where,
-          schema: error.schema,
-          table: error.table,
-          column: error.column,
-          dataType: error.dataType,
-          constraint: error.constraint
+          message: error instanceof Error ? error.message : 'Unknown error',
+          code: (error as any)?.code,
+          detail: (error as any)?.detail,
+          hint: (error as any)?.hint,
+          position: (error as any)?.position,
+          where: (error as any)?.where,
+          schema: (error as any)?.schema,
+          table: (error as any)?.table,
+          column: (error as any)?.column,
+          dataType: (error as any)?.dataType,
+          constraint: (error as any)?.constraint
         });
         return false;
       }
