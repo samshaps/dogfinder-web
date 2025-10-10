@@ -5,12 +5,12 @@ let pool: Pool | null = null;
 
 /**
  * Get or create database connection pool
- * Uses connection string from POSTGRES_URL environment variable
+ * Uses connection string from DATABASE_URL environment variable
  */
 export function getPool(): Pool {
   if (!pool) {
     // Try POSTGRES_URL first (for Vercel/Supabase), then DATABASE_URL (for local development)
-    let connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
     
     if (!connectionString) {
       throw new Error('Neither POSTGRES_URL nor DATABASE_URL environment variable is set');
@@ -32,46 +32,20 @@ export function getPool(): Pool {
       vercelEnv: process.env.VERCEL_ENV
     });
     
-    // For Supabase, try multiple SSL approaches
-    let poolConfig: any = {
+    // Configure SSL for Supabase/production environments
+    const sslConfig = isSupabase || isProduction || isStaging ? {
+      rejectUnauthorized: false,
+    } : undefined;
+    
+    console.log('🔍 SSL config:', sslConfig);
+
+    pool = new Pool({
       connectionString,
-      max: 20,
+      max: 20, // Maximum number of clients in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-    };
-
-    if (isSupabase || isProduction || isStaging) {
-      console.log('🔍 Configuring SSL for Supabase/Production...');
-      
-      // Try the most permissive SSL config possible
-      poolConfig.ssl = {
-        rejectUnauthorized: false,
-        checkServerIdentity: () => undefined, // Disable hostname verification
-      };
-      
-      // Also try modifying connection string
-      const sslParams = new URLSearchParams({
-        sslmode: 'require',
-        sslcert: 'disable',
-        sslkey: 'disable',
-        sslrootcert: 'disable'
-      });
-      
-      if (connectionString.includes('?')) {
-        connectionString += '&' + sslParams.toString();
-      } else {
-        connectionString += '?' + sslParams.toString();
-      }
-      
-      poolConfig.connectionString = connectionString;
-      console.log('🔍 Final connection config:', {
-        hasSSL: !!poolConfig.ssl,
-        sslConfig: poolConfig.ssl,
-        connectionString: connectionString.replace(/password=[^&]*/, 'password=***')
-      });
-    }
-    
-    pool = new Pool(poolConfig);
+      ssl: sslConfig,
+    });
 
     // Handle pool errors
     pool.on('error', (err) => {
