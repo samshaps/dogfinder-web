@@ -121,12 +121,21 @@ export default function FindPage() {
     const loadPreferences = async () => {
       if (!user || preferencesLoaded) return;
 
+      console.log('🔍 Starting to load preferences for user:', user.email);
+      
       try {
+        console.log('🔍 Making request to /api/preferences...');
         const response = await fetch('/api/preferences');
+        console.log('🔍 Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('🔍 Response data:', data);
+          
           if (data.preferences) {
             const prefs = data.preferences;
+            console.log('🔍 Raw preferences from API:', prefs);
+            
             setFormData({
               zipCodes: prefs.zip_codes || [],
               age: prefs.age_preferences || [],
@@ -145,12 +154,17 @@ export default function FindPage() {
                 breedsExclude: (prefs.exclude_breeds?.length || 0) > 0,
               }
             });
-            console.log('✅ Loaded saved preferences');
+            console.log('✅ Loaded saved preferences and updated form data');
+          } else {
+            console.log('ℹ️ No preferences found in response');
           }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ API request failed:', response.status, errorText);
         }
         setPreferencesLoaded(true);
       } catch (error) {
-        console.error('Failed to load preferences:', error);
+        console.error('❌ Failed to load preferences:', error);
         setPreferencesLoaded(true);
       }
     };
@@ -291,41 +305,51 @@ export default function FindPage() {
       pending.touched = { ...(pending.touched || {}), breedsExclude: true };
     }
 
-    // Save preferences automatically if user is authenticated
-    if (user) {
-      try {
-        const prefsPayload = {
-          zip_codes: pending.zipCodes,
-          age_preferences: pending.age,
-          size_preferences: pending.size,
-          energy_level: pending.energy,
-          include_breeds: pending.includeBreeds,
-          exclude_breeds: pending.excludeBreeds,
-          temperament_traits: pending.temperament,
-          living_situation: {
-            description: pending.guidance
+        // Save preferences automatically if user is authenticated
+        if (user) {
+          try {
+            const prefsPayload = {
+              zip_codes: pending.zipCodes,
+              age_preferences: pending.age,
+              size_preferences: pending.size,
+              energy_level: pending.energy,
+              include_breeds: pending.includeBreeds,
+              exclude_breeds: pending.excludeBreeds,
+              temperament_traits: pending.temperament,
+              living_situation: {
+                description: pending.guidance
+              }
+            };
+
+            console.log('🔍 Saving preferences for user:', user.email);
+            console.log('🔍 Preferences payload:', prefsPayload);
+
+            const response = await fetch('/api/preferences', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(prefsPayload)
+            });
+
+            console.log('🔍 Save response status:', response.status);
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Preferences saved successfully:', result);
+              
+              setPreferencesSaved(true);
+              trackEvent('preferences_saved', {
+                user_id: user.id,
+                source: 'find_page'
+              });
+              setTimeout(() => setPreferencesSaved(false), 2000);
+            } else {
+              const errorText = await response.text();
+              console.error('❌ Failed to save preferences:', response.status, errorText);
+            }
+          } catch (error) {
+            console.error('❌ Error saving preferences:', error);
           }
-        };
-
-        const response = await fetch('/api/preferences', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(prefsPayload)
-        });
-
-        if (response.ok) {
-          setPreferencesSaved(true);
-          trackEvent('preferences_saved', {
-            user_id: user.id,
-            source: 'find_page'
-          });
-          setTimeout(() => setPreferencesSaved(false), 2000);
-          console.log('✅ Preferences saved');
         }
-      } catch (error) {
-        console.error('Failed to save preferences:', error);
-      }
-    }
 
     // Build query parameters
     const params = new URLSearchParams();
