@@ -9,10 +9,11 @@ let pool: Pool | null = null;
  */
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.POSTGRES_URL;
+    // Try POSTGRES_URL first (for Vercel/Supabase), then DATABASE_URL (for local development)
+    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
     
     if (!connectionString) {
-      throw new Error('POSTGRES_URL environment variable is not set');
+      throw new Error('Neither POSTGRES_URL nor DATABASE_URL environment variable is set');
     }
 
     // Parse connection string to extract SSL config
