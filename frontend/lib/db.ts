@@ -20,6 +20,9 @@ export function getPool(): Pool {
       max: 20, // Maximum number of clients in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      ssl: {
+        rejectUnauthorized: false, // Allow self-signed certificates for Supabase
+      },
     });
 
     // Handle pool errors
