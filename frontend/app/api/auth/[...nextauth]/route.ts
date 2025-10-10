@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { query } from "@/lib/db";
+import { getUserByEmail, createUser, createUserPlan, testSupabaseConnection } from "@/lib/supabase-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,35 +29,67 @@ const handler = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Create or update user in database
+      // Create or update user in database using Supabase
       try {
-        if (!user.email) return false;
-
-        const existingUser = await query(
-          'SELECT id FROM users WHERE email = $1',
-          [user.email]
-        );
-
-        if (existingUser.rows.length === 0) {
-          // Create new user
-          await query(
-            `INSERT INTO users (email, name, avatar_url, provider, provider_id, plan_id)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (email) DO NOTHING`,
-            [
-              user.email,
-              user.name || user.email,
-              user.image || null,
-              account?.provider || 'google',
-              account?.providerAccountId || user.id,
-              1 // Default to Free plan (plan_id = 1)
-            ]
-          );
+        console.log('🔍 NextAuth signIn callback started');
+        console.log('User:', { email: user.email, name: user.name, id: user.id });
+        console.log('Account:', { provider: account?.provider, providerAccountId: account?.providerAccountId });
+        
+        if (!user.email) {
+          console.log('❌ No user email provided');
+          return false;
         }
 
+        // Test Supabase connection first
+        console.log('🔍 Testing Supabase connection...');
+        const connectionTest = await testSupabaseConnection();
+        if (!connectionTest) {
+          console.log('❌ Supabase connection failed');
+          return false;
+        }
+
+        // Check if user exists
+        const existingUser = await getUserByEmail(user.email);
+
+        if (!existingUser) {
+          console.log('🔍 Creating new user...');
+          
+          // Create new user
+          const newUser = await createUser({
+            email: user.email,
+            name: user.name || user.email,
+            image: user.image || null,
+            provider: account?.provider || 'google',
+            provider_account_id: account?.providerAccountId || user.id
+          });
+
+          // Create default plan for new user
+          if (newUser) {
+            console.log('🔍 Creating default plan for user:', newUser.id);
+            await createUserPlan(newUser.id);
+            console.log('✅ Default plan created');
+          }
+        } else {
+          console.log('✅ User already exists:', existingUser.id);
+        }
+
+        console.log('✅ NextAuth signIn callback completed successfully');
         return true;
       } catch (error) {
-        console.error('Error creating user:', error);
+        console.error('❌ Error in NextAuth signIn callback:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          code: (error as any)?.code,
+          detail: (error as any)?.detail,
+          hint: (error as any)?.hint,
+          position: (error as any)?.position,
+          where: (error as any)?.where,
+          schema: (error as any)?.schema,
+          table: (error as any)?.table,
+          column: (error as any)?.column,
+          dataType: (error as any)?.dataType,
+          constraint: (error as any)?.constraint
+        });
         return false;
       }
     },
