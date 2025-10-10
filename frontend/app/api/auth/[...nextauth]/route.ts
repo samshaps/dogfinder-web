@@ -58,7 +58,7 @@ const handler = NextAuth({
           const newUser = await createUser({
             email: user.email,
             name: user.name || user.email,
-            image: user.image || null,
+            image: user.image || undefined,
             provider: account?.provider || 'google',
             provider_account_id: account?.providerAccountId || user.id
           });
