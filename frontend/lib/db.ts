@@ -15,14 +15,24 @@ export function getPool(): Pool {
       throw new Error('POSTGRES_URL environment variable is not set');
     }
 
+    // Parse connection string to extract SSL config
+    const url = new URL(connectionString);
+    const isSupabase = url.hostname.includes('supabase.co');
+    console.log('🔍 Database connection config:', {
+      hostname: url.hostname,
+      isSupabase,
+      hasConnectionString: !!connectionString
+    });
+    
     pool = new Pool({
       connectionString,
       max: 20, // Maximum number of clients in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-      ssl: {
+      ssl: isSupabase ? {
         rejectUnauthorized: false, // Allow self-signed certificates for Supabase
-      },
+        require: true,
+      } : undefined,
     });
 
     // Handle pool errors
