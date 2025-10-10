@@ -39,7 +39,7 @@ export async function getUserByEmail(email: string): Promise<{ id: string } | nu
   console.log('🔍 Checking if user exists:', email);
   
   const { data, error } = await client
-    .from('users')
+    .from('users' as any)
     .select('id')
     .eq('email', email)
     .single();
@@ -68,8 +68,8 @@ export async function createUser(userData: {
   console.log('🔍 Creating new user:', userData.email);
   
   const { data, error } = await client
-    .from('users')
-    .insert([userData])
+    .from('users' as any)
+    .insert([userData] as any)
     .select('id')
     .single();
     
@@ -91,12 +91,12 @@ export async function createUserPlan(userId: string) {
   console.log('🔍 Creating default plan for user:', userId);
   
   const { data, error } = await client
-    .from('plans')
+    .from('plans' as any)
     .insert([{
       user_id: userId,
       tier: 'free',
       status: 'active'
-    }])
+    }] as any)
     .select('*')
     .single();
     
@@ -118,7 +118,7 @@ export async function testSupabaseConnection(): Promise<boolean> {
     
     // Test with a simple query
     const { data, error } = await client
-      .from('users')
+      .from('users' as any)
       .select('count')
       .limit(1);
     
