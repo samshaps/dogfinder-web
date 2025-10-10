@@ -19,20 +19,32 @@ export function getPool(): Pool {
     // Parse connection string to extract SSL config
     const url = new URL(connectionString);
     const isSupabase = url.hostname.includes('supabase.co');
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isStaging = process.env.VERCEL_ENV === 'preview';
+    
     console.log('🔍 Database connection config:', {
       hostname: url.hostname,
       isSupabase,
-      hasConnectionString: !!connectionString
+      isProduction,
+      isStaging,
+      hasConnectionString: !!connectionString,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV
     });
+    
+    // Force SSL for all Supabase connections
+    const sslConfig = isSupabase || isProduction || isStaging ? {
+      rejectUnauthorized: false, // Allow self-signed certificates for Supabase
+    } : undefined;
+    
+    console.log('🔍 SSL config:', sslConfig);
     
     pool = new Pool({
       connectionString,
       max: 20, // Maximum number of clients in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-      ssl: isSupabase ? {
-        rejectUnauthorized: false, // Allow self-signed certificates for Supabase
-      } : undefined,
+      ssl: sslConfig,
     });
 
     // Handle pool errors
