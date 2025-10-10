@@ -113,7 +113,6 @@ export default function FindPage() {
   const [newIncludeBreed, setNewIncludeBreed] = useState('');
   const [newExcludeBreed, setNewExcludeBreed] = useState('');
   const [showTooltip, setShowTooltip] = useState(false);
-  const [savePreferences, setSavePreferences] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
 
@@ -146,7 +145,6 @@ export default function FindPage() {
                 breedsExclude: (prefs.exclude_breeds?.length || 0) > 0,
               }
             });
-            setSavePreferences(true);
             console.log('✅ Loaded saved preferences');
           }
         }
@@ -293,8 +291,8 @@ export default function FindPage() {
       pending.touched = { ...(pending.touched || {}), breedsExclude: true };
     }
 
-    // Save preferences if user is authenticated and toggle is enabled
-    if (user && savePreferences) {
+    // Save preferences automatically if user is authenticated
+    if (user) {
       try {
         const prefsPayload = {
           zip_codes: pending.zipCodes,
@@ -361,36 +359,14 @@ export default function FindPage() {
             <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
           </div>
 
-          {/* Save Preferences Toggle */}
-          {user && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className={`relative inline-block w-12 h-6 transition-all duration-200 ease-in-out ${
-                    savePreferences ? 'bg-blue-600' : 'bg-gray-300'
-                  } rounded-full`}>
-                    <input
-                      type="checkbox"
-                      checked={savePreferences}
-                      onChange={(e) => setSavePreferences(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out ${
-                      savePreferences ? 'translate-x-6' : 'translate-x-0'
-                    }`} />
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900">Save my preferences</span>
-                    <p className="text-sm text-gray-600">Remember these settings for next time</p>
-                  </div>
-                </div>
-                {preferencesSaved && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="w-5 h-5" />
-                    <span className="text-sm font-medium">Saved!</span>
-                  </div>
-                )}
-              </label>
+          {/* Preferences Saved Indicator */}
+          {user && preferencesSaved && (
+            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 text-green-600">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">Preferences saved!</span>
+                <span className="text-sm">Your search criteria will be remembered for next time.</span>
+              </div>
             </div>
           )}
 

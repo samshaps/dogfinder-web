@@ -43,9 +43,8 @@ async signIn({ user, account, profile }) {
 #### **Features Added**:
 
 1. **Auto-load saved preferences** when authenticated users visit the page
-2. **Save preferences toggle** - optional checkbox for users who want to persist their search criteria
-3. **Silent save** - preferences automatically save when user submits search (if toggle is enabled)
-4. **Success feedback** - visual confirmation when preferences are saved
+2. **Automatic save** - preferences automatically save when user submits search (no toggle needed)
+3. **Success feedback** - visual confirmation when preferences are saved
 
 #### **Key Code**:
 
@@ -70,7 +69,7 @@ useEffect(() => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   
-  if (user && savePreferences) {
+  if (user) {
     await fetch('/api/preferences', {
       method: 'POST',
       body: JSON.stringify({
@@ -93,18 +92,13 @@ const handleSubmit = async (e) => {
 #### **UI Component**:
 
 ```tsx
-{user && (
-  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-    <label className="flex items-center justify-between cursor-pointer">
-      <div className="flex items-center gap-3">
-        <ToggleSwitch checked={savePreferences} onChange={setSavePreferences} />
-        <div>
-          <span className="font-medium">Save my preferences</span>
-          <p className="text-sm text-gray-600">Remember these settings for next time</p>
-        </div>
-      </div>
-      {preferencesSaved && <CheckIcon />}
-    </label>
+{user && preferencesSaved && (
+  <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+    <div className="flex items-center gap-2 text-green-600">
+      <Check className="w-5 h-5" />
+      <span className="font-medium">Preferences saved!</span>
+      <span className="text-sm">Your search criteria will be remembered for next time.</span>
+    </div>
   </div>
 )}
 ```
@@ -156,16 +150,15 @@ User clicks "Edit My Search Preferences" → Redirects to /find → Saved prefer
 ### **For New Users**:
 1. Visit `/find` page
 2. Fill out search form
-3. (Optional) Toggle "Save my preferences" if signed in
-4. Click "See my matches"
-5. Preferences saved silently in background
+3. Click "See my matches"
+4. Preferences automatically saved (if signed in)
 
 ### **For Returning Users**:
 1. Visit `/find` page
 2. **Preferences automatically load** into form fields
 3. Make any adjustments
 4. Search continues as normal
-5. Changes are saved if toggle is enabled
+5. Changes are automatically saved
 
 ### **Editing Preferences**:
 1. Visit `/profile` page
@@ -184,12 +177,13 @@ User clicks "Edit My Search Preferences" → Redirects to /find → Saved prefer
 
 ### **2. Fewer Clicks**
 - Old: Home → Find → Profile → Preferences tab → Edit → Save → Back to Find
-- New: Home → Find → (auto-loaded) → Search
+- New: Home → Find → (auto-loaded) → Search (auto-saved)
 
 ### **3. Less Code**
 - Removed `PreferencesManager` component from profile page
 - Removed tab navigation logic
 - Removed complex state management for preference forms
+- Removed toggle UI and state management
 
 ### **4. Better for Mobile**
 - Simpler UI with fewer tabs
