@@ -32,9 +32,16 @@ export function getPool(): Pool {
       vercelEnv: process.env.VERCEL_ENV
     });
     
+    // Set Node.js SSL environment variables for Supabase
+    if (isSupabase || isProduction || isStaging) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+      console.log('🔍 Set NODE_TLS_REJECT_UNAUTHORIZED=0 for SSL bypass');
+    }
+    
     // Configure SSL for Supabase/production environments
     const sslConfig = isSupabase || isProduction || isStaging ? {
       rejectUnauthorized: false,
+      checkServerIdentity: () => undefined, // Disable hostname verification
     } : undefined;
     
     console.log('🔍 SSL config:', sslConfig);
