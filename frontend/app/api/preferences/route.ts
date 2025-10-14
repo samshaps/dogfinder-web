@@ -6,13 +6,14 @@ import { z } from 'zod';
 // Validation schema for user preferences
 const PreferencesSchema = z.object({
   zip_codes: z.array(z.string().regex(/^\d{5}$/)).optional(),
-  age_preferences: z.array(z.enum(['puppy', 'young', 'adult', 'senior'])).optional(),
-  size_preferences: z.array(z.enum(['small', 'medium', 'large'])).optional(),
+  age_preferences: z.array(z.enum(['baby', 'young', 'adult', 'senior'])).optional(),
+  size_preferences: z.array(z.enum(['small', 'medium', 'large', 'xl'])).optional(),
   energy_level: z.enum(['low', 'medium', 'high']).optional(),
   include_breeds: z.array(z.string()).optional(),
   exclude_breeds: z.array(z.string()).optional(),
   temperament_traits: z.array(z.string()).optional(),
   living_situation: z.object({
+    description: z.string().optional(),
     has_yard: z.boolean().optional(),
     has_children: z.boolean().optional(),
     has_other_pets: z.boolean().optional(),
