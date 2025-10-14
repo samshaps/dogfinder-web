@@ -58,7 +58,11 @@ export type ProfileEvent =
   | 'profile_plan_changed'
   | 'preferences_saved'
   | 'preferences_viewed'
-  | 'search_history_viewed';
+  | 'search_history_viewed'
+  | 'profile_upgrade_clicked'
+  | 'pricing_cta_free'
+  | 'pricing_cta_pro'
+  | 'pricing_page_viewed';
 
 // All event types
 export type AnalyticsEvent =

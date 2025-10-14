@@ -41,12 +41,13 @@ NEXT_PUBLIC_FEATURE_ALERTS=false
 NEXT_PUBLIC_FEATURE_PAYMENTS=false
 
 # ============================================
-# Stripe (Module 8)
+# Stripe (Module 5)
 # ============================================
 # Get from: https://dashboard.stripe.com/test
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_ID=
+STRIPE_PRO_PRICE_ID=
 
 # ============================================
 # Resend (Module 9)
