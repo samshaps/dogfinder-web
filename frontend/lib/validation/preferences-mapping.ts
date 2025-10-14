@@ -5,9 +5,9 @@
 
 // Form input options from /find page
 export const FORM_OPTIONS = {
-  age: ['baby', 'young', 'adult', 'senior'] as const,
-  size: ['small', 'medium', 'large', 'xl'] as const,
-  energy: ['low', 'medium', 'high'] as const,
+  age: ['baby', 'young', 'adult', 'senior'],
+  size: ['small', 'medium', 'large', 'xl'],
+  energy: ['low', 'medium', 'high'],
   temperament: [
     'eager-to-please',
     'intelligent', 
@@ -24,16 +24,16 @@ export const FORM_OPTIONS = {
     'alert-watchful',
     'quiet',
     'companion-driven'
-  ] as const,
-} as const;
+  ],
+};
 
 // API validation schema enums
 export const API_SCHEMA = {
-  age_preferences: ['baby', 'young', 'adult', 'senior'] as const,
-  size_preferences: ['small', 'medium', 'large', 'xl'] as const,
-  energy_level: ['low', 'medium', 'high'] as const,
-  temperament_traits: 'string[]' as const, // No enum restriction in API
-} as const;
+  age_preferences: ['baby', 'young', 'adult', 'senior'],
+  size_preferences: ['small', 'medium', 'large', 'xl'],
+  energy_level: ['low', 'medium', 'high'],
+  temperament_traits: 'string[]', // No enum restriction in API
+};
 
 /**
  * Validation mapping results
@@ -123,7 +123,7 @@ export function validateFormData(formData: any): ValidationResult {
   // Validate age_preferences
   if (formData.age && Array.isArray(formData.age)) {
     for (const age of formData.age) {
-      if (!FORM_OPTIONS.age.includes(age as any)) {
+      if (!FORM_OPTIONS.age.includes(age)) {
         errors.push(`Invalid age value: "${age}". Must be one of: ${FORM_OPTIONS.age.join(', ')}`);
       }
     }
@@ -132,7 +132,7 @@ export function validateFormData(formData: any): ValidationResult {
   // Validate size_preferences
   if (formData.size && Array.isArray(formData.size)) {
     for (const size of formData.size) {
-      if (!FORM_OPTIONS.size.includes(size as any)) {
+      if (!FORM_OPTIONS.size.includes(size)) {
         errors.push(`Invalid size value: "${size}". Must be one of: ${FORM_OPTIONS.size.join(', ')}`);
       }
     }
@@ -146,7 +146,7 @@ export function validateFormData(formData: any): ValidationResult {
   // Validate temperament_traits
   if (formData.temperament && Array.isArray(formData.temperament)) {
     for (const temperament of formData.temperament) {
-      if (!FORM_OPTIONS.temperament.includes(temperament as any)) {
+      if (!FORM_OPTIONS.temperament.includes(temperament)) {
         errors.push(`Invalid temperament value: "${temperament}". Must be one of: ${FORM_OPTIONS.temperament.join(', ')}`);
       }
     }
