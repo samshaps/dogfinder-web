@@ -93,9 +93,13 @@ export async function GET(request: NextRequest) {
 // POST /api/preferences - Create or update user preferences
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 POST /api/preferences started');
+    
     const session = await getServerSession();
+    console.log('🔍 Session:', session ? 'Found' : 'Not found');
     
     if (!session?.user?.email) {
+      console.log('❌ No session or email found');
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -103,12 +107,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('🔍 Request body:', body);
     
     // Validate the request body
     const validatedData = PreferencesSchema.parse(body);
+    console.log('✅ Validation passed:', validatedData);
 
     // Get user ID from email using Supabase
+    console.log('🔍 Getting Supabase client...');
     const client = getSupabaseClient();
+    
+    console.log('🔍 Looking up user by email:', session.user.email);
     const { data: userData, error: userError } = await client
       .from('users' as any)
       .select('id')
@@ -116,6 +125,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userError || !userData) {
+      console.error('❌ User lookup failed:', userError);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -123,6 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = userData.id;
+    console.log('✅ User found:', userId);
 
     // Prepare preferences data for Supabase
     const preferencesData = {
@@ -137,8 +148,11 @@ export async function POST(request: NextRequest) {
       notification_preferences: validatedData.notification_preferences || {},
     };
 
+    console.log('🔍 Saving preferences data:', preferencesData);
+
     // Save preferences using Supabase
     const result = await saveUserPreferences(userId, preferencesData);
+    console.log('✅ Preferences saved successfully:', result);
 
     return NextResponse.json({
       message: 'Preferences saved successfully',
@@ -147,6 +161,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.errors);
       return NextResponse.json(
         { error: 'Invalid preferences data', details: error.errors },
         { status: 400 }
@@ -154,8 +169,17 @@ export async function POST(request: NextRequest) {
     }
 
     console.error('Error saving preferences:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to save preferences' },
+      { 
+        error: 'Failed to save preferences',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
