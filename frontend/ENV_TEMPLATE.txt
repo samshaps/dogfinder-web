@@ -1,0 +1,69 @@
+# Copy this file to .env.local and fill in the values
+# DO NOT commit .env.local to git
+
+# ============================================
+# Database
+# ============================================
+DATABASE_URL=postgresql://dogfinder:dogfinder_dev@localhost:5432/dogfinder_dev
+
+# ============================================
+# NextAuth (Module 3)
+# ============================================
+NEXTAUTH_URL=http://localhost:3000
+# Generate with: openssl rand -base64 32
+NEXTAUTH_SECRET=
+
+# Google OAuth
+# Get from: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# NextAuth Configuration (for compatibility with existing setup)
+AUTH_GOOGLE_ID=${GOOGLE_CLIENT_ID}
+AUTH_GOOGLE_SECRET=${GOOGLE_CLIENT_SECRET}
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+
+# ============================================
+# Umami Analytics (Module 2)
+# ============================================
+# Get from: https://cloud.umami.is/ or your self-hosted instance
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://cloud.umami.is/script.js
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=415738ea-b38c-4c89-b4e7-3435b7fcadc9
+
+# ============================================
+# Feature Flags (toggle as you implement)
+# ============================================
+NEXT_PUBLIC_FEATURE_PRICING=false
+NEXT_PUBLIC_FEATURE_AUTH=false
+NEXT_PUBLIC_FEATURE_PRO=false
+NEXT_PUBLIC_FEATURE_ALERTS=false
+NEXT_PUBLIC_FEATURE_PAYMENTS=false
+
+# ============================================
+# Stripe (Module 8)
+# ============================================
+# Get from: https://dashboard.stripe.com/test
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID=
+
+# ============================================
+# Resend (Module 9)
+# ============================================
+# Get from: https://resend.com/
+RESEND_API_KEY=
+ALERTS_FROM_EMAIL=alerts@dogyenta.com
+
+# ============================================
+# Petfinder (existing v1 integration)
+# ============================================
+PETFINDER_API_KEY=
+PETFINDER_SECRET=
+
+# ============================================
+# Optional: Rate Limiting
+# ============================================
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=60000
+
