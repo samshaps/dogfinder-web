@@ -38,8 +38,8 @@ export async function getUserByEmail(email: string): Promise<{ id: string } | nu
   
   console.log('🔍 Checking if user exists:', email);
   
-  const { data, error } = await client
-    .from('users' as any)
+  const { data, error } = await (client as any)
+    .from('users')
     .select('id')
     .eq('email', email)
     .single();
@@ -67,9 +67,9 @@ export async function createUser(userData: {
   
   console.log('🔍 Creating new user:', userData.email);
   
-  const { data, error } = await client
-    .from('users' as any)
-    .insert([userData] as any)
+  const { data, error } = await (client as any)
+    .from('users')
+    .insert([userData])
     .select('id')
     .single();
     
@@ -90,13 +90,13 @@ export async function createUserPlan(userId: string) {
   
   console.log('🔍 Creating default plan for user:', userId);
   
-  const { data, error } = await client
-    .from('plans' as any)
+  const { data, error } = await (client as any)
+    .from('plans')
     .insert([{
       user_id: userId,
       tier: 'free',
       status: 'active'
-    }] as any)
+    }])
     .select('*')
     .single();
     
@@ -117,8 +117,8 @@ export async function getUserPreferences(userId: string): Promise<any | null> {
   
   console.log('🔍 Getting user preferences for:', userId);
   
-  const { data, error } = await client
-    .from('preferences' as any)
+  const { data, error } = await (client as any)
+    .from('preferences')
     .select('*')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
@@ -143,17 +143,17 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   console.log('🔍 Saving user preferences for:', userId);
   
   // Check if preferences already exist
-  const { data: existingData } = await client
-    .from('preferences' as any)
+  const { data: existingData } = await (client as any)
+    .from('preferences')
     .select('id')
     .eq('user_id', userId)
     .single();
     
   if (existingData) {
     // Update existing preferences
-    const { data, error } = await client
-      .from('preferences' as any)
-      .update(preferencesData as any)
+    const { data, error } = await (client as any)
+      .from('preferences')
+      .update(preferencesData)
       .eq('user_id', userId)
       .select('*')
       .single();
@@ -167,9 +167,9 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     return data;
   } else {
     // Create new preferences
-    const { data, error } = await client
-      .from('preferences' as any)
-      .insert([{ user_id: userId, ...preferencesData }] as any)
+    const { data, error } = await (client as any)
+      .from('preferences')
+      .insert([{ user_id: userId, ...preferencesData }])
       .select('*')
       .single();
       
@@ -191,8 +191,8 @@ export async function testSupabaseConnection(): Promise<boolean> {
     const client = getSupabaseClient();
     
     // Test with a simple query
-    const { data, error } = await client
-      .from('users' as any)
+    const { data, error } = await (client as any)
+      .from('users')
       .select('count')
       .limit(1);
     
