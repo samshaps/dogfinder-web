@@ -19,10 +19,10 @@ const PreferencesSchema = z.object({
     has_other_pets: z.boolean().optional(),
     activity_level: z.enum(['low', 'medium', 'high']).optional(),
   }).optional(),
-  notification_preferences: z.object({
-    email_alerts: z.boolean().optional(),
-    frequency: z.enum(['daily', 'weekly']).optional(),
-  }).optional(),
+  // notification_preferences: z.object({
+  //   email_alerts: z.boolean().optional(),
+  //   frequency: z.enum(['daily', 'weekly']).optional(),
+  // }).optional(), // Column doesn't exist in database schema
 });
 
 // GET /api/preferences - Get user preferences
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       exclude_breeds: validatedData.exclude_breeds || [],
       temperament_traits: validatedData.temperament_traits || [],
       living_situation: validatedData.living_situation || {},
-      notification_preferences: validatedData.notification_preferences || {},
+      // notification_preferences: validatedData.notification_preferences || {}, // Column doesn't exist in DB
     };
 
     console.log('🔍 Saving preferences data:', preferencesData);
