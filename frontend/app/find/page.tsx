@@ -350,6 +350,14 @@ export default function FindPage() {
               const errorText = await response.text();
               console.error('❌ Failed to save preferences:', response.status, errorText);
               console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+              
+              // Try to parse error response for more details
+              try {
+                const errorData = JSON.parse(errorText);
+                console.error('❌ Parsed error response:', errorData);
+              } catch (e) {
+                console.error('❌ Could not parse error response as JSON');
+              }
             }
           } catch (error) {
             console.error('❌ Error saving preferences:', error);
