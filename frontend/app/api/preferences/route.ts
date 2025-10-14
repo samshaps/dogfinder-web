@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { getSupabaseClient, getUserPreferences, saveUserPreferences } from '@/lib/supabase-auth';
 import { z } from 'zod';
 
-// Validation schema for user preferences
+// Validation schema for user preferences (updated to match form data)
 const PreferencesSchema = z.object({
   zip_codes: z.array(z.string().regex(/^\d{5}$/)).optional(),
   age_preferences: z.array(z.enum(['baby', 'young', 'adult', 'senior'])).optional(),
