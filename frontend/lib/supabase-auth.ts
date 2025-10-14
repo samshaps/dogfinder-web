@@ -153,7 +153,7 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     // Update existing preferences
     const { data, error } = await client
       .from('preferences' as any)
-      .update(preferencesData)
+      .update(preferencesData as any)
       .eq('user_id', userId)
       .select('*')
       .single();
@@ -169,7 +169,7 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     // Create new preferences
     const { data, error } = await client
       .from('preferences' as any)
-      .insert([{ user_id: userId, ...preferencesData }])
+      .insert([{ user_id: userId, ...preferencesData }] as any)
       .select('*')
       .single();
       

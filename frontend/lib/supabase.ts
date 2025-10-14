@@ -51,7 +51,7 @@ export async function query<T extends Record<string, any> = any>(
     // For now, we'll use a simple approach with direct SQL
     // In a real implementation, you'd use Supabase's query builder or RPC
     const { data, error } = await client
-      .from('users') // This will be replaced with actual table queries
+      .from('users' as any) // This will be replaced with actual table queries
       .select('*')
       .limit(1);
     
