@@ -197,28 +197,40 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get user ID from email
-    const userResult = await query(
-      'SELECT id FROM users WHERE email = $1',
-      [session.user.email]
-    );
+    // Get user ID from email using Supabase
+    const client = getSupabaseClient();
+    const { data: userData, error: userError } = await client
+      .from('users' as any)
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
 
-    if (userResult.rows.length === 0) {
+    if (userError || !userData) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    const userId = (userResult.rows[0] as any).id;
+    const userId = (userData as any).id;
 
-    // Delete preferences
-    const deleteResult = await query(
-      'DELETE FROM preferences WHERE user_id = $1 RETURNING id',
-      [userId]
-    );
+    // Delete preferences using Supabase
+    const { data, error } = await client
+      .from('preferences' as any)
+      .delete()
+      .eq('user_id', userId)
+      .select('id')
+      .single();
 
-    if (deleteResult.rows.length === 0) {
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error deleting preferences:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete preferences' },
+        { status: 500 }
+      );
+    }
+
+    if (!data) {
       return NextResponse.json(
         { error: 'No preferences found to delete' },
         { status: 404 }
