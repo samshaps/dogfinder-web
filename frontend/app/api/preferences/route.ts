@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as any).id;
 
     // Get user preferences using Supabase
     const preferences = await getUserPreferences(userId);
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as any).id;
     console.log('✅ User found:', userId);
 
     // Prepare preferences data for Supabase
