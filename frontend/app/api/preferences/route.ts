@@ -210,7 +210,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const userId = userResult.rows[0].id;
+    const userId = (userResult.rows[0] as any).id;
 
     // Delete preferences
     const deleteResult = await query(
