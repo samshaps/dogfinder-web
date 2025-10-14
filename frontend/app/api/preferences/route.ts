@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
     
     const session = await getServerSession();
     console.log('🔍 Session:', session ? 'Found' : 'Not found');
+    console.log('🔍 Session details:', session ? { email: session.user?.email, name: session.user?.name } : 'No session');
     
     if (!session?.user?.email) {
       console.log('❌ No session or email found');
@@ -172,7 +173,10 @@ export async function POST(request: NextRequest) {
     console.error('Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined
+      name: error instanceof Error ? error.name : undefined,
+      code: (error as any)?.code,
+      details: (error as any)?.details,
+      hint: (error as any)?.hint
     });
     
     return NextResponse.json(
