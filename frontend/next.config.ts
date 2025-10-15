@@ -6,8 +6,7 @@ const nextConfig: NextConfig = {
     // Temporarily ignore ESLint errors during builds to unblock preflight
     ignoreDuringBuilds: true,
   },
-  // Ensure correct monorepo/workspace root for file tracing and chunk resolution (moved out of experimental)
-  outputFileTracingRoot: path.join(__dirname, ".."), // /Users/samshap/Desktop/Dev/dogfinder-app
+  // Use Next.js defaults for file tracing when Root Directory is set to `frontend` in Vercel.
   images: {
     remotePatterns: [
       {
