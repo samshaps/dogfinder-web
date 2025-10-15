@@ -2,6 +2,19 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { getUserByEmail, createUser, createUserPlan, testSupabaseConnection } from "@/lib/supabase-auth";
 
+// Extend the built-in session types
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    accessToken?: string;
+  }
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
