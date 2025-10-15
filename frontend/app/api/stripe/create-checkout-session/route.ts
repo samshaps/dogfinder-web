@@ -7,6 +7,9 @@ import { getServerSession } from 'next-auth';
 import { getStripeServer, PLANS } from '@/lib/stripe/config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Creating Stripe checkout session...');
@@ -59,26 +62,15 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe checkout session
     const stripe = getStripeServer();
-    const proPlan = PLANS.PRO;
-    
+    const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
+    if (!proPriceId) {
+      console.error('❌ Missing STRIPE_PRO_PRICE_ID');
+      return NextResponse.json({ error: 'Server not configured for payments' }, { status: 500 });
+    }
+
     const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `DogYenta ${proPlan.name}`,
-              description: 'Unlimited dog searches with advanced features',
-              images: ['https://dogyenta.com/logo.png'], // Add your logo URL
-            },
-            unit_amount: Math.round(proPlan.price * 100), // Convert to cents
-            recurring: {
-              interval: 'month',
-            },
-          },
-          quantity: 1,
-        },
+        { price: proPriceId, quantity: 1 },
       ],
       mode: 'subscription',
       success_url: `${request.nextUrl.origin}/profile?upgrade=success`,

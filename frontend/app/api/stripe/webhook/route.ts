@@ -8,19 +8,24 @@ import { getStripeServer } from '@/lib/stripe/config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import Stripe from 'stripe';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 Stripe webhook received');
+    console.log('🔍 Stripe webhook received', {
+      contentType: request.headers.get('content-type'),
+      userAgent: request.headers.get('user-agent'),
+      url: request.url,
+      method: request.method,
+    });
     
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
     
     if (!signature) {
       console.log('❌ No stripe signature found');
-      return NextResponse.json(
-        { error: 'No stripe signature' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No stripe signature' }, { status: 400 });
     }
 
     const stripe = getStripeServer();
@@ -50,9 +55,17 @@ export async function POST(request: NextRequest) {
 
     // Handle different event types
     switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log('🔔 Event checkout.session.completed', {
+          id: session.id,
+          customer_email: (session.customer_details as any)?.email,
+          subscription: session.subscription,
+          metadata: session.metadata,
+        });
+        await handleCheckoutCompleted(session);
         break;
+      }
         
       case 'customer.subscription.created':
         await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
