@@ -8,7 +8,7 @@ import { PLANS, PlanId } from './config';
 /**
  * Get user's current plan information
  */
-export async function getUserPlan(userId: string): Promise<{
+export async function getUserPlan(userIdOrEmail: string): Promise<{
   planType: PlanId;
   status: string;
   isPro: boolean;
@@ -18,9 +18,25 @@ export async function getUserPlan(userId: string): Promise<{
   try {
     const client = getSupabaseClient();
     
+    // Resolve user_id if we received an email or non-UUID identifier
+    let userId: string = userIdOrEmail;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userIdOrEmail);
+    if (!isUuid) {
+      const { data: userRow, error: userErr } = await (client as any)
+        .from('users')
+        .select('id')
+        .eq('email', userIdOrEmail)
+        .single();
+      if (userErr || !userRow?.id) {
+        console.error('Error resolving user id from email:', userErr || userRow);
+        return null;
+      }
+      userId = (userRow as any).id as string;
+    }
+
     const { data, error } = await (client as any)
       .from('plans')
-      .select('plan_type, status, stripe_subscription_id, current_period_end')
+      .select('plan_type, tier, status, stripe_subscription_id, current_period_end')
       .eq('user_id', userId)
       .single();
       
@@ -29,7 +45,9 @@ export async function getUserPlan(userId: string): Promise<{
       throw error;
     }
     
-    const planType = (data?.plan_type as PlanId) || 'FREE';
+    const rawType = (data?.plan_type ?? data?.tier ?? 'free') as string;
+    const normalized = rawType.toLowerCase() === 'pro' ? 'PRO' : 'FREE';
+    const planType = normalized as PlanId;
     const plan = PLANS[planType];
     
     return {
