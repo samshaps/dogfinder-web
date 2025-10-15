@@ -4,8 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripeServer } from '../../../../lib/stripe/config';
-import { getSupabaseClient } from '../../../../lib/supabase-auth';
+// Path from app/api/stripe/webhook/route.ts → lib/* is ../../../lib/*
+import { getStripeServer } from '../../../lib/stripe/config';
+import { getSupabaseClient } from '../../../lib/supabase-auth';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
