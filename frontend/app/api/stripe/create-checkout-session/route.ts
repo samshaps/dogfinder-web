@@ -4,9 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-// Path from app/api/stripe/create-checkout-session/route.ts → lib/* is ../../../../lib/*
-import { getStripeServer, PLANS } from '../../../../lib/stripe/config';
-import { getSupabaseClient } from '../../../../lib/supabase-auth';
+// Use tsconfig baseUrl (.) so we can import from 'lib/*'
+import { getStripeServer, PLANS } from 'lib/stripe/config';
+import { getSupabaseClient } from 'lib/supabase-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
