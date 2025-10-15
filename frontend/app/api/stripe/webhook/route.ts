@@ -106,6 +106,43 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * Helper: update plan columns supporting either plan_type or tier
+ */
+async function updateUserPlan(userId: string, fields: Record<string, any>) {
+  const client = getSupabaseClient();
+
+  // First try with plan_type
+  const primaryUpdate: Record<string, any> = { ...fields };
+  if (fields.plan_type && !('tier' in fields)) {
+    primaryUpdate.plan_type = fields.plan_type;
+  }
+
+  let { error } = await (client as any)
+    .from('plans')
+    .update(primaryUpdate)
+    .eq('user_id', userId);
+
+  // If column doesn't exist, retry using tier
+  if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''))) {
+    const fallbackUpdate: Record<string, any> = { ...fields };
+    if (fields.plan_type) {
+      delete fallbackUpdate.plan_type;
+      fallbackUpdate.tier = fields.plan_type;
+    }
+    const res2 = await (client as any)
+      .from('plans')
+      .update(fallbackUpdate)
+      .eq('user_id', userId);
+    error = res2.error;
+  }
+
+  if (error) {
+    console.error('❌ Failed to update user plan:', error);
+    throw error;
+  }
+}
+
+/**
  * Handle successful checkout session completion
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
@@ -121,22 +158,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   
   console.log('✅ Upgrading user to Pro:', userId);
   
-  // Update user plan in database
-  const client = getSupabaseClient();
-  const { error } = await (client as any)
-    .from('plans')
-    .update({ 
-      plan_type: planType,
-      stripe_subscription_id: session.subscription as string,
-      status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-    
-  if (error) {
-    console.error('❌ Failed to update user plan:', error);
-    throw error;
-  }
+  // Update user plan in database (supports plan_type or tier)
+  await updateUserPlan(userId, {
+    plan_type: planType,
+    stripe_subscription_id: session.subscription as string,
+    status: 'active',
+    updated_at: new Date().toISOString(),
+  });
   
   console.log('✅ User plan updated successfully');
 }
@@ -155,22 +183,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   }
   
   // Update plan with subscription details
-  const client = getSupabaseClient();
-  const { error } = await (client as any)
-    .from('plans')
-    .update({ 
-      stripe_subscription_id: subscription.id,
-      status: subscription.status,
-      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-    
-  if (error) {
-    console.error('❌ Failed to update subscription details:', error);
-    throw error;
-  }
+  await updateUserPlan(userId, {
+    status: subscription.status,
+    stripe_subscription_id: subscription.id,
+    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   
   console.log('✅ Subscription details updated');
 }
@@ -189,21 +208,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
   
   // Update plan status
-  const client = getSupabaseClient();
-  const { error } = await (client as any)
-    .from('plans')
-    .update({ 
-      status: subscription.status,
-      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-    
-  if (error) {
-    console.error('❌ Failed to update subscription:', error);
-    throw error;
-  }
+  await updateUserPlan(userId, {
+    status: subscription.status,
+    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   
   console.log('✅ Subscription updated');
 }
@@ -222,21 +232,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
   
   // Downgrade user to free plan
-  const client = getSupabaseClient();
-  const { error } = await (client as any)
-    .from('plans')
-    .update({ 
-      plan_type: 'free',
-      status: 'cancelled',
-      stripe_subscription_id: null,
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
-    
-  if (error) {
-    console.error('❌ Failed to downgrade user:', error);
-    throw error;
-  }
+  await updateUserPlan(userId, {
+    plan_type: 'free',
+    status: 'cancelled',
+    stripe_subscription_id: null,
+    updated_at: new Date().toISOString(),
+  });
   
   console.log('✅ User downgraded to free plan');
 }
@@ -256,18 +257,26 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   
   // Update plan status to active
   const client = getSupabaseClient();
-  const { error } = await (client as any)
+  const { data: rows, error: selErr } = await (client as any)
     .from('plans')
-    .update({ 
-      status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('stripe_subscription_id', subscriptionId);
-    
-  if (error) {
-    console.error('❌ Failed to update plan status:', error);
-    throw error;
+    .select('user_id')
+    .eq('stripe_subscription_id', subscriptionId)
+    .limit(1)
+    .maybeSingle?.() ?? await (client as any)
+      .from('plans')
+      .select('user_id')
+      .eq('stripe_subscription_id', subscriptionId)
+      .single();
+
+  if (selErr || !rows) {
+    console.error('❌ Could not resolve user by subscription id:', selErr);
+    return;
   }
+
+  await updateUserPlan((rows as any).user_id, {
+    status: 'active',
+    updated_at: new Date().toISOString(),
+  });
   
   console.log('✅ Plan status updated to active');
 }
