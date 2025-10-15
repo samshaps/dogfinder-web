@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { getUserByEmail, createUser, createUserPlan, testSupabaseConnection } from "../../../../lib/supabase-auth";
+import { getUserByEmail, createUser, createUserPlan, testSupabaseConnection } from "@/lib/supabase-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
