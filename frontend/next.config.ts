@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -22,7 +23,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Removed webpack alias config - using tsconfig paths instead
+  webpack: (config) => {
+    // Force alias resolution for Vercel builds
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname),
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
