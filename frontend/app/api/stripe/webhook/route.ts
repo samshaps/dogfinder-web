@@ -142,6 +142,16 @@ async function updateUserPlan(userId: string, fields: Record<string, any>) {
   }
 }
 
+function toIsoOrNull(epochSeconds: any): string | null {
+  const n = typeof epochSeconds === 'number' ? epochSeconds : Number(epochSeconds);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  try {
+    return new Date(n * 1000).toISOString();
+  } catch (_e) {
+    return null;
+  }
+}
+
 /**
  * Handle successful checkout session completion
  */
@@ -183,13 +193,16 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   }
   
   // Update plan with subscription details
-  await updateUserPlan(userId, {
+  const startIso = toIsoOrNull((subscription as any).current_period_start);
+  const endIso = toIsoOrNull((subscription as any).current_period_end);
+  const update: Record<string, any> = {
     status: subscription.status,
     stripe_subscription_id: subscription.id,
-    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
     updated_at: new Date().toISOString(),
-  });
+  };
+  if (startIso) update.current_period_start = startIso;
+  if (endIso) update.current_period_end = endIso;
+  await updateUserPlan(userId, update);
   
   console.log('✅ Subscription details updated');
 }
@@ -208,12 +221,15 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
   
   // Update plan status
-  await updateUserPlan(userId, {
+  const startIso2 = toIsoOrNull((subscription as any).current_period_start);
+  const endIso2 = toIsoOrNull((subscription as any).current_period_end);
+  const update2: Record<string, any> = {
     status: subscription.status,
-    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
     updated_at: new Date().toISOString(),
-  });
+  };
+  if (startIso2) update2.current_period_start = startIso2;
+  if (endIso2) update2.current_period_end = endIso2;
+  await updateUserPlan(userId, update2);
   
   console.log('✅ Subscription updated');
 }
