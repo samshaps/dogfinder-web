@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { getStripeServer, PLANS } from '@/lib/stripe/config';
-import { getSupabaseClient } from '@/lib/supabase-auth';
+import { getStripeServer, PLANS } from '../../../../lib/stripe/config';
+import { getSupabaseClient } from '../../../../lib/supabase-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
