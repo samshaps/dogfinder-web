@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '../../lib/auth/user-context';
-import { getUserPlan } from '../../lib/stripe/plan-utils';
-import { PLANS } from '../../lib/stripe/config';
-import { trackEvent } from '../../lib/analytics/tracking';
+import { useUser } from '@/lib/auth/user-context';
+import { getUserPlan } from '@/lib/stripe/plan-utils';
+import { PLANS } from '@/lib/stripe/config';
+import { trackEvent } from '@/lib/analytics/tracking';
 
 interface PlanInfo {
   planType: string;
