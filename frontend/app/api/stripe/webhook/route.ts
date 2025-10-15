@@ -112,30 +112,14 @@ export async function POST(request: NextRequest) {
 async function updateUserPlan(userId: string, fields: Record<string, any>) {
   const client = getSupabaseClient();
 
-  // First try with plan_type
-  const primaryUpdate: Record<string, any> = { ...fields };
-  if (fields.plan_type && !('tier' in fields)) {
-    primaryUpdate.plan_type = fields.plan_type;
-  }
+  const updatePayload: Record<string, any> = { ...fields };
+  // Ensure we always write plan_type when present
+  if (fields.plan_type) updatePayload.plan_type = fields.plan_type;
 
-  let { error } = await (client as any)
+  const { error } = await (client as any)
     .from('plans')
-    .update(primaryUpdate)
+    .update(updatePayload)
     .eq('user_id', userId);
-
-  // If column doesn't exist, retry using tier
-  if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''))) {
-    const fallbackUpdate: Record<string, any> = { ...fields };
-    if (fields.plan_type) {
-      delete fallbackUpdate.plan_type;
-      fallbackUpdate.tier = fields.plan_type;
-    }
-    const res2 = await (client as any)
-      .from('plans')
-      .update(fallbackUpdate)
-      .eq('user_id', userId);
-    error = res2.error;
-  }
 
   if (error) {
     console.error('❌ Failed to update user plan:', error);

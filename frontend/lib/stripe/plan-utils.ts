@@ -36,7 +36,7 @@ export async function getUserPlan(userIdOrEmail: string): Promise<{
 
     const { data, error } = await (client as any)
       .from('plans')
-      .select('plan_type, tier, status, stripe_subscription_id, current_period_end')
+      .select('plan_type, status, stripe_subscription_id, current_period_end')
       .eq('user_id', userId)
       .single();
       
@@ -45,7 +45,7 @@ export async function getUserPlan(userIdOrEmail: string): Promise<{
       throw error;
     }
     
-    const rawType = (data?.plan_type ?? data?.tier ?? 'free') as string;
+    const rawType = (data?.plan_type ?? 'free') as string;
     const normalized = rawType.toLowerCase() === 'pro' ? 'PRO' : 'FREE';
     const planType = normalized as PlanId;
     const plan = PLANS[planType];
