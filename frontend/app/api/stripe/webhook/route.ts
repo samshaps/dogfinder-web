@@ -199,6 +199,10 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const update: Record<string, any> = {
     status: subscription.status,
     stripe_subscription_id: subscription.id,
+    // Ensure user's tier/plan is marked as pro when subscription is created
+    plan_type: 'pro',
+    // Capture Stripe customer for portal access
+    stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : undefined,
     updated_at: new Date().toISOString(),
   };
   if (startIso) update.current_period_start = startIso;
@@ -226,6 +230,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const endIso2 = toIsoOrNull((subscription as any).current_period_end);
   const update2: Record<string, any> = {
     status: subscription.status,
+    // Keep tier/plan in sync on updates as well
+    plan_type: 'pro',
+    stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : undefined,
     updated_at: new Date().toISOString(),
   };
   if (startIso2) update2.current_period_start = startIso2;

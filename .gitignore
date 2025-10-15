@@ -1,8 +1,0 @@
-.DS_Store
-node_modules/
-.next/
-.env
-frontend/.env.local
-backend/.venv/
-_pycache/
-.pyc

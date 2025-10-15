@@ -149,6 +149,23 @@ function ProfilePageContent() {
                         Upgrade to Pro
                       </button>
                     )}
+
+                    {planInfo.isPro && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/stripe/create-portal-session', { method: 'POST' });
+                            const data = await res.json();
+                            if (data?.url) window.location.href = data.url;
+                          } catch (e) {
+                            alert('Failed to open billing portal. Please try again.');
+                          }
+                        }}
+                        className="w-full bg-white border border-blue-600 text-blue-600 font-semibold py-2 px-4 rounded-lg transition-colors text-sm hover:bg-blue-50"
+                      >
+                        Manage Billing
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-lg p-4">
