@@ -30,6 +30,8 @@ body {
 /* Utility: balanced heading wrapping */
 .text-balance { text-wrap: balance; }
 
+/* Force cache refresh - staging CSS fix */
+
 /* Fluid type for hero */
 .hero-title { font-size: clamp(2rem, 3.5vw + 1rem, 4.25rem); }
 .hero-copy { font-size: clamp(1rem, 0.7vw + 0.9rem, 1.25rem); }
