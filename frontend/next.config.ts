@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -22,7 +23,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Let tsconfig.json handle @ alias resolution
+  webpack: (config) => {
+    // Temporary belt-and-suspenders alias until all lib files are committed
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "@": path.resolve(__dirname),
+    };
+    return config;
+  },
 };
 
 export default nextConfig;
