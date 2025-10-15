@@ -2,7 +2,7 @@
  * Utility functions for managing user plans and Stripe operations
  */
 
-import { getSupabaseClient } from '../supabase-auth';
+import { getSupabaseClient } from '@/lib/supabase-auth';
 import { PLANS, PlanId } from './config';
 
 /**
