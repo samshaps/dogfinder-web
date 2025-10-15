@@ -28,21 +28,28 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log('🔧 RootLayout rendering...');
+  
   return (
     <html lang="en">
       <head>
-        {process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL &&
-          process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
-            <Script
-              src={process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL}
-              data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-              strategy="afterInteractive"
-            />
-          )}
+        {/* Umami Analytics */}
+        {process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL && 
+         process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            src={process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL}
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <AuthProviders>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </AuthProviders>
       </body>
     </html>

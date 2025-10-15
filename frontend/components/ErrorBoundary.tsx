@@ -1,41 +1,53 @@
-"use client";
+'use client';
 
-import React from "react";
-
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-}
+import React from 'react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error;
 }
 
-export class ErrorBoundary extends React.Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    console.error('🚨 React Error Boundary caught error:', error);
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console -- surface boundary errors during development
-      console.error("ErrorBoundary caught an error", error, errorInfo);
-    }
+    console.error('🚨 React Error Boundary error details:', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack
+    });
   }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? (
-        <div role="alert" className="p-4 text-sm text-red-600">
-          Something went wrong.
+      return (
+        <div style={{ padding: '20px', border: '1px solid red', margin: '20px' }}>
+          <h2>🚨 Something went wrong</h2>
+          <p><strong>Error:</strong> {this.state.error?.message || 'Unknown error'}</p>
+          <details>
+            <summary>Stack trace</summary>
+            <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+              {this.state.error?.stack}
+            </pre>
+          </details>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: undefined })}
+            style={{ marginTop: '10px', padding: '10px' }}
+          >
+            Try again
+          </button>
         </div>
       );
     }
