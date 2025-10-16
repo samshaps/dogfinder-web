@@ -35,7 +35,7 @@ export async function sendDogMatchAlert(
       },
       tags: [
         { name: 'type', value: 'dog-alert' },
-        { name: 'user', value: templateData.user.email },
+        { name: 'user', value: templateData.user.email.replace(/[^a-zA-Z0-9]/g, '_') },
         { name: 'matches', value: templateData.matches.length.toString() },
       ],
     });
@@ -149,7 +149,7 @@ export async function sendTestEmail(
       },
       tags: [
         { name: 'type', value: 'test-email' },
-        { name: 'user', value: userEmail },
+        { name: 'user', value: userEmail.replace(/[^a-zA-Z0-9]/g, '_') },
       ],
     });
 
