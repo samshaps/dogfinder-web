@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Edit, Crown, Star } from "lucide-react";
 import { getUserPlan } from "@/lib/stripe/plan-utils";
 import { PLANS } from "@/lib/stripe/config";
+import EmailAlertSettings from "@/components/EmailAlertSettings";
 
 interface PlanInfo {
   planType: string;
@@ -175,6 +176,11 @@ function ProfilePageContent() {
                 <p className="text-sm text-gray-500 text-center mt-2">
                   Update your saved search criteria on the Find page
                 </p>
+              </div>
+
+              {/* Email Alerts Section */}
+              <div className="border-t pt-6">
+                <EmailAlertSettings />
               </div>
 
               {/* Search History Section */}
