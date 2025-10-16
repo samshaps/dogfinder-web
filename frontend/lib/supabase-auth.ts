@@ -94,7 +94,7 @@ export async function createUserPlan(userId: string) {
     .from('plans')
     .insert([{
       user_id: userId,
-      tier: 'free',
+      plan_type: 'free',
       status: 'active'
     }])
     .select('*')

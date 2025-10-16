@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Helper: update plan columns supporting either plan_type or tier
+ * Helper: update plan columns
  */
 async function updateUserPlan(userId: string, fields: Record<string, any>) {
   const client = getSupabaseClient();
@@ -153,7 +153,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   
   console.log('✅ Upgrading user to Pro:', userId);
   
-  // Update user plan in database (supports plan_type or tier)
+  // Update user plan in database
   await updateUserPlan(userId, {
     plan_type: planType,
     stripe_subscription_id: session.subscription as string,
