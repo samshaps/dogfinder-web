@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as any).id;
 
     // Get alert settings
     const { data: alertSettings, error: alertError } = await client
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as any).id;
 
     // Prepare alert settings data for database
     const alertSettingsData = {
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Upsert alert settings
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('alert_settings')
       .upsert(alertSettingsData, {
         onConflict: 'user_id'
@@ -174,15 +174,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Email alert settings saved successfully',
       settings: {
-        enabled: data.enabled,
-        frequency: data.cadence,
+        enabled: (data as any).enabled,
+        frequency: (data as any).cadence,
         maxDogsPerEmail: validatedData.maxDogsPerEmail,
         minMatchScore: validatedData.minMatchScore,
         includePhotos: validatedData.includePhotos,
         includeReasoning: validatedData.includeReasoning,
-        lastSentAt: data.last_sent_at_utc,
-        lastSeenIds: data.last_seen_ids || [],
-        pausedUntil: data.paused_until,
+        lastSentAt: (data as any).last_sent_at_utc,
+        lastSeenIds: (data as any).last_seen_ids || [],
+        pausedUntil: (data as any).paused_until,
       }
     });
 
@@ -230,10 +230,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as any).id;
 
     // Disable alerts by setting enabled to false
-    const { data, error } = await client
+    const { data, error } = await (client as any)
       .from('alert_settings')
       .update({ enabled: false })
       .eq('user_id', userId)

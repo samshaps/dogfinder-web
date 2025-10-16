@@ -152,11 +152,11 @@ export function useEmailAlerts() {
     
     // If enabling, set some default values
     if (enabled && settings) {
-      newSettings.frequency = settings.frequency || 'daily';
-      newSettings.maxDogsPerEmail = settings.maxDogsPerEmail || 5;
-      newSettings.minMatchScore = settings.minMatchScore || 70;
-      newSettings.includePhotos = settings.includePhotos ?? true;
-      newSettings.includeReasoning = settings.includeReasoning ?? true;
+      (newSettings as any).frequency = (settings as any).frequency || 'daily';
+      (newSettings as any).maxDogsPerEmail = (settings as any).maxDogsPerEmail || 5;
+      (newSettings as any).minMatchScore = (settings as any).minMatchScore || 70;
+      (newSettings as any).includePhotos = (settings as any).includePhotos ?? true;
+      (newSettings as any).includeReasoning = (settings as any).includeReasoning ?? true;
     }
 
     return await updateSettings(newSettings);

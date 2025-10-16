@@ -62,14 +62,14 @@ export async function POST(request: NextRequest) {
     for (const alertSetting of alertSettings) {
       try {
         processed++;
-        const user = alertSetting.users;
-        const preferences = alertSetting.preferences;
+        const user = (alertSetting as any).users;
+        const preferences = (alertSetting as any).preferences;
         
         console.log(`👤 Processing user: ${user.email}`);
 
         // Check if we already sent an email today (simplified rate limiting)
         const today = new Date();
-        const lastSent = alertSetting.last_sent_at_utc ? new Date(alertSetting.last_sent_at_utc) : null;
+        const lastSent = (alertSetting as any).last_sent_at_utc ? new Date((alertSetting as any).last_sent_at_utc) : null;
         
         if (lastSent) {
           const todayStart = new Date(today);
@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if user is paused
-        if (alertSetting.paused_until && new Date(alertSetting.paused_until) > new Date()) {
-          console.log(`⏸️ User ${user.email} is paused until ${alertSetting.paused_until}`);
+        if ((alertSetting as any).paused_until && new Date((alertSetting as any).paused_until) > new Date()) {
+          console.log(`⏸️ User ${user.email} is paused until ${(alertSetting as any).paused_until}`);
           results.push({
             user: user.email,
             status: 'paused',
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         console.log(`🔍 Searching for dogs for ${user.email}...`);
         const dogsResponse = await searchDogs(searchParams);
         
-        if (!dogsResponse.dogs || dogsResponse.dogs.length === 0) {
+        if (!(dogsResponse as any).dogs || (dogsResponse as any).dogs.length === 0) {
           console.log(`ℹ️ No dogs found for ${user.email}`);
           results.push({
             user: user.email,
@@ -115,8 +115,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Filter out dogs that were already seen
-        const lastSeenIds = alertSetting.last_seen_ids || [];
-        const newDogs = dogsResponse.dogs.filter(dog => 
+        const lastSeenIds = (alertSetting as any).last_seen_ids || [];
+        const newDogs = (dogsResponse as any).dogs.filter((dog: any) => 
           !lastSeenIds.includes(dog.id)
         );
 
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         const dogsToSend = newDogs.slice(0, maxDogs);
 
         // Convert dogs to email format
-        const emailMatches = dogsToSend.map(dog => ({
+        const emailMatches = dogsToSend.map((dog: any) => ({
           id: dog.id,
           name: dog.name,
           breeds: dog.breeds,
@@ -171,9 +171,9 @@ export async function POST(request: NextRequest) {
             email: user.email,
           },
           preferences: {
-            zipCodes: [preferences.location] || ['Unknown'],
+            zipCodes: preferences.location ? [preferences.location] : ['Unknown'],
             radiusMi: preferences.radius || 50,
-            frequency: alertSetting.cadence,
+            frequency: (alertSetting as any).cadence || 'daily',
           },
           matches: emailMatches,
           unsubscribeUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://dogyenta.com'}/unsubscribe?email=${encodeURIComponent(user.email)}`,
@@ -188,16 +188,16 @@ export async function POST(request: NextRequest) {
           // Update alert settings with new last seen IDs and timestamp
           const newLastSeenIds = [
             ...lastSeenIds,
-            ...dogsToSend.map(dog => dog.id)
+            ...dogsToSend.map((dog: any) => dog.id)
           ].slice(-100); // Keep only last 100 IDs
           
-          await client
+          await (client as any)
             .from('alert_settings')
             .update({
               last_sent_at_utc: new Date().toISOString(),
               last_seen_ids: newLastSeenIds,
             })
-            .eq('user_id', alertSetting.user_id);
+            .eq('user_id', (alertSetting as any).user_id);
 
           results.push({
             user: user.email,
@@ -216,9 +216,9 @@ export async function POST(request: NextRequest) {
 
       } catch (error) {
         errors++;
-        console.error(`❌ Error processing user ${alertSetting.users?.email}:`, error);
+        console.error(`❌ Error processing user ${(alertSetting as any).users?.email}:`, error);
         results.push({
-          user: alertSetting.users?.email || 'unknown',
+          user: (alertSetting as any).users?.email || 'unknown',
           status: 'error',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
