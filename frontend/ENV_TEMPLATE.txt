@@ -64,7 +64,9 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 # ============================================
 # Cron Job Security
 # ============================================
-CRON_SECRET=your-cron-secret-key-here
+# Generate with: openssl rand -base64 32
+CRON_SECRET_PROD=your-production-cron-secret-here
+CRON_SECRET_STAGING=your-staging-cron-secret-here
 
 # ============================================
 # Petfinder (existing v1 integration)

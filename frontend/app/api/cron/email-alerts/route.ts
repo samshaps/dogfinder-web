@@ -7,9 +7,13 @@ import { RATE_LIMITS } from '@/lib/email/config';
 // POST /api/cron/email-alerts - Cron job to send email alerts
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is a legitimate cron request (in production, add proper auth)
+    // Verify this is a legitimate cron request
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
+    
+    // Get the appropriate cron secret based on environment
+    const cronSecret = process.env.NODE_ENV === 'production' 
+      ? process.env.CRON_SECRET_PROD 
+      : process.env.CRON_SECRET_STAGING;
     
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(
