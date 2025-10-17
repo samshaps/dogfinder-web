@@ -43,9 +43,15 @@ export async function POST(request: NextRequest) {
     console.log('🚀 Calling OpenAI Responses API...');
     
     // Build messages using shared utility for consistency
+    // Check if user has minimal preferences by looking for key indicators in the prompt
+    const hasMinimalPrefs = !prompt || 
+      prompt.toLowerCase().includes('none explicitly provided') ||
+      prompt.toLowerCase().includes('limited') ||
+      (prompt.split('\n').length <= 2 && !prompt.toLowerCase().includes('preferences'));
+    
     const context = {
       temperaments: temperaments && Array.isArray(temperaments) ? temperaments : undefined,
-      hasUserPreferences: true // We'll determine this from the prompt content
+      hasUserPreferences: !hasMinimalPrefs
     };
     
     const messages = buildReasoningMessages(prompt as string, context);

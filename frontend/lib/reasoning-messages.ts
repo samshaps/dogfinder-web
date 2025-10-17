@@ -18,6 +18,11 @@ export function buildSystemPrompt(context: ReasoningContext): string {
     systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient"). Remember: partial temperament matches are acceptable and should be highlighted positively.`;
   }
   
+  // Add specific guidance for minimal input scenarios
+  if (!context.hasUserPreferences) {
+    systemPrompt += `\n\nMINIMAL INPUT GUIDANCE: When no specific user preferences are provided, focus on highlighting the breed's most positive and appealing characteristics. Emphasize what makes this breed special, such as their temperament, energy level, size, grooming needs, or other notable traits. Use phrases like "known for", "typically", or "often" when describing breed characteristics. Make the recommendation feel personal and engaging by highlighting why this breed could be a great companion.`;
+  }
+  
   return systemPrompt;
 }
 

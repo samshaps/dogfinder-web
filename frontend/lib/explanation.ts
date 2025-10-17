@@ -102,7 +102,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
       ? `ONLY cite user preferences that are explicitly listed in the "User preferences" section below. Do NOT invent or assume any user preferences. Highlight which actual user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
-      : `Do NOT mention user preferences, desires, or wants. Focus on the dog's positive traits and characteristics only.`,
+      : `Do NOT mention user preferences, desires, or wants. Focus on highlighting the breed's most positive and appealing characteristics. Emphasize what makes this breed special - their temperament, energy level, size, grooming needs, or other notable traits. Use phrases like "known for", "typically", or "often" when describing breed characteristics. Make it feel personal and engaging by highlighting why this breed could be a great companion.`,
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
@@ -270,9 +270,21 @@ function generateFallbackTop3Reasoning(
     const dogTrait = fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
     primary = dogTrait ? `A ${dogTrait} ${dog.breeds[0] || 'dog'}.` : `${dog.name} is a wonderful ${dog.breeds[0] || 'dog'}.`;
   } else {
-    // No user preferences - focus purely on dog characteristics
-    const dogTrait = fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
-    primary = dogTrait ? `A ${dogTrait} ${dog.breeds[0] || 'dog'}.` : `${dog.name} is a wonderful ${dog.breeds[0] || 'dog'}.`;
+    // No user preferences - highlight breed's positive characteristics
+    const breedName = dog.breeds[0] || 'dog';
+    const size = dog.size ? `${dog.size.toLowerCase()} ` : '';
+    const energy = fp.dogTraits.find(t => t.endsWith(' energy'))?.replace(' energy', '') || '';
+    const temperament = fp.dogTraits.find(t => t.includes('friendly') || t.includes('calm') || t.includes('loyal')) || '';
+    
+    if (energy && temperament) {
+      primary = `A ${size}${breedName} known for being ${energy} and ${temperament}.`;
+    } else if (energy) {
+      primary = `A ${size}${breedName} with ${energy} energy.`;
+    } else if (temperament) {
+      primary = `A ${size}${breedName} known for being ${temperament}.`;
+    } else {
+      primary = `A wonderful ${size}${breedName} with great potential.`;
+    }
   }
   return { primary: primary.substring(0, 150), additional: [], concerns: [] };
 }
