@@ -13,9 +13,16 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     
     // Get the appropriate cron secret based on environment
-    const cronSecret = process.env.NODE_ENV === 'production' 
+    const cronSecret = process.env.VERCEL_ENV === 'production' 
       ? appConfig.cronSecretProd 
       : appConfig.cronSecretStaging;
+    
+    console.log('🔍 Cron auth debug:', {
+      vercelEnv: process.env.VERCEL_ENV,
+      nodeEnv: process.env.NODE_ENV,
+      hasCronSecret: !!cronSecret,
+      authHeaderPresent: !!authHeader
+    });
     
     if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
       console.error('❌ Invalid cron authentication attempt');
