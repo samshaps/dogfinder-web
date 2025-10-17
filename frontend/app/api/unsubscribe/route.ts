@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyUnsubToken } from '@/lib/tokens';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { getStripeServer } from '@/lib/stripe/config';
+import { appConfig } from '@/lib/config';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
     }
 
     const client = getSupabaseClient();
+    // Example usage of config (ensures env loaded early)
+    if (!appConfig.emailTokenSecret) throw new Error('EMAIL_TOKEN_SECRET not set');
 
     // Idempotency via jti recorded in email_events
     const jti = String(payload.jti || '');

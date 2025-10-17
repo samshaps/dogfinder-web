@@ -4,11 +4,15 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { EmailAlertPreferencesSchema } from '@/lib/email/types';
 import { getStripeServer } from '@/lib/stripe/config';
 import { sendTestEmail } from '@/lib/email/service';
+import { appConfig } from '@/lib/config';
 
 // GET /api/email-alerts - Get user's email alert settings
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession();
+    if (!appConfig.resendApiKey) {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
+    }
     
     if (!session?.user?.email) {
       return NextResponse.json(
