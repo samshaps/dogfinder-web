@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       // Add timeout to prevent hanging requests
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
     if (!response.ok) {
@@ -67,6 +67,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('❌ Error proxying to backend:', error);
+    
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return NextResponse.json(
+        { 
+          error: 'Backend timeout', 
+          message: 'The backend API is taking too long to respond. Please try again later.',
+          details: 'Backend API timeout after 10 seconds'
+        },
+        { status: 504 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch dogs from backend', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
