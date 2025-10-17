@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { runResponse } from '@/lib/openai-client';
 
 export type InferredTraits = {
   energy?: 'low'|'medium'|'high'|null;
@@ -13,10 +13,6 @@ export type InferredTraits = {
 export async function POST(req: NextRequest) {
   try {
     const { description, tags } = await req.json();
-    if (!process.env.OPENAI_SECRET) {
-      return NextResponse.json({ error: 'OPENAI_SECRET not configured' }, { status: 500 });
-    }
-    const client = new OpenAI({ apiKey: process.env.OPENAI_SECRET });
 
     const prompt = `You are an adoption trait extractor. Read a dog's description and tags. Extract structured traits supported by text.
 
@@ -49,8 +45,8 @@ Tags: ${Array.isArray(tags) ? tags.join(', ') : (tags || '')}
 
 Output JSON only. No prose.`;
 
-    const resp = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    const response = await runResponse({
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You extract dog adoption traits into structured JSON.' },
         { role: 'user', content: prompt },
@@ -59,9 +55,13 @@ Output JSON only. No prose.`;
       response_format: { type: 'json_object' },
       max_tokens: 350,
     });
-    const text = resp.choices[0]?.message?.content?.trim() || '{}';
+
     let parsed: InferredTraits;
-    try { parsed = JSON.parse(text); } catch { parsed = { evidence: [], confidence: 0 } as any; }
+    try { 
+      parsed = JSON.parse(response.output_text); 
+    } catch { 
+      parsed = { evidence: [], confidence: 0 } as any; 
+    }
     if (!parsed.evidence) parsed.evidence = [];
     if (typeof parsed.confidence !== 'number') parsed.confidence = 0.5;
     return NextResponse.json(parsed as InferredTraits);

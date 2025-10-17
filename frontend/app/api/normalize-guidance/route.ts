@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { runResponse } from '@/lib/openai-client';
 
 export type NormPrefs = {
   age?: Array<'puppy'|'young'|'adult'|'senior'>;
@@ -12,10 +12,6 @@ export type NormPrefs = {
 export async function POST(req: NextRequest) {
   try {
     const { guidance } = await req.json();
-    if (!process.env.OPENAI_SECRET) {
-      return NextResponse.json({ error: 'OPENAI_SECRET not configured' }, { status: 500 });
-    }
-    const client = new OpenAI({ apiKey: process.env.OPENAI_SECRET });
 
     const prompt = `You are an adoption preference normalizer. Convert a messy free-text user note into structured adoption preferences.
 
@@ -43,8 +39,8 @@ User note: ${guidance || ''}
 
 Output JSON only. No prose.`;
 
-    const resp = await client.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    const response = await runResponse({
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You normalize adoption preferences to structured JSON.' },
         { role: 'user', content: prompt },
@@ -53,9 +49,13 @@ Output JSON only. No prose.`;
       response_format: { type: 'json_object' },
       max_tokens: 300,
     });
-    const text = resp.choices[0]?.message?.content?.trim() || '{}';
+
     let parsed: NormPrefs;
-    try { parsed = JSON.parse(text); } catch { parsed = {}; }
+    try { 
+      parsed = JSON.parse(response.output_text); 
+    } catch { 
+      parsed = {}; 
+    }
     return NextResponse.json(parsed as NormPrefs);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'normalize-guidance failed' }, { status: 500 });
