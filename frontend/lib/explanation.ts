@@ -101,7 +101,8 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
       ? `Include at least one explicit user preference.`
-      : `Do NOT mention user preferences, desires, or wants.`,
+      : `Do NOT mention user preferences, desires, or wants. Instead, highlight the dog's standout qualities from the provided facts and keep the tone welcoming.`,
+    `Avoid claiming the dog matches any adopter preference unless that preference appears under User preferences.`,
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
@@ -163,8 +164,8 @@ function parseJSONResponse(response: string): any {
  * Generate AI reasoning for Top 3 dogs
  */
 export async function generateTop3Reasoning(
-  dog: Dog, 
-  analysis: DogAnalysis, 
+  dog: Dog,
+  analysis: DogAnalysis,
   effectivePrefs: EffectivePreferences
 ): Promise<{ primary: string; additional: string[]; concerns: string[] }> {
   const BODY_CAP = COPY_MAX.TOP - 1; // leave room to append final period
@@ -176,6 +177,7 @@ export async function generateTop3Reasoning(
   })();
   const prompt = createTop3Prompt(dog, analysis, effectivePrefs);
   const facts = buildFactPack(effectivePrefs, dog);
+  const temperaments = (effectivePrefs.temperament.value || []).map((t) => String(t));
   try {
     if (debug) {
       // eslint-disable-next-line no-console
@@ -183,14 +185,37 @@ export async function generateTop3Reasoning(
       // eslint-disable-next-line no-console
       console.log('[reasoning] FactPack:', facts);
     }
-    const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, type: 'free', max_tokens: 60, temperature: 0.1 }),
-    });
-    if (!response.ok) throw new Error(`AI service error: ${response.status}`);
-    const data = await response.json();
-    const raw = typeof data.reasoning === 'string' ? data.reasoning : '';
+    let raw: string | null = null;
+
+    if (typeof window === 'undefined') {
+      try {
+        const [{ runTextResponse, isOpenAIConfigured }, { buildReasoningMessages }] = await Promise.all([
+          import('./openai-client'),
+          import('./reasoning-messages'),
+        ]);
+        if (isOpenAIConfigured()) {
+          const messages = buildReasoningMessages({ prompt, temperaments });
+          raw = await runTextResponse(messages, { max_tokens: 60, temperature: 0.1 });
+        }
+      } catch (directError) {
+        if (debug) {
+          // eslint-disable-next-line no-console
+          console.warn('[reasoning] Direct OpenAI call failed, falling back to API route', directError);
+        }
+      }
+    }
+
+    if (!raw) {
+      const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, type: 'free', max_tokens: 60, temperature: 0.1, temperaments }),
+      });
+      if (!response.ok) throw new Error(`AI service error: ${response.status}`);
+      const data = await response.json();
+      raw = typeof data.reasoning === 'string' ? data.reasoning : '';
+    }
+
     const parsed = parseJSONResponse(raw);
     let text = typeof parsed?.text === 'string' ? parsed.text : '';
     const cited = Array.isArray(parsed?.cited) ? parsed.cited : [];
@@ -257,9 +282,34 @@ function generateFallbackTop3Reasoning(
   } else {
     const fp = buildFactPack(effectivePrefs, dog);
     const cite = fp.prefs[0] || fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
-    primary = cite ? `Matches your ${cite}.` : `${dog.name} is a wonderful ${dog.breeds[0]}.`;
+    if (cite) {
+      const formatted = formatTraitForFallback(cite);
+      primary = `${dog.name} stands out for ${formatted}.`;
+    } else if (dog.breeds && dog.breeds.length > 0) {
+      primary = `${dog.name} is a wonderful ${dog.breeds[0]}.`;
+    } else {
+      primary = `${dog.name} has plenty of lovable qualities to explore.`;
+    }
   }
   return { primary: primary.substring(0, 150), additional: [], concerns: [] };
+}
+
+function formatTraitForFallback(trait: string): string {
+  const t = trait.trim().toLowerCase();
+  if (!t) return 'their standout traits';
+  if (t.endsWith(' energy')) {
+    return `their ${t}`;
+  }
+  if (['small', 'medium', 'large', 'xl'].includes(t)) {
+    return t === 'xl' ? 'their extra-large size' : `their ${t} size`;
+  }
+  if (t === 'not barky') {
+    return 'being calm and not barky';
+  }
+  if (t.includes('friendly')) {
+    return `being ${t}`;
+  }
+  return t.startsWith('their ') ? t : `their ${t}`;
 }
 
 /**
@@ -380,6 +430,10 @@ export function sanitizeNoPreferenceClaims(text: string): string {
   s = s.replace(/^you,?\s+as\s+an?\s+[^,]+,\s*/i, '');
   // Remove constructions like: you would enjoy/love/like/prefer/want/need (the) companionship of
   s = s.replace(/\byou(?:'d)?\s+(?:would\s+|will\s+|might\s+|could\s+)?(?:enjoy|love|like|prefer|want|need)\s+(?:the\s+)?(?:companionship\s+of\s+)?/gi, '');
+  // Remove "match" style claims directed at the adopter
+  s = s.replace(/\bmatches?\s+your\b[^.?!]*/gi, '');
+  s = s.replace(/\bmatched\s+(?:perfectly\s+)?for\s+you[^.?!]*/gi, '');
+  s = s.replace(/\bis\s+a\s+(?:great|strong|ideal)\s+match\s+for\s+you[^.?!]*/gi, '');
   // Remove "for someone like you ..."
   s = s.replace(/\bfor\s+someone\s+like\s+you(?:\s+who\s+prefers[^.,!?]*)?/gi, '');
   // Remove "you who prefer ..."

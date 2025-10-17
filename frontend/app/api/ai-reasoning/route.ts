@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStructuredResponse, runTextResponse, isOpenAIConfigured } from '@/lib/openai-client';
+import { buildReasoningMessages } from '@/lib/reasoning-messages';
 
 /**
  * AI Reasoning API Route
@@ -41,26 +42,10 @@ export async function POST(request: NextRequest) {
     
     console.log('🚀 Calling OpenAI Responses API...');
     
-    // Build temperament-aware system prompt
-    let systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).';
-    
-    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
-      systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient").`;
-    }
-    
-    // Build user message with temperament context
-    let userMessage = prompt as string;
-    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
-      userMessage += `\n\nAdopter's temperament preferences: ${temperaments.join(', ')}`;
-    }
-    
-    const messages = [
-      {
-        role: 'system' as const,
-        content: systemPrompt
-      },
-      { role: 'user' as const, content: userMessage }
-    ];
+    const messages = buildReasoningMessages({
+      prompt,
+      temperaments: Array.isArray(temperaments) ? temperaments : undefined,
+    });
 
     if (type === 'free') {
       if (process.env.DEBUG_REASONING === '1') {
