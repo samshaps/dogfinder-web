@@ -20,7 +20,7 @@ export function buildSystemPrompt(context: ReasoningContext): string {
   
   // Add specific guidance for minimal input scenarios
   if (!context.hasUserPreferences) {
-    systemPrompt += `\n\nMINIMAL INPUT GUIDANCE: When no specific user preferences are provided, focus on highlighting the breed's most positive and appealing characteristics. Emphasize what makes this breed special, such as their temperament, energy level, size, grooming needs, or other notable traits. Use phrases like "known for", "typically", or "often" when describing breed characteristics. Make the recommendation feel personal and engaging by highlighting why this breed could be a great companion.`;
+    systemPrompt += `\n\nMINIMAL INPUT GUIDANCE: When no specific user preferences are provided, focus on highlighting the breed's most positive and appealing characteristics. Emphasize what makes this breed special and why they make excellent companions. Highlight their unique traits, personality, temperament, or special qualities. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make the recommendation feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters.`;
   }
   
   return systemPrompt;
