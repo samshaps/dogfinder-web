@@ -309,6 +309,13 @@ export async function POST(request: NextRequest) {
       sent,
       errors,
       results,
+      debug: {
+        vercelEnv: process.env.VERCEL_ENV,
+        isProduction,
+        hasCronSecret: !!cronSecret,
+        authHeaderPresent: !!authHeader,
+        cronSecretLength: cronSecret?.length || 0
+      }
     });
 
   } catch (error) {
@@ -326,15 +333,26 @@ export async function POST(request: NextRequest) {
  * Constant-time comparison for cron authentication
  */
 function isValidCronAuth(authHeader: string | null, secret: string): boolean {
+  console.log('🔍 isValidCronAuth debug:', {
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader?.substring(0, 10),
+    secretLength: secret?.length || 0,
+    providedSecretLength: authHeader?.slice(7)?.length || 0
+  });
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ Auth header missing or invalid prefix');
     return false;
   }
   
   const providedSecret = authHeader.slice(7); // Remove 'Bearer '
-  return crypto.timingSafeEqual(
+  const isValid = crypto.timingSafeEqual(
     Buffer.from(providedSecret, 'utf8'),
     Buffer.from(secret, 'utf8')
   );
+  
+  console.log('🔍 Auth comparison result:', { isValid });
+  return isValid;
 }
 
 /**
