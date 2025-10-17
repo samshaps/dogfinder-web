@@ -346,9 +346,15 @@ function isValidCronAuth(authHeader: string | null, secret: string): boolean {
   }
   
   const providedSecret = authHeader.slice(7); // Remove 'Bearer '
+  
+  // Ensure both strings are the same length for timing-safe comparison
+  const maxLength = Math.max(providedSecret.length, secret.length);
+  const paddedProvided = providedSecret.padEnd(maxLength, '\0');
+  const paddedSecret = secret.padEnd(maxLength, '\0');
+  
   const isValid = crypto.timingSafeEqual(
-    Buffer.from(providedSecret, 'utf8'),
-    Buffer.from(secret, 'utf8')
+    Buffer.from(paddedProvided, 'utf8'),
+    Buffer.from(paddedSecret, 'utf8')
   );
   
   console.log('🔍 Auth comparison result:', { isValid });
