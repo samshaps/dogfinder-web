@@ -251,6 +251,7 @@ function ResultsPageContent() {
   const [matchingResults, setMatchingResults] = useState<MatchingResults | null>(null);
   const [showFallbackBanner, setShowFallbackBanner] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [matchingLoading, setMatchingLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('freshness');
   const [currentPage, setCurrentPage] = useState(1);
@@ -358,75 +359,89 @@ function ResultsPageContent() {
         setDogs(dogsWithPhotos);
         setTotalPages(Math.ceil(dogsWithPhotos.length / response.pageSize));
         
-        // Use the new matching API to get top picks and all matches
-        console.log('🎯 NEW MATCHING: Starting matching process...');
-        try {
-          const matchingResponse = await fetch('/api/match-dogs', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userPreferences: userPreferences,
-              dogs: dogsWithPhotos.map(mapAPIDogToDog)
-            })
-          });
-          
-          if (!matchingResponse.ok) {
-            throw new Error(`Matching API error: ${matchingResponse.status}`);
-          }
-          
-          const payload = await matchingResponse.json();
-          // eslint-disable-next-line no-console
-          console.log('🧩 Matching payload:', payload);
-          const results: MatchingResults = payload?.results ?? payload;
-          // eslint-disable-next-line no-console
-          console.log('🧩 Matching results summary:', {
-            topMatches: results?.topMatches?.length || 0,
-            allMatches: results?.allMatches?.length || 0,
-            expansionNotes: results?.expansionNotes?.length || 0,
-          });
-          setMatchingResults(results);
-          // eslint-disable-next-line no-console
-          console.log('🧩 Reasons presence:', {
-            topHasReasons: (results?.topMatches || []).filter(m => m?.reasons?.primary150)?.length,
-            allHasBlurbs: (results?.allMatches || []).filter(m => m?.reasons?.blurb50)?.length,
-          });
-          if ((results?.topMatches || []).length > 0) {
-            const sample = (results.topMatches[0] || {}).reasons;
-            // eslint-disable-next-line no-console
-            console.log('🧩 Sample top reason:', sample);
-          }
-          
-          // Extract top picks from matching results (convert back to API dogs)
-          const topPicksDogs = (results?.topMatches ?? []).map((match: any) => 
-            dogsWithPhotos.find(dog => dog.id === match.dogId)
-          ).filter(Boolean) as APIDog[];
-          // eslint-disable-next-line no-console
-          console.log('🧩 Top picks resolved to', topPicksDogs.length, 'dogs');
-          
-          if (topPicksDogs.length === 0) {
-            // Fallback: take first 3 dogs with photos
-            setTopPicks(dogsWithPhotos.slice(0, 3));
-            setShowFallbackBanner(false);
-          } else {
-            setTopPicks(topPicksDogs);
-            setShowFallbackBanner(false);
-          }
-        } catch (matchingError) {
-          console.error('❌ Matching API error:', matchingError);
-          // Fallback to simple filtering if matching API fails
-          setTopPicks(dogsWithPhotos.slice(0, 3));
-          setShowFallbackBanner(false);
-        }
+        // Set loading to false immediately after dogs are loaded
+        setLoading(false);
+        
+        // Start AI matching in parallel (non-blocking)
+        startAIMatching(dogsWithPhotos);
         
       } catch (err) {
-        console.error('Error fetching dogs:', err);
-        setError('Failed to load dogs. Please try again.');
-      } finally {
+        console.error('❌ Error fetching dogs:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch dogs');
         setLoading(false);
       }
     }
+    
+    fetchDogs();
+  }, [searchQuery, userPreferences]);
+  
+  // Separate function for AI matching
+  const startAIMatching = async (dogsWithPhotos: APIDog[]) => {
+    try {
+      setMatchingLoading(true);
+      console.log('🎯 NEW MATCHING: Starting matching process...');
+      
+      const matchingResponse = await fetch('/api/match-dogs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userPreferences: userPreferences,
+          dogs: dogsWithPhotos.map(mapAPIDogToDog)
+        })
+      });
+      
+      if (!matchingResponse.ok) {
+        throw new Error(`Matching API error: ${matchingResponse.status}`);
+      }
+      
+      const payload = await matchingResponse.json();
+      // eslint-disable-next-line no-console
+      console.log('🧩 Matching payload:', payload);
+      const results: MatchingResults = payload?.results ?? payload;
+      // eslint-disable-next-line no-console
+      console.log('🧩 Matching results summary:', {
+        topMatches: results?.topMatches?.length || 0,
+        allMatches: results?.allMatches?.length || 0,
+        expansionNotes: results?.expansionNotes?.length || 0,
+      });
+      setMatchingResults(results);
+      // eslint-disable-next-line no-console
+      console.log('🧩 Reasons presence:', {
+        topHasReasons: (results?.topMatches || []).filter(m => m?.reasons?.primary150)?.length,
+        allHasBlurbs: (results?.allMatches || []).filter(m => m?.reasons?.blurb50)?.length,
+      });
+      if ((results?.topMatches || []).length > 0) {
+        const sample = (results.topMatches[0] || {}).reasons;
+        // eslint-disable-next-line no-console
+        console.log('🧩 Sample top reason:', sample);
+      }
+      
+      // Extract top picks from matching results (convert back to API dogs)
+      const topPicksDogs = (results?.topMatches ?? []).map((match: any) => 
+        dogsWithPhotos.find(dog => dog.id === match.dogId)
+      ).filter(Boolean) as APIDog[];
+      // eslint-disable-next-line no-console
+      console.log('🧩 Top picks resolved to', topPicksDogs.length, 'dogs');
+      
+      if (topPicksDogs.length === 0) {
+        // Fallback: take first 3 dogs with photos
+        setTopPicks(dogsWithPhotos.slice(0, 3));
+        setShowFallbackBanner(false);
+      } else {
+        setTopPicks(topPicksDogs);
+        setShowFallbackBanner(false);
+      }
+    } catch (matchingError) {
+      console.error('❌ Matching API error:', matchingError);
+      // Fallback to simple filtering if matching API fails
+      setTopPicks(dogsWithPhotos.slice(0, 3));
+      setShowFallbackBanner(true); // Show banner that AI matching failed
+    } finally {
+      setMatchingLoading(false);
+    }
+  };
     
     fetchDogs();
   }, [searchQuery, currentPage, sortBy]);
@@ -496,6 +511,24 @@ function ResultsPageContent() {
             </select>
           </div>
         </div>
+
+        {/* AI Matching Status Banner */}
+        {matchingLoading && (
+          <div className="mb-6 rounded-lg border border-blue-300 bg-blue-50 p-4 text-blue-800">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+              <p className="font-semibold">Generating personalized recommendations...</p>
+            </div>
+            <p className="text-sm mt-1">We're analyzing your preferences to find the best matches. Dogs are shown below while we work.</p>
+          </div>
+        )}
+
+        {showFallbackBanner && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-800">
+            <p className="font-semibold">AI recommendations temporarily unavailable</p>
+            <p className="text-sm">We're showing all available dogs below. Personalized matching will be back shortly.</p>
+          </div>
+        )}
 
         {/* Smart expansion hint banner when result count is low */}
         {dogs.length > 0 && dogs.length < 3 && (

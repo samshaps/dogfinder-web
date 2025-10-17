@@ -16,15 +16,19 @@ export async function GET(request: NextRequest) {
 
     console.log('🔄 Proxying request to backend:', backendUrl.toString());
 
-    // Forward the request to the backend
+    // Forward the request to the backend with manual timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(backendUrl.toString(), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      // Add timeout to prevent hanging requests
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error('❌ Backend API error:', response.status, response.statusText);
@@ -68,8 +72,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error proxying to backend:', error);
     
-    // Handle timeout specifically
-    if (error instanceof Error && error.name === 'TimeoutError') {
+    // Handle timeout/abort specifically
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       return NextResponse.json(
         { 
           error: 'Backend timeout', 
