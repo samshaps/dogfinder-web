@@ -374,7 +374,7 @@ function ResultsPageContent() {
     
     fetchDogs();
   }, [searchQuery, userPreferences]);
-  
+
   // Separate function for AI matching
   const startAIMatching = async (dogsWithPhotos: APIDog[]) => {
     try {
@@ -442,9 +442,6 @@ function ResultsPageContent() {
       setMatchingLoading(false);
     }
   };
-    
-    fetchDogs();
-  }, [searchQuery, currentPage, sortBy]);
 
   if (loading) {
     return (
