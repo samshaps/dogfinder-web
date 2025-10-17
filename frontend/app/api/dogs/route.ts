@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Forward the request to the backend with manual timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     const response = await fetch(backendUrl.toString(), {
       method: 'GET',

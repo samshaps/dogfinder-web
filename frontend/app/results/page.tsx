@@ -261,7 +261,7 @@ function ResultsPageContent() {
   // Extract search parameters
   const searchQuery = useMemo(() => ({
     zip: searchParams.get('zip') || '',
-    radius: parseInt(searchParams.get('radius') || '50'),
+    radius: parseInt(searchParams.get('radius') || '100'),
     age: searchParams.get('age')?.split(',') || [],
     size: searchParams.get('size')?.split(',') || [],
     includeBreeds: searchParams.get('includeBreeds')?.split(',') || [],
@@ -276,8 +276,20 @@ function ResultsPageContent() {
     t_breedsInclude: searchParams.get('t_breedsInclude') === '1',
     t_breedsExclude: searchParams.get('t_breedsExclude') === '1',
     page: currentPage,
-    limit: 12
+    limit: 20
   }), [searchParams, currentPage]);
+
+  // Ensure URL contains default radius=100 if not provided
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentRadius = searchParams.get('radius');
+    if (!currentRadius) {
+      const sp = new URLSearchParams(Array.from(searchParams.entries()));
+      sp.set('radius', '100');
+      const newUrl = `${window.location.pathname}?${sp.toString()}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [searchParams]);
 
   // Extract user preferences for AI reasoning (memoized to prevent infinite loops)
   const userPreferences: UserPreferences = useMemo(() => ({

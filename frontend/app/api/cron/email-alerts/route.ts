@@ -441,7 +441,7 @@ function isTransientError(error: string | undefined): boolean {
 function convertPreferencesToSearchParams(preferences: any) {
   return {
     zip: preferences.location,
-    radius: preferences.radius || 50,
+    radius: preferences.radius || 100,
     age: preferences.age || [],
     size: preferences.size || [],
     includeBreeds: preferences.breed || [],
