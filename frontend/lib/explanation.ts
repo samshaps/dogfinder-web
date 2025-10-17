@@ -3,6 +3,7 @@ import { buildFactPack } from './facts';
 import { verifyBlurb, verifyBlurbWithTemperament } from './verify';
 import { COPY_MAX, COPY_SOFT } from './constants/copyLimits';
 import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments';
+import { buildReasoningMessages } from './reasoning-messages';
 
 function resolveApiUrl(path: string): string {
   if (typeof window === 'undefined') {
@@ -100,8 +101,8 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `Address the reader only as "you". No names/PII.`,
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
-      ? `Highlight which user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
-      : `Do NOT mention user preferences, desires, or wants.`,
+      ? `ONLY cite user preferences that are explicitly listed in the "User preferences" section below. Do NOT invent or assume any user preferences. Highlight which actual user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
+      : `Do NOT mention user preferences, desires, or wants. Focus on the dog's positive traits and characteristics only.`,
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
@@ -129,9 +130,12 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
  */
 function createAllMatchesPrompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: EffectivePreferences): string {
   const facts = buildFactPack(effectivePrefs, dog);
+  const hasPrefs = (facts.prefs || []).length > 0;
   const prompt = [
     'Write one short phrase (<=50 chars) about this dog using OR-based matching logic.',
-    'Highlight which user preference was satisfied with supportive citation (e.g., "Matches your calm temperament request").',
+    hasPrefs 
+      ? 'ONLY highlight user preferences that are explicitly listed below. Do NOT invent or assume any user preferences.'
+      : 'Do NOT mention user preferences. Focus on the dog\'s positive traits and characteristics only.',
     'Base it only on the provided user preferences and dog facts. Avoid assumptions.',
     'Emphasize partial matches positively rather than focusing on what\'s missing.',
     '',
@@ -189,7 +193,7 @@ export async function generateTop3Reasoning(
     const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, type: 'free', max_tokens: 60, temperature: 0.1 }),
+      body: JSON.stringify({ prompt, type: 'free', max_tokens: 50, temperature: 0.1 }),
     });
     if (!response.ok) throw new Error(`AI service error: ${response.status}`);
     const data = await response.json();
@@ -253,14 +257,22 @@ function generateFallbackTop3Reasoning(
   analysis: DogAnalysis,
   effectivePrefs: EffectivePreferences
 ): { primary: string; additional: string[]; concerns: string[] } {
+  const fp = buildFactPack(effectivePrefs, dog);
+  const hasPrefs = (fp.prefs || []).length > 0;
   const matchedPrefs = analysis.matchedPrefs.slice(0, 2);
+  
   let primary: string;
-  if (matchedPrefs.length > 0) {
+  if (hasPrefs && matchedPrefs.length > 0) {
+    // Only cite actual matched preferences
     primary = `${matchedPrefs.join(' and ')} make this a great match for you.`;
+  } else if (hasPrefs) {
+    // User has preferences but no matches - focus on dog traits
+    const dogTrait = fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
+    primary = dogTrait ? `A ${dogTrait} ${dog.breeds[0] || 'dog'}.` : `${dog.name} is a wonderful ${dog.breeds[0] || 'dog'}.`;
   } else {
-    const fp = buildFactPack(effectivePrefs, dog);
-    const cite = fp.prefs[0] || fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
-    primary = cite ? `Matches your ${cite}.` : `${dog.name} is a wonderful ${dog.breeds[0]}.`;
+    // No user preferences - focus purely on dog characteristics
+    const dogTrait = fp.dogTraits.find(t => t.endsWith(' energy') || ['small','medium','large','xl'].includes(t) || t === 'quiet' || t.includes('friendly')) || '';
+    primary = dogTrait ? `A ${dogTrait} ${dog.breeds[0] || 'dog'}.` : `${dog.name} is a wonderful ${dog.breeds[0] || 'dog'}.`;
   }
   return { primary: primary.substring(0, 150), additional: [], concerns: [] };
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStructuredResponse, runTextResponse, isOpenAIConfigured } from '@/lib/openai-client';
+import { buildReasoningMessages } from '@/lib/reasoning-messages';
 
 /**
  * AI Reasoning API Route
@@ -41,26 +42,13 @@ export async function POST(request: NextRequest) {
     
     console.log('🚀 Calling OpenAI Responses API...');
     
-    // Build temperament-aware system prompt with OR-based matching emphasis
-    let systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).\n\nIMPORTANT: Use OR-based matching logic. Every adopter preference (age, size, energy, temperament, etc.) is an optional signal. Reward overlap but never require all facets to match before recommending dogs. Highlight which adopter inputs were satisfied and which were not, reinforcing that partial matches are acceptable. Call out matched facets with supportive citations and note any gaps without discarding the option outright.';
+    // Build messages using shared utility for consistency
+    const context = {
+      temperaments: temperaments && Array.isArray(temperaments) ? temperaments : undefined,
+      hasUserPreferences: true // We'll determine this from the prompt content
+    };
     
-    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
-      systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient"). Remember: partial temperament matches are acceptable and should be highlighted positively.`;
-    }
-    
-    // Build user message with temperament context
-    let userMessage = prompt as string;
-    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
-      userMessage += `\n\nAdopter's temperament preferences: ${temperaments.join(', ')}`;
-    }
-    
-    const messages = [
-      {
-        role: 'system' as const,
-        content: systemPrompt
-      },
-      { role: 'user' as const, content: userMessage }
-    ];
+    const messages = buildReasoningMessages(prompt as string, context);
 
     if (type === 'free') {
       if (process.env.DEBUG_REASONING === '1') {
@@ -68,22 +56,22 @@ export async function POST(request: NextRequest) {
       }
       // Plain text mode for free-form generation
       const reasoning = await runTextResponse(messages, {
-        max_tokens: Math.min(Number(max_tokens || 80), 120),
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.4)) : 0.2,
+        max_tokens: Math.min(Number(max_tokens || 60), 80),
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
       return NextResponse.json({ reasoning });
     } else if (type === 'top-pick') {
       // Structured response for top picks with JSON schema validation
       const reasoning = await runStructuredResponse(messages, {
-        max_tokens: 200,
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.4)) : 0.2,
+        max_tokens: 150,
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
       return NextResponse.json({ reasoning });
     } else {
       // Short response for all matches
       const reasoning = await runTextResponse(messages, {
-        max_tokens: 80,
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.4)) : 0.2,
+        max_tokens: 50,
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
       return NextResponse.json({ reasoning: reasoning.substring(0, 50) });
     }

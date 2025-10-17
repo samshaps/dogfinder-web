@@ -5,6 +5,10 @@ import OpenAI from 'openai';
 // Memoized OpenAI client instance
 let clientInstance: OpenAI | null = null;
 
+// Simple in-memory cache for responses (keyed by prompt hash)
+const responseCache = new Map<string, { response: NormalizedResponse; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Get a memoized OpenAI client instance configured for the Responses API
  */
@@ -67,9 +71,37 @@ function sanitizeNumericParam(value: any, defaultValue: number, min: number, max
 }
 
 /**
+ * Simple hash function for caching
+ */
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return hash.toString();
+}
+
+/**
  * Run a response generation using the Responses API
  */
 export async function runResponse(options: ResponseOptions): Promise<NormalizedResponse> {
+  // Create cache key from options
+  const cacheKey = simpleHash(JSON.stringify({
+    model: options.model || 'gpt-4o-mini',
+    messages: options.messages,
+    max_tokens: options.max_tokens,
+    temperature: options.temperature,
+    response_format: options.response_format
+  }));
+  
+  // Check cache first
+  const cached = responseCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    return cached.response;
+  }
+  
   const client = getOpenAIClient();
   
   // Sanitize parameters
@@ -82,14 +114,23 @@ export async function runResponse(options: ResponseOptions): Promise<NormalizedR
     max_tokens: maxTokens,
     temperature,
     response_format: options.response_format,
+    // Optimize for speed
+    stream: false,
+  }, {
+    timeout: 10000, // 10 second timeout
   });
 
   const outputText = response.choices[0]?.message?.content?.trim() || '';
   
-  return {
+  const result = {
     output_text: outputText,
     raw: response,
   };
+  
+  // Cache the result
+  responseCache.set(cacheKey, { response: result, timestamp: Date.now() });
+  
+  return result;
 }
 
 /**
