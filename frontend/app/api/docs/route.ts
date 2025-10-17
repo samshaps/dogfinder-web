@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateOpenAPISpec, generateApiDocsHTML, extractApiVersion } from '@/lib/api/versioning';
+import { generateOpenAPISpec, generateApiDocsHTML } from '@/lib/api/docs';
+import { extractApiVersion } from '@/lib/api/versioning';
 import { createSuccessResponse } from '@/lib/api/response';
 
 export async function GET(request: NextRequest) {
