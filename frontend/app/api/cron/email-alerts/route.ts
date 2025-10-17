@@ -3,19 +3,22 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { sendDogMatchAlert } from '@/lib/email/service';
 import { searchDogs } from '@/lib/api';
 import { RATE_LIMITS } from '@/lib/email/config';
+import { appConfig } from '@/lib/config';
+import crypto from 'crypto';
 
 // POST /api/cron/email-alerts - Cron job to send email alerts
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is a legitimate cron request
+    // Verify this is a legitimate cron request with constant-time comparison
     const authHeader = request.headers.get('authorization');
     
     // Get the appropriate cron secret based on environment
     const cronSecret = process.env.NODE_ENV === 'production' 
-      ? process.env.CRON_SECRET_PROD 
-      : process.env.CRON_SECRET_STAGING;
+      ? appConfig.cronSecretProd 
+      : appConfig.cronSecretStaging;
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
+      console.error('❌ Invalid cron authentication attempt');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -62,9 +65,29 @@ export async function POST(request: NextRequest) {
     let processed = 0;
     let sent = 0;
     let errors = 0;
-    const results = [];
+    const results: Array<{
+      user: string;
+      status: string;
+      reason?: string;
+      error?: string;
+      matchesCount?: number;
+      messageId?: string;
+    }> = [];
 
+    // Process each user with individual error handling
     for (const alertSetting of alertSettings) {
+      const userEmail = (alertSetting as any).users?.email;
+      if (!userEmail) {
+        console.error('❌ Alert setting missing user email:', alertSetting);
+        errors++;
+        results.push({
+          user: 'unknown',
+          status: 'error',
+          error: 'Missing user email in alert setting',
+        });
+        continue;
+      }
+
       try {
         processed++;
         const user = (alertSetting as any).users;
@@ -77,11 +100,11 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (prefsError || !prefs) {
-          console.log(`ℹ️ No preferences found for ${user.email}`);
+          console.log(`ℹ️ No preferences found for ${userEmail}:`, prefsError?.message || 'No data');
           results.push({
-            user: user.email,
+            user: userEmail,
             status: 'no_prefs',
-            reason: 'No preferences found for user',
+            reason: prefsError?.message || 'No preferences found for user',
           });
           continue;
         }
@@ -123,14 +146,26 @@ export async function POST(request: NextRequest) {
         // Convert preferences to search parameters
         const searchParams = convertPreferencesToSearchParams(preferences);
         
-        // Search for dogs
-        console.log(`🔍 Searching for dogs for ${user.email}...`);
-        const dogsResponse = await searchDogs(searchParams);
+        // Search for dogs with error handling
+        console.log(`🔍 Searching for dogs for ${userEmail}...`);
+        let dogsResponse;
+        try {
+          dogsResponse = await searchDogs(searchParams);
+        } catch (searchError) {
+          console.error(`❌ Dog search failed for ${userEmail}:`, searchError);
+          errors++;
+          results.push({
+            user: userEmail,
+            status: 'error',
+            error: `Dog search failed: ${searchError instanceof Error ? searchError.message : 'Unknown error'}`,
+          });
+          continue;
+        }
         
         if (!(dogsResponse as any).dogs || (dogsResponse as any).dogs.length === 0) {
-          console.log(`ℹ️ No dogs found for ${user.email}`);
+          console.log(`ℹ️ No dogs found for ${userEmail}`);
           results.push({
-            user: user.email,
+            user: userEmail,
             status: 'no_matches',
             reason: 'No dogs found matching preferences',
           });
@@ -185,13 +220,13 @@ export async function POST(request: NextRequest) {
           url: dog.url || '#',
         }));
 
-        // Send email alert
-        console.log(`📧 Sending email alert to ${user.email} with ${emailMatches.length} matches`);
+        // Send email alert with retry logic
+        console.log(`📧 Sending email alert to ${userEmail} with ${emailMatches.length} matches`);
         
-        const emailResult = await sendDogMatchAlert({
+        const emailResult = await sendEmailWithRetry({
           user: {
             name: user.name || 'Dog Lover',
-            email: user.email,
+            email: userEmail,
           },
           preferences: {
             zipCodes: preferences.location ? [preferences.location] : ['Unknown'],
@@ -199,8 +234,8 @@ export async function POST(request: NextRequest) {
             frequency: (alertSetting as any).cadence || 'daily',
           },
           matches: emailMatches,
-          unsubscribeUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://dogyenta.com'}/unsubscribe?email=${encodeURIComponent(user.email)}`,
-          dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://dogyenta.com'}/profile`,
+          unsubscribeUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/unsubscribe?email=${encodeURIComponent(userEmail)}`,
+          dashboardUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/profile`,
           totalMatches: dogsResponse.total,
           generatedAt: new Date().toISOString(),
         });
@@ -214,16 +249,21 @@ export async function POST(request: NextRequest) {
             ...dogsToSend.map((dog: any) => dog.id)
           ].slice(-100); // Keep only last 100 IDs
           
-          await (client as any)
-            .from('alert_settings')
-            .update({
-              last_sent_at_utc: new Date().toISOString(),
-              last_seen_ids: newLastSeenIds,
-            })
-            .eq('user_id', (alertSetting as any).user_id);
+          try {
+            await (client as any)
+              .from('alert_settings')
+              .update({
+                last_sent_at_utc: new Date().toISOString(),
+                last_seen_ids: newLastSeenIds,
+              })
+              .eq('user_id', (alertSetting as any).user_id);
+          } catch (updateError) {
+            console.error(`❌ Failed to update alert settings for ${userEmail}:`, updateError);
+            // Don't fail the whole process for this
+          }
 
           results.push({
-            user: user.email,
+            user: userEmail,
             status: 'sent',
             matchesCount: emailMatches.length,
             messageId: emailResult.messageId,
@@ -231,7 +271,7 @@ export async function POST(request: NextRequest) {
         } else {
           errors++;
           results.push({
-            user: user.email,
+            user: userEmail,
             status: 'error',
             error: emailResult.error,
           });
@@ -239,9 +279,9 @@ export async function POST(request: NextRequest) {
 
       } catch (error) {
         errors++;
-        console.error(`❌ Error processing user ${(alertSetting as any).users?.email}:`, error);
+        console.error(`❌ Error processing user ${userEmail}:`, error);
         results.push({
-          user: (alertSetting as any).users?.email || 'unknown',
+          user: userEmail,
           status: 'error',
           error: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -268,6 +308,94 @@ export async function POST(request: NextRequest) {
 }
 
 // Rate limiting is now simplified to daily emails only
+
+/**
+ * Constant-time comparison for cron authentication
+ */
+function isValidCronAuth(authHeader: string | null, secret: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false;
+  }
+  
+  const providedSecret = authHeader.slice(7); // Remove 'Bearer '
+  return crypto.timingSafeEqual(
+    Buffer.from(providedSecret, 'utf8'),
+    Buffer.from(secret, 'utf8')
+  );
+}
+
+/**
+ * Send email with retry logic for transient failures
+ */
+async function sendEmailWithRetry(
+  templateData: any,
+  maxRetries: number = 3
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await sendDogMatchAlert(templateData);
+      
+      if (result.success) {
+        return result;
+      }
+      
+      // If it's a transient error, retry
+      if (isTransientError(result.error)) {
+        console.log(`⚠️ Transient error on attempt ${attempt}/${maxRetries}:`, result.error);
+        if (attempt < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+          continue;
+        }
+      }
+      
+      // Non-transient error or max retries reached
+      return result;
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      
+      if (isTransientError(lastError.message)) {
+        console.log(`⚠️ Transient error on attempt ${attempt}/${maxRetries}:`, lastError.message);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+          continue;
+        }
+      }
+      
+      // Non-transient error or max retries reached
+      break;
+    }
+  }
+  
+  return {
+    success: false,
+    error: lastError?.message || 'Max retries exceeded',
+  };
+}
+
+/**
+ * Check if an error is transient and worth retrying
+ */
+function isTransientError(error: string | undefined): boolean {
+  if (!error) return false;
+  
+  const transientPatterns = [
+    /timeout/i,
+    /network/i,
+    /connection/i,
+    /rate limit/i,
+    /temporary/i,
+    /service unavailable/i,
+    /internal server error/i,
+    /bad gateway/i,
+    /gateway timeout/i,
+  ];
+  
+  return transientPatterns.some(pattern => pattern.test(error));
+}
 
 /**
  * Convert user preferences to search parameters

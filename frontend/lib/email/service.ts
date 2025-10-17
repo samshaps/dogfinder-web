@@ -1,6 +1,7 @@
 import { getResendClient, EMAIL_CONFIG } from './config';
 import { 
   EmailTemplateData, 
+  EmailTemplateDataSchema,
   EmailServiceResponse, 
   EmailEventType,
   EmailDogMatch 
@@ -16,6 +17,29 @@ export async function sendDogMatchAlert(
 ): Promise<EmailServiceResponse> {
   try {
     console.log('📧 Sending dog match alert email to:', templateData.user.email);
+    
+    // Validate template data
+    const validationResult = EmailTemplateDataSchema.safeParse(templateData);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors
+        .map(err => `${err.path.join('.')}: ${err.message}`)
+        .join(', ');
+      console.error('❌ Email template validation failed:', errorMessage);
+      
+      await logEmailEvent({
+        userId: templateData.user.email,
+        eventType: 'alert_failed',
+        metadata: { 
+          error: 'Validation failed',
+          validationErrors: validationResult.error.errors 
+        },
+      });
+      
+      return {
+        success: false,
+        error: `Validation failed: ${errorMessage}`,
+      };
+    }
     
     const resend = getResendClient();
     
@@ -205,7 +229,7 @@ export async function sendTestEmail(
 }
 
 /**
- * Log email events to the database
+ * Log email events to the database with enhanced error handling
  */
 async function logEmailEvent(event: {
   userId: string;
@@ -218,29 +242,79 @@ async function logEmailEvent(event: {
     const client = getSupabaseClient();
     
     // First, get the actual user ID from email if needed
-    const { data: userData } = await client
-      .from('users' as any)
-      .select('id')
-      .eq('email', event.userId)
-      .single();
+    let userId = event.userId;
+    
+    // If userId looks like an email, resolve to actual user ID
+    if (event.userId.includes('@')) {
+      const { data: userData, error: userError } = await client
+        .from('users' as any)
+        .select('id')
+        .eq('email', event.userId)
+        .single();
 
-    const userId = (userData as any)?.id || event.userId;
+      if (userError) {
+        console.warn(`⚠️ Could not resolve user ID for email ${event.userId}:`, userError.message);
+        // Continue with email as userId for audit purposes
+      } else {
+        userId = (userData as any)?.id || event.userId;
+      }
+    }
 
-    await (client as any)
+    // Sanitize metadata to prevent issues
+    const sanitizedMetadata = sanitizeMetadata(event.metadata || {});
+
+    const { error: insertError } = await (client as any)
       .from('email_events')
       .insert({
         user_id: userId,
         event_type: event.eventType,
-        email_provider: event.emailProvider,
+        email_provider: event.emailProvider || 'resend',
         message_id: event.messageId,
-        metadata: event.metadata || {},
+        metadata: sanitizedMetadata,
+        created_at: new Date().toISOString(),
       });
 
-    console.log('📝 Email event logged:', event.eventType, event.userId);
+    if (insertError) {
+      console.error('❌ Failed to insert email event:', insertError);
+    } else {
+      console.log('📝 Email event logged:', event.eventType, event.userId);
+    }
   } catch (error) {
     console.error('❌ Failed to log email event:', error);
     // Don't throw - logging failures shouldn't break email sending
   }
+}
+
+/**
+ * Sanitize metadata to prevent database issues
+ */
+function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
+  const sanitized: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(metadata)) {
+    // Skip null/undefined values
+    if (value === null || value === undefined) {
+      continue;
+    }
+    
+    // Convert complex objects to strings if needed
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      try {
+        sanitized[key] = JSON.stringify(value);
+      } catch {
+        sanitized[key] = String(value);
+      }
+    } else if (Array.isArray(value)) {
+      // Ensure arrays contain only serializable values
+      sanitized[key] = value.map(item => 
+        typeof item === 'object' ? JSON.stringify(item) : item
+      );
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  
+  return sanitized;
 }
 
 /**
