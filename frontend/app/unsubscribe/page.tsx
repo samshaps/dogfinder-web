@@ -109,6 +109,7 @@ function UnsubscribeContent() {
                   </div>
                 </div>
               )}
+              {!alreadyUnsubscribed && (
               <div className="text-center">
                 <p className="text-sm text-gray-600">
                   You're about to unsubscribe <strong>{email}</strong> from DogYenta email alerts.
@@ -117,6 +118,7 @@ function UnsubscribeContent() {
                   This will also <strong>cancel your Pro subscription</strong> and <strong>downgrade your account to Free</strong>.
                 </p>
               </div>
+              )}
 
               {result && (
                 <div className={`p-4 rounded-lg ${
@@ -137,7 +139,7 @@ function UnsubscribeContent() {
                 </div>
               )}
 
-              {!result?.success && (
+              {!alreadyUnsubscribed && !result?.success && (
                 <div className="space-y-4">
                   <button
                     onClick={handleUnsubscribe}
@@ -174,7 +176,7 @@ function UnsubscribeContent() {
                 </div>
               )}
 
-              {result?.success && (
+              {!alreadyUnsubscribed && result?.success && (
                 <div className="text-center space-y-4">
                   <p className="text-sm text-gray-600">
                     You can re-enable email alerts by upgrading to Pro again from your profile at any time.
