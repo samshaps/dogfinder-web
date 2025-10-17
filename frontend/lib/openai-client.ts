@@ -1,9 +1,6 @@
 import OpenAI from 'openai';
 
-// Validate OpenAI API key on module load
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('OPENAI_API_KEY environment variable is required but not configured. Please set it in your environment variables.');
-}
+// Note: Environment variable validation moved to getOpenAIClient() to avoid build-time errors
 
 // Memoized OpenAI client instance
 let clientInstance: OpenAI | null = null;
@@ -12,6 +9,10 @@ let clientInstance: OpenAI | null = null;
  * Get a memoized OpenAI client instance configured for the Responses API
  */
 export function getOpenAIClient(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required but not configured. Please set it in your environment variables.');
+  }
+  
   if (!clientInstance) {
     clientInstance = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
