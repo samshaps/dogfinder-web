@@ -261,3 +261,4 @@ describe('Email Alert Settings Validation', () => {
     expect(result.success).toBe(false);
   });
 });
+

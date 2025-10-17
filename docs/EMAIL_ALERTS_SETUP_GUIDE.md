@@ -151,3 +151,4 @@ After basic setup:
 ---
 
 **Need Help?** Check the comprehensive test plan in `MODULE_6_TEST_PLAN.md` for detailed testing procedures.
+

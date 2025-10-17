@@ -25,3 +25,4 @@ export const RATE_LIMITS = {
   maxEmailsPerUserPerDay: 1, // One email per day at 12pm Eastern
   cooldownMinutes: 24 * 60, // 24 hours between emails
 } as const;
+
