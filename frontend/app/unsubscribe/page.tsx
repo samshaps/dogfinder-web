@@ -8,6 +8,7 @@ import Link from 'next/link';
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
+  const token = searchParams.get('token');
   
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -37,35 +38,32 @@ function UnsubscribeContent() {
   }, []);
 
   const handleUnsubscribe = async () => {
-    if (!email) {
-      setResult({ success: false, message: 'No email address provided' });
-      return;
-    }
-
     setLoading(true);
     setResult(null);
 
     try {
-      const response = await fetch('/api/email-alerts', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to unsubscribe');
+      let response: Response;
+      if (token) {
+        response = await fetch('/api/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+      } else if (email) {
+        response = await fetch('/api/email-alerts', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+      } else {
+        throw new Error('Missing token');
       }
 
-      setResult({ success: true, message: 'Successfully unsubscribed from email alerts' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to unsubscribe');
+      setResult({ success: true, message: 'Successfully unsubscribed and cancelled plan' });
     } catch (error) {
-      setResult({ 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Failed to unsubscribe' 
-      });
+      setResult({ success: false, message: error instanceof Error ? error.message : 'Failed to unsubscribe' });
     } finally {
       setLoading(false);
     }
@@ -89,7 +87,7 @@ function UnsubscribeContent() {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           {checkingStatus ? (
             <div className="text-center py-8 text-sm text-gray-500">Checking your subscription status…</div>
-          ) : email ? (
+          ) : (email || token) ? (
             <div className="space-y-6">
               {alreadyUnsubscribed && !result && (
                 <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">

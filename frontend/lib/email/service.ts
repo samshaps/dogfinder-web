@@ -6,6 +6,7 @@ import {
   EmailDogMatch 
 } from './types';
 import { getSupabaseClient } from '@/lib/supabase';
+import { signUnsubToken } from '@/lib/tokens';
 
 /**
  * Send a dog match alert email to a user
@@ -19,8 +20,17 @@ export async function sendDogMatchAlert(
     const resend = getResendClient();
     
     // Generate email HTML content
-    const htmlContent = generateEmailHTML(templateData);
-    const textContent = generateEmailText(templateData);
+    const token = signUnsubToken({
+      sub: templateData.user.email,
+      scope: 'alerts+cancel',
+      jti: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    });
+    const withLink = {
+      ...templateData,
+      unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?token=${encodeURIComponent(token)}`,
+    };
+    const htmlContent = generateEmailHTML(withLink);
+    const textContent = generateEmailText(withLink);
     
     // Send email via Resend
     const result = await resend.emails.send({
@@ -134,8 +144,17 @@ export async function sendTestEmail(
       generatedAt: new Date().toISOString(),
     };
 
-    const htmlContent = generateEmailHTML(testTemplateData);
-    const textContent = generateEmailText(testTemplateData);
+    const testToken = signUnsubToken({
+      sub: userEmail,
+      scope: 'alerts+cancel',
+      jti: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    });
+    const testWithLink = {
+      ...testTemplateData,
+      unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?token=${encodeURIComponent(testToken)}`,
+    };
+    const htmlContent = generateEmailHTML(testWithLink);
+    const textContent = generateEmailText(testWithLink);
     
     const result = await resend.emails.send({
       from: EMAIL_CONFIG.from,

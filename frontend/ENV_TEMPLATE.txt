@@ -69,6 +69,12 @@ CRON_SECRET_PROD=your-production-cron-secret-here
 CRON_SECRET_STAGING=your-staging-cron-secret-here
 
 # ============================================
+# Email Token Security (unsubscribe link signing)
+# ============================================
+# Generate with: openssl rand -base64 32
+EMAIL_TOKEN_SECRET=your-email-token-secret-here
+
+# ============================================
 # Petfinder (existing v1 integration)
 # ============================================
 PETFINDER_API_KEY=
