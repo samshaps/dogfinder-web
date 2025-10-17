@@ -279,8 +279,8 @@ function ResultsPageContent() {
     limit: 12
   }), [searchParams, currentPage]);
 
-  // Extract user preferences for AI reasoning  
-  const userPreferences: UserPreferences = {
+  // Extract user preferences for AI reasoning (memoized to prevent infinite loops)
+  const userPreferences: UserPreferences = useMemo(() => ({
     zipCodes: [searchQuery.zip].filter(Boolean),
     radiusMi: searchQuery.radius,
     breedsInclude: searchQuery.t_breedsInclude ? searchQuery.includeBreeds : undefined,
@@ -298,7 +298,7 @@ function ResultsPageContent() {
       breedsInclude: searchQuery.t_breedsInclude,
       breedsExclude: searchQuery.t_breedsExclude,
     }
-  };
+  }), [searchQuery]);
   
   // DEBUG TRACE GUIDANCE
   console.log('🔍 RESULTS PAGE DEBUG: searchQuery extracted:', {
@@ -373,7 +373,7 @@ function ResultsPageContent() {
     }
     
     fetchDogs();
-  }, [searchQuery, userPreferences]);
+  }, [searchQuery]);
 
   // Separate function for AI matching
   const startAIMatching = async (dogsWithPhotos: APIDog[]) => {
