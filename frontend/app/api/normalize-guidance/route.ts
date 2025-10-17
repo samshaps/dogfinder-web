@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runResponse } from '@/lib/openai-client';
+import { runResponse, isOpenAIConfigured } from '@/lib/openai-client';
 
 export type NormPrefs = {
   age?: Array<'puppy'|'young'|'adult'|'senior'>;
@@ -12,6 +12,12 @@ export type NormPrefs = {
 export async function POST(req: NextRequest) {
   try {
     const { guidance } = await req.json();
+
+    // Check if OpenAI is configured
+    if (!isOpenAIConfigured()) {
+      console.warn('OpenAI not configured, returning empty preferences');
+      return NextResponse.json({} as NormPrefs);
+    }
 
     const prompt = `You are an adoption preference normalizer. Convert a messy free-text user note into structured adoption preferences.
 

@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runStructuredResponse, runTextResponse } from '@/lib/openai-client';
+import { runStructuredResponse, runTextResponse, isOpenAIConfigured } from '@/lib/openai-client';
 
 export async function POST(request: NextRequest) {
   try {
     const { prompt, type, max_tokens, temperature } = await request.json();
+    
+    // Check if OpenAI is configured
+    if (!isOpenAIConfigured()) {
+      console.warn('OpenAI not configured, returning fallback response');
+      if (type === 'free') {
+        return NextResponse.json({ reasoning: 'AI reasoning not available' });
+      } else if (type === 'top-pick') {
+        return NextResponse.json({ 
+          reasoning: {
+            primary: 'AI reasoning not available',
+            additional: [],
+            concerns: []
+          }
+        });
+      } else {
+        return NextResponse.json({ reasoning: 'AI reasoning not available' });
+      }
+    }
     
     console.log('🚀 Calling OpenAI Responses API...');
     

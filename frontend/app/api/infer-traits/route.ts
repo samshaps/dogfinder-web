@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runResponse } from '@/lib/openai-client';
+import { runResponse, isOpenAIConfigured } from '@/lib/openai-client';
 
 export type InferredTraits = {
   energy?: 'low'|'medium'|'high'|null;
@@ -13,6 +13,15 @@ export type InferredTraits = {
 export async function POST(req: NextRequest) {
   try {
     const { description, tags } = await req.json();
+
+    // Check if OpenAI is configured
+    if (!isOpenAIConfigured()) {
+      console.warn('OpenAI not configured, returning empty traits');
+      return NextResponse.json({
+        evidence: [],
+        confidence: 0
+      } as InferredTraits);
+    }
 
     const prompt = `You are an adoption trait extractor. Read a dog's description and tags. Extract structured traits supported by text.
 

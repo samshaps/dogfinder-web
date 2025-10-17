@@ -9,16 +9,23 @@ let clientInstance: OpenAI | null = null;
  * Get a memoized OpenAI client instance configured for the Responses API
  */
 export function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required but not configured. Please set it in your environment variables.');
+  if (!process.env.OPENAI_SECRET) {
+    throw new Error('OPENAI_SECRET environment variable is required but not configured. Please set it in your environment variables.');
   }
   
   if (!clientInstance) {
     clientInstance = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_SECRET,
     });
   }
   return clientInstance;
+}
+
+/**
+ * Check if OpenAI is properly configured
+ */
+export function isOpenAIConfigured(): boolean {
+  return !!process.env.OPENAI_SECRET;
 }
 
 /**
