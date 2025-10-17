@@ -1,2 +1,6 @@
 backend/.env
 backend/.venv/
+
+# Frontend environment files
+frontend/.env.local
+frontend/.env

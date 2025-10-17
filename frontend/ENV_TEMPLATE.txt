@@ -2,8 +2,14 @@
 # DO NOT commit .env.local to git
 
 # ============================================
-# Database
+# Database (Supabase)
 # ============================================
+# Get from: https://supabase.com/dashboard/project/[your-project]/settings/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Legacy database URL (if using direct PostgreSQL)
 DATABASE_URL=postgresql://dogfinder:dogfinder_dev@localhost:5432/dogfinder_dev
 
 # ============================================
@@ -73,6 +79,12 @@ CRON_SECRET_STAGING=your-staging-cron-secret-here
 # ============================================
 # Generate with: openssl rand -base64 32
 EMAIL_TOKEN_SECRET=your-email-token-secret-here
+
+# ============================================
+# AI Services
+# ============================================
+# Get from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # ============================================
 # Petfinder (existing v1 integration)
