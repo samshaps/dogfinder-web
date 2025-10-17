@@ -62,9 +62,12 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
 
   if (!settings) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>
+      <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`} role="status" aria-live="polite">
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600">Loading email settings...</span>
+          </div>
         </div>
       </div>
     );
@@ -110,12 +113,12 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {settings.enabled ? (
-              <Bell className="w-5 h-5 text-green-600" />
+              <Bell className="w-5 h-5 text-green-600" aria-hidden="true" />
             ) : (
-              <BellOff className="w-5 h-5 text-gray-400" />
+              <BellOff className="w-5 h-5 text-gray-400" aria-hidden="true" />
             )}
             <div>
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-gray-900" id="email-notifications-label">
                 Email Notifications
               </h3>
               <p className="text-sm text-gray-600">
@@ -126,119 +129,151 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
           <button
             onClick={() => handleToggleAlerts(!settings.enabled)}
             disabled={loading}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
               settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
-            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+            role="switch"
+            aria-checked={settings.enabled}
+            aria-labelledby="email-notifications-label"
+            aria-describedby="email-notifications-description"
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
                 settings.enabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
         </div>
+        <p id="email-notifications-description" className="text-xs text-gray-500 mt-2 ml-8">
+          {settings.enabled 
+            ? 'Email alerts are enabled. You\'ll receive notifications based on your preferences below.'
+            : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
+          }
+        </p>
       </div>
 
       {/* Settings Panel */}
       {settings.enabled && (
-        <div className="space-y-6 border-t border-gray-200 pt-6">
+        <div className="space-y-6 border-t border-gray-200 pt-6" role="region" aria-labelledby="settings-panel-title">
+          <h4 id="settings-panel-title" className="text-lg font-medium text-gray-900 mb-4">
+            Alert Preferences
+          </h4>
+          
           {/* Frequency Setting */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="alert-frequency" className="block text-sm font-medium text-gray-700 mb-2">
               Alert Frequency
             </label>
             <select
+              id="alert-frequency"
               value={settings.frequency}
               onChange={(e) => handleUpdateSettings({ frequency: e.target.value })}
               disabled={loading}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-describedby="frequency-description"
             >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
+              <option value="daily">Daily - Check every day at 12pm Eastern</option>
+              <option value="weekly">Weekly - Check every Monday at 12pm Eastern</option>
             </select>
-            <p className="mt-1 text-sm text-gray-500">
-              How often to check for new matches
+            <p id="frequency-description" className="mt-1 text-sm text-gray-500">
+              How often to check for new matches and send email alerts
             </p>
           </div>
 
           {/* Max Dogs Per Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max-dogs-per-email" className="block text-sm font-medium text-gray-700 mb-2">
               Max Dogs Per Email
             </label>
             <select
+              id="max-dogs-per-email"
               value={settings.maxDogsPerEmail}
               onChange={(e) => handleUpdateSettings({ maxDogsPerEmail: parseInt(e.target.value) })}
               disabled={loading}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-describedby="max-dogs-description"
             >
-              <option value={3}>3 dogs</option>
-              <option value={5}>5 dogs</option>
-              <option value={10}>10 dogs</option>
+              <option value={3}>3 dogs - Quick overview</option>
+              <option value={5}>5 dogs - Balanced selection</option>
+              <option value={10}>10 dogs - Comprehensive list</option>
             </select>
-            <p className="mt-1 text-sm text-gray-500">
-              Maximum number of dogs to include in each email
+            <p id="max-dogs-description" className="mt-1 text-sm text-gray-500">
+              Maximum number of dogs to include in each email alert
             </p>
           </div>
 
           {/* Min Match Score */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="min-match-score" className="block text-sm font-medium text-gray-700 mb-2">
               Minimum Match Score
             </label>
             <select
+              id="min-match-score"
               value={settings.minMatchScore}
               onChange={(e) => handleUpdateSettings({ minMatchScore: parseInt(e.target.value) })}
               disabled={loading}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-describedby="match-score-description"
             >
-              <option value={50}>50% - Show more matches</option>
-              <option value={70}>70% - Good matches</option>
-              <option value={85}>85% - Great matches only</option>
+              <option value={50}>50% - Show more matches (broader selection)</option>
+              <option value={70}>70% - Good matches (recommended)</option>
+              <option value={85}>85% - Great matches only (high quality)</option>
             </select>
-            <p className="mt-1 text-sm text-gray-500">
-              Only send alerts for dogs above this match score
+            <p id="match-score-description" className="mt-1 text-sm text-gray-500">
+              Only send alerts for dogs above this match score percentage
             </p>
           </div>
 
           {/* Content Options */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-gray-700">Email Content</h4>
+          <div className="space-y-6">
+            <h4 className="text-sm font-medium text-gray-700">Email Content Options</h4>
             
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm text-gray-700">Include Photos</label>
-                <p className="text-xs text-gray-500">Show dog photos in emails</p>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <label htmlFor="include-photos-toggle" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Include Photos
+                </label>
+                <p className="text-xs text-gray-500 mt-1">Show dog photos in email alerts for better visual appeal</p>
               </div>
               <button
+                id="include-photos-toggle"
                 onClick={() => handleUpdateSettings({ includePhotos: !settings.includePhotos })}
                 disabled={loading}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
                   settings.includePhotos ? 'bg-blue-600' : 'bg-gray-200'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+                role="switch"
+                aria-checked={settings.includePhotos}
+                aria-describedby="photos-description"
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
                     settings.includePhotos ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm text-gray-700">Include AI Reasoning</label>
-                <p className="text-xs text-gray-500">Show why each dog is a good match</p>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <label htmlFor="include-reasoning-toggle" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Include AI Reasoning
+                </label>
+                <p className="text-xs text-gray-500 mt-1">Show why each dog is a good match based on your preferences</p>
               </div>
               <button
+                id="include-reasoning-toggle"
                 onClick={() => handleUpdateSettings({ includeReasoning: !settings.includeReasoning })}
                 disabled={loading}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
                   settings.includeReasoning ? 'bg-blue-600' : 'bg-gray-200'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+                role="switch"
+                aria-checked={settings.includeReasoning}
+                aria-describedby="reasoning-description"
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
                     settings.includeReasoning ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
@@ -249,47 +284,56 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
           {/* Test Email */}
           <div className="border-t border-gray-200 pt-6">
             <div className="flex items-center gap-3 mb-4">
-              <TestTube className="w-5 h-5 text-gray-600" />
+              <TestTube className="w-5 h-5 text-gray-600" aria-hidden="true" />
               <h4 className="text-sm font-medium text-gray-700">Test Email</h4>
             </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Send a test email to verify your settings are working correctly
+            </p>
             
             {!showTestEmail ? (
               <button
                 onClick={() => setShowTestEmail(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                aria-describedby="test-email-description"
               >
-                <TestTube className="w-4 h-4" />
+                <TestTube className="w-4 h-4" aria-hidden="true" />
                 Send Test Email
               </button>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="test-email-input" className="block text-sm font-medium text-gray-700 mb-2">
                     Test Email Address
                   </label>
                   <input
+                    id="test-email-input"
                     type="email"
                     value={testEmail}
                     onChange={(e) => setTestEmail(e.target.value)}
                     placeholder="Enter email address to test"
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    aria-describedby="test-email-help"
                   />
+                  <p id="test-email-help" className="mt-1 text-xs text-gray-500">
+                    We'll send a test email with your current settings
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleSendTestEmail}
                     disabled={testEmailLoading || !testEmail.trim()}
-                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {testEmailLoading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Sending...
+                        <span>Sending...</span>
                       </>
                     ) : (
                       <>
-                        <Mail className="w-4 h-4" />
-                        Send Test
+                        <Mail className="w-4 h-4" aria-hidden="true" />
+                        <span>Send Test</span>
                       </>
                     )}
                   </button>
@@ -299,7 +343,7 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
                       setTestEmail('');
                       setTestEmailResult(null);
                     }}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                   >
                     Cancel
                   </button>
@@ -310,16 +354,17 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
 
           {/* Status Info */}
           {settings.lastSentAt && (
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center gap-3">
-                <Settings className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Last alert sent: {new Date(settings.lastSentAt).toLocaleDateString()}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <Settings className="w-5 h-5 text-gray-600" aria-hidden="true" />
+                <div className="flex-1">
+                  <h5 className="text-sm font-medium text-gray-700 mb-1">Alert Status</h5>
+                  <p className="text-sm text-gray-600">
+                    Last alert sent: <span className="font-medium">{new Date(settings.lastSentAt).toLocaleDateString()}</span>
                   </p>
                   {settings.lastSeenIds.length > 0 && (
-                    <p className="text-xs text-gray-500">
-                      Tracking {settings.lastSeenIds.length} seen dogs
+                    <p className="text-xs text-gray-500 mt-1">
+                      Currently tracking {settings.lastSeenIds.length} dogs you've already seen
                     </p>
                   )}
                 </div>
