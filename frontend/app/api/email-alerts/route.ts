@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { getSupabaseClient } from '@/lib/supabase';
 import { EmailAlertPreferencesSchema } from '@/lib/email/types';
+import { getStripeServer } from '@/lib/stripe/config';
 import { sendTestEmail } from '@/lib/email/service';
 
 // GET /api/email-alerts - Get user's email alert settings
@@ -248,8 +249,41 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Also cancel subscription and downgrade plan to FREE
+    try {
+      // Read current plan
+      const { data: planRow, error: planErr } = await (client as any)
+        .from('plans')
+        .select('stripe_subscription_id, status')
+        .eq('user_id', userId)
+        .single();
+
+      if (!planErr && planRow?.stripe_subscription_id) {
+        const stripe = getStripeServer();
+        // Cancel immediately
+        await stripe.subscriptions.cancel(planRow.stripe_subscription_id as string);
+
+        // Downgrade locally
+        const { error: updErr } = await (client as any)
+          .from('plans')
+          .update({
+            plan_type: 'free',
+            status: 'cancelled',
+            stripe_subscription_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (updErr) {
+          console.error('Plan downgrade update failed:', updErr);
+        }
+      }
+    } catch (e) {
+      console.error('Subscription cancellation failed (continuing):', e);
+    }
+
     return NextResponse.json({
-      message: 'Email alerts disabled successfully'
+      message: 'Email alerts disabled and plan downgraded to Free'
     });
 
   } catch (error) {

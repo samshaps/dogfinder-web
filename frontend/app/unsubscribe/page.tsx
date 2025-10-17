@@ -53,10 +53,10 @@ function UnsubscribeContent() {
         <div className="text-center">
           <Mail className="mx-auto h-12 w-12 text-blue-600" />
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Unsubscribe from Email Alerts
+            Unsubscribe and Cancel Plan
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Manage your DogFinder email preferences
+            Email alerts are part of the Pro plan. Unsubscribing will also cancel your subscription and downgrade you to Free. You can resubscribe anytime.
           </p>
         </div>
       </div>
@@ -67,10 +67,10 @@ function UnsubscribeContent() {
             <div className="space-y-6">
               <div className="text-center">
                 <p className="text-sm text-gray-600">
-                  You're about to unsubscribe <strong>{email}</strong> from DogFinder email alerts.
+                  You're about to unsubscribe <strong>{email}</strong> from DogYenta email alerts.
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
-                  You'll no longer receive notifications about new dog matches.
+                  This will also <strong>cancel your Pro subscription</strong> and <strong>downgrade your account to Free</strong>.
                 </p>
               </div>
 
@@ -103,10 +103,10 @@ function UnsubscribeContent() {
                     {loading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Unsubscribing...
+                        Processing...
                       </>
                     ) : (
-                      'Unsubscribe from Email Alerts'
+                      'Unsubscribe and Cancel Plan'
                     )}
                   </button>
 
@@ -125,7 +125,7 @@ function UnsubscribeContent() {
               {result?.success && (
                 <div className="text-center space-y-4">
                   <p className="text-sm text-gray-600">
-                    You can always re-enable email alerts by logging into your account and updating your preferences.
+                    You can re-enable email alerts by upgrading to Pro again from your profile at any time.
                   </p>
                   
                   <div className="space-y-2">
