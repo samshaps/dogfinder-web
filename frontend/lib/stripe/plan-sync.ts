@@ -281,7 +281,7 @@ export async function findPlanMismatches(): Promise<PlanMismatch[]> {
             stripePlan: {
               status: stripeSubscription.status,
               subscription_id: subscriptionId,
-              current_period_end: stripeSubscription.current_period_end
+              current_period_end: (stripeSubscription as any).current_period_end
             },
             mismatchType: 'status_mismatch'
           });
