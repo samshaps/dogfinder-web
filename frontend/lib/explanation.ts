@@ -96,11 +96,11 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   };
 
   const header = [
-    `Write ONE sentence ≤ 135 characters.`,
+    `Write ONE sentence ≤ 135 characters using OR-based matching logic.`,
     `Address the reader only as "you". No names/PII.`,
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
-      ? `Include at least one explicit user preference.`
+      ? `Highlight which user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
       : `Do NOT mention user preferences, desires, or wants.`,
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
@@ -110,6 +110,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `  - If temperament_evidence[trait]="proven": use definitive phrasing ("is kid-friendly")`,
     `  - If temperament_evidence[trait]="likely": use tendency phrasing ("tends to be kid-friendly")`,
     `Never mention UI terms like "included breeds" or "filters"; refer to breed concepts instead (e.g., "Labrador mix").`,
+    `Use OR-based matching to reward overlap rather than requiring all facets to match.`,
     `Return JSON exactly as: {"text":"<=135 chars","cited":["..."]}. No extra text.`,
   ].join('\n');
 
@@ -129,8 +130,10 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
 function createAllMatchesPrompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: EffectivePreferences): string {
   const facts = buildFactPack(effectivePrefs, dog);
   const prompt = [
-    'Write one short phrase (<=50 chars) about this dog that references one user preference.',
+    'Write one short phrase (<=50 chars) about this dog using OR-based matching logic.',
+    'Highlight which user preference was satisfied with supportive citation (e.g., "Matches your calm temperament request").',
     'Base it only on the provided user preferences and dog facts. Avoid assumptions.',
+    'Emphasize partial matches positively rather than focusing on what\'s missing.',
     '',
     `User preferences: ${facts.prefs.join(', ') || 'none explicitly provided'}`,
     `Dog facts: ${facts.dogTraits.join(', ') || 'limited'}`,

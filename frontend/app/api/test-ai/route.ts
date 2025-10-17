@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
     console.log('📝 Prompt:', prompt);
     console.log('🎭 Temperaments:', temperaments);
     
-    // Build temperament-aware system prompt
-    let systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).';
+    // Build temperament-aware system prompt with OR-based matching emphasis
+    let systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).\n\nIMPORTANT: Use OR-based matching logic. Every adopter preference (age, size, energy, temperament, etc.) is an optional signal. Reward overlap but never require all facets to match before recommending dogs. Highlight which adopter inputs were satisfied and which were not, reinforcing that partial matches are acceptable. Call out matched facets with supportive citations and note any gaps without discarding the option outright.';
     
     if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
-      systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient").`;
+      systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient"). Remember: partial temperament matches are acceptable and should be highlighted positively.`;
     }
     
     // Build user message with temperament context

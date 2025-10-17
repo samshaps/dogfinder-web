@@ -117,23 +117,23 @@ export async function runStructuredResponse(
           properties: {
             primary: {
               type: 'string',
-              description: 'Summarize the best-fit dog (name/breed) and explain how its temperament matches the adopter\'s requested traits. Include parenthetical citations referencing the exact temperament phrases the adopter provided. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking) or (requested temperament: "calm and patient").'
+              description: 'Summarize the best-fit dog (name/breed) using OR-based matching logic. Highlight which adopter preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament") and note any gaps without discarding the option (e.g., "Doesn\'t meet the low-shedding request but excels in other areas"). Include parenthetical citations referencing the exact temperament phrases the adopter provided. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking) or (requested temperament: "calm and patient"). Emphasize that partial matches are acceptable and valuable.'
             },
             additional: {
               type: 'array',
               items: { 
                 type: 'string',
-                description: 'Detail why this alternative fits the temperament list; cite both the adopter\'s words and the breed\'s common traits.'
+                description: 'Detail why this alternative fits using OR-based logic; cite both the adopter\'s words and the breed\'s common traits. Highlight partial matches positively rather than focusing on what\'s missing.'
               },
-              description: 'Additional positive traits, each citing specific adopter details and temperament matches when possible'
+              description: 'Additional positive traits, each citing specific adopter details and temperament matches when possible. Use OR-based matching to reward overlap rather than requiring all facets to match.'
             },
             concerns: {
               type: 'array',
               items: { 
                 type: 'string',
-                description: 'If a temperament mismatch exists, clearly state it and reference the conflicting preference.'
+                description: 'If a temperament mismatch exists, clearly state it and reference the conflicting preference, but frame it as a minor consideration rather than a disqualifier. Use OR-based matching to acknowledge gaps without discarding the option.'
               },
-              description: 'Any concerns or considerations, citing relevant adopter details and temperament conflicts'
+              description: 'Any concerns or considerations, citing relevant adopter details and temperament conflicts. Frame these as minor considerations rather than disqualifiers, emphasizing the OR-based matching approach.'
             }
           },
           required: ['primary', 'additional', 'concerns'],

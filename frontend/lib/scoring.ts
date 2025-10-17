@@ -71,15 +71,22 @@ function getScoringWeight(origin: "user" | "guidance" | "default"): number {
 
 /**
  * Score a dog against effective preferences
+ * Uses OR-based logic: rewards overlap but never requires all facets to match
+ * Partial matches are acceptable and dogs are never filtered out for missing single criteria
  */
 export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAnalysis {
   const features = deriveDogFeatures(dog);
-  let score = 100;
+  let score = 100; // Base score - all dogs start with positive score
   const matchedPrefs: string[] = [];
   const unmetPrefs: string[] = [];
   
+  // Track total possible matches for OR-based scoring
+  let totalPossibleMatches = 0;
+  let actualMatches = 0;
+  
   // Age scoring (OR logic for multiple selections)
   if (effectivePrefs.age.value.length > 0) {
+    totalPossibleMatches++;
     const dogAgeLower = dog.age.toLowerCase();
     const userAgesLower = effectivePrefs.age.value.map(a => a.toLowerCase());
     const ageMatch = userAgesLower.includes(dogAgeLower);
@@ -87,16 +94,19 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
     const weight = getScoringWeight(effectivePrefs.age.origin);
     
     if (ageMatch) {
-      score += Math.round(10 * weight);
+      actualMatches++;
+      score += Math.round(15 * weight); // Increased bonus for matches
       matchedPrefs.push(`${dog.age} age`);
     } else {
-      score -= Math.round(15 * weight);
+      // Reduced penalty - don't heavily penalize for age mismatch
+      score -= Math.round(5 * weight);
       unmetPrefs.push(`Age: ${dog.age} (wanted ${effectivePrefs.age.value.join(' or ')})`);
     }
   }
   
   // Size scoring (OR logic for multiple selections)
   if (effectivePrefs.size.value.length > 0) {
+    totalPossibleMatches++;
     const dogSizeLower = features.sizeNormalized;
     const userSizesLower = effectivePrefs.size.value.map(s => s.toLowerCase());
     const sizeMatch = userSizesLower.includes(dogSizeLower);
@@ -104,16 +114,19 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
     const weight = getScoringWeight(effectivePrefs.size.origin);
     
     if (sizeMatch) {
-      score += Math.round(10 * weight);
+      actualMatches++;
+      score += Math.round(15 * weight); // Increased bonus for matches
       matchedPrefs.push(`${dog.size} size`);
     } else {
-      score -= Math.round(15 * weight);
+      // Reduced penalty - don't heavily penalize for size mismatch
+      score -= Math.round(5 * weight);
       unmetPrefs.push(`Size: ${dog.size} (wanted ${effectivePrefs.size.value.join(' or ')})`);
     }
   }
   
   // Energy scoring
   if (effectivePrefs.energy) {
+    totalPossibleMatches++;
     const dogEnergy = features.energy.toLowerCase();
     const userEnergy = effectivePrefs.energy.value.toLowerCase();
     const energyMatch = dogEnergy === userEnergy;
@@ -121,32 +134,38 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
     const weight = getScoringWeight(effectivePrefs.energy.origin);
     
     if (energyMatch) {
-      score += Math.round(10 * weight);
+      actualMatches++;
+      score += Math.round(15 * weight); // Increased bonus for matches
       matchedPrefs.push(`${dogEnergy} energy`);
     } else {
-      score -= Math.round(20 * weight);
+      // Reduced penalty - don't heavily penalize for energy mismatch
+      score -= Math.round(8 * weight);
       unmetPrefs.push(`Energy: ${dogEnergy} (wanted ${userEnergy})`);
     }
   }
   
   // Breed scoring with tiers (precision > recall)
   if (effectivePrefs.breeds.expandedInclude.length > 0) {
+    totalPossibleMatches++;
     const bh = dogBreedHit(dog, effectivePrefs.breeds.expandedInclude);
     const weight = getScoringWeight(effectivePrefs.breeds.origin);
     if (bh.hit) {
+      actualMatches++;
       // Tier bonuses: exact > alias > family > phonetic/edit > ngram
       const tier = bh.tier || 5;
-      const tierBonus = ({1: 22, 2: 18, 3: 14, 4: 10, 5: 6} as Record<number, number>)[tier] || 6;
+      const tierBonus = ({1: 25, 2: 20, 3: 15, 4: 12, 5: 8} as Record<number, number>)[tier] || 8;
       score += Math.round(tierBonus * weight);
       matchedPrefs.push('preferred breed');
     } else {
-      score -= Math.round(25 * weight);
+      // Reduced penalty - don't heavily penalize for breed mismatch
+      score -= Math.round(10 * weight);
       unmetPrefs.push('Breed: not in preferred breeds');
     }
   }
   
   // Temperament scoring (blended: 60% dog evidence + 40% breed prior)
   if (effectivePrefs.temperament.value.length > 0) {
+    totalPossibleMatches += effectivePrefs.temperament.value.length;
     const tempMatches: string[] = [];
     const tempUnmet: string[] = [];
     const breedTemperaments = getMultiBreedTemperaments(dog.breeds);
@@ -163,6 +182,7 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
       
       // Consider it a match if blended score >= 0.5
       if (blendedScore >= 0.5) {
+        actualMatches++;
         tempMatches.push(wantTemp);
       } else {
         tempUnmet.push(wantTemp);
@@ -172,12 +192,13 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
     const weight = getScoringWeight(effectivePrefs.temperament.origin);
     
     if (tempMatches.length > 0) {
-      score += Math.round(10 * weight * tempMatches.length);
+      score += Math.round(12 * weight * tempMatches.length); // Increased bonus
       matchedPrefs.push(...tempMatches);
     }
     
     if (tempUnmet.length > 0) {
-      score -= Math.round(15 * weight * tempUnmet.length);
+      // Reduced penalty - don't heavily penalize for temperament mismatches
+      score -= Math.round(6 * weight * tempUnmet.length);
       unmetPrefs.push(...tempUnmet.map(t => `Temperament: ${t}`));
     }
   }
@@ -213,6 +234,16 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
     unmetPrefs.push('Size: XL may be too large for apartment');
   }
   
+  // OR-based bonus: reward overall match percentage
+  if (totalPossibleMatches > 0) {
+    const matchPercentage = actualMatches / totalPossibleMatches;
+    // Bonus for partial matches - even 50% match gets a bonus
+    if (matchPercentage > 0) {
+      const orBonus = Math.round(20 * matchPercentage);
+      score += orBonus;
+    }
+  }
+  
   // Clamp score to 0+ range (allow bonuses above 100)
   score = Math.max(0, score);
   
@@ -227,6 +258,8 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
 
 /**
  * Sort dogs by score (highest first), then by distance (closest first)
+ * Uses OR-based matching: prioritizes overall fit score across all facets
+ * rather than requiring all criteria to match before ranking
  */
 export function sortDogsByScore(dogs: Dog[], analyses: DogAnalysis[]): { dogs: Dog[]; analyses: DogAnalysis[] } {
   const combined = dogs.map((dog, index) => ({
@@ -235,11 +268,12 @@ export function sortDogsByScore(dogs: Dog[], analyses: DogAnalysis[]): { dogs: D
   }));
   
   combined.sort((a, b) => {
-    // Primary sort: score (highest first)
+    // Primary sort: overall score (highest first) - rewards partial matches
     if (b.analysis.score !== a.analysis.score) {
       return b.analysis.score - a.analysis.score;
     }
     // Secondary: stronger explicit facet matches win (age/size/temperament count)
+    // This ensures dogs with more matched facets rank higher when scores are equal
     const aFacets = (a.analysis.matchedPrefs || []).length;
     const bFacets = (b.analysis.matchedPrefs || []).length;
     if (bFacets !== aFacets) return bFacets - aFacets;
