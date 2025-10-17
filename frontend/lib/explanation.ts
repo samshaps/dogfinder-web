@@ -102,7 +102,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
       ? `ONLY cite user preferences that are explicitly listed in the "User preferences" section below. Do NOT invent or assume any user preferences. Highlight which actual user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
-      : `Do NOT mention user preferences, desires, or wants. Focus on highlighting the breed's most positive and appealing characteristics that make them wonderful companions. Emphasize what makes this breed special - their unique personality, temperament, intelligence, loyalty, or other notable traits. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make it feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters. Examples: "A gentle Great Pyrenees known for being protective and loyal" or "A highly intelligent Australian Shepherd renowned for being energetic and great with active families".`,
+      : `Do NOT mention user preferences, desires, or wants. Do NOT mention size (small, medium, large, xl) unless explicitly provided by the user. Focus on highlighting the breed's most positive and appealing characteristics that make them wonderful companions. Emphasize what makes this breed special - their unique personality, temperament, intelligence, loyalty, or other notable traits. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make it feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters. Examples: "A gentle Great Pyrenees known for being protective and loyal" or "A highly intelligent Australian Shepherd renowned for being energetic and great with active families".`,
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
@@ -272,7 +272,7 @@ function generateFallbackTop3Reasoning(
   } else {
     // No user preferences - highlight breed's positive characteristics with engaging descriptions
     const breedName = dog.breeds[0] || 'dog';
-    const size = dog.size ? `${dog.size.toLowerCase()} ` : '';
+    // Don't include size when no user preferences are provided
     
     // Create breed-specific positive descriptions
     const breedDescriptions: Record<string, string[]> = {
@@ -295,20 +295,20 @@ function generateFallbackTop3Reasoning(
     if (breedTraits.length > 0) {
       // Use the first 2-3 most appealing traits
       const selectedTraits = breedTraits.slice(0, 2);
-      primary = `A ${size}${breedName} known for being ${selectedTraits.join(' and ')}.`;
+      primary = `A ${breedName} known for being ${selectedTraits.join(' and ')}.`;
     } else {
       // Fallback to generic positive description
       const energy = fp.dogTraits.find(t => t.endsWith(' energy'))?.replace(' energy', '') || '';
       const temperament = fp.dogTraits.find(t => t.includes('friendly') || t.includes('calm') || t.includes('loyal')) || '';
       
       if (energy && temperament) {
-        primary = `A ${size}${breedName} known for being ${energy} and ${temperament}.`;
+        primary = `A ${breedName} known for being ${energy} and ${temperament}.`;
       } else if (energy) {
-        primary = `A ${size}${breedName} with ${energy} energy and great potential.`;
+        primary = `A ${breedName} with ${energy} energy and great potential.`;
       } else if (temperament) {
-        primary = `A ${size}${breedName} known for being ${temperament}.`;
+        primary = `A ${breedName} known for being ${temperament}.`;
       } else {
-        primary = `A wonderful ${size}${breedName} with great potential.`;
+        primary = `A wonderful ${breedName} with great potential.`;
       }
     }
   }
