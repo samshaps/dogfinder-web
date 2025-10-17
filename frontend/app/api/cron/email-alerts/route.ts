@@ -13,15 +13,21 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     
     // Get the appropriate cron secret based on environment
-    const cronSecret = process.env.VERCEL_ENV === 'production' 
+    // VERCEL_ENV: 'development' (local), 'preview' (staging), 'production' (prod)
+    const isProduction = process.env.VERCEL_ENV === 'production';
+    const cronSecret = isProduction 
       ? appConfig.cronSecretProd 
       : appConfig.cronSecretStaging;
     
     console.log('🔍 Cron auth debug:', {
       vercelEnv: process.env.VERCEL_ENV,
       nodeEnv: process.env.NODE_ENV,
+      isProduction,
+      hasCronSecretProd: !!appConfig.cronSecretProd,
+      hasCronSecretStaging: !!appConfig.cronSecretStaging,
       hasCronSecret: !!cronSecret,
-      authHeaderPresent: !!authHeader
+      authHeaderPresent: !!authHeader,
+      cronSecretLength: cronSecret?.length || 0
     });
     
     if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
