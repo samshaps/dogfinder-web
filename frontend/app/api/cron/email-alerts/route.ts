@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
     // Get all users with enabled email alerts
     // For now, we'll send to all users with enabled alerts regardless of cadence
     // since we're simplifying to daily at 12pm Eastern
+    // Fetch alert settings with the related user only. We'll fetch
+    // preferences in a follow-up query per user to avoid FK join issues
     const { data: alertSettings, error: alertError } = await client
-      .from('alert_settings')
+      .from('alert_settings' as any)
       .select(`
         *,
-        users!inner(email, name),
-        preferences!inner(*)
+        users!inner(email, name)
       `)
       .eq('enabled', true);
 
@@ -67,7 +68,25 @@ export async function POST(request: NextRequest) {
       try {
         processed++;
         const user = (alertSetting as any).users;
-        const preferences = (alertSetting as any).preferences;
+
+        // Fetch preferences for this user (no FK join dependency)
+        const { data: prefs, error: prefsError } = await (client as any)
+          .from('preferences')
+          .select('*')
+          .eq('user_id', (alertSetting as any).user_id)
+          .single();
+
+        if (prefsError || !prefs) {
+          console.log(`ℹ️ No preferences found for ${user.email}`);
+          results.push({
+            user: user.email,
+            status: 'no_prefs',
+            reason: 'No preferences found for user',
+          });
+          continue;
+        }
+
+        const preferences = prefs as any;
         
         console.log(`👤 Processing user: ${user.email}`);
 
