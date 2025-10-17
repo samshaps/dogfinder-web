@@ -11,6 +11,30 @@ function UnsubscribeContent() {
   
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  const [alreadyUnsubscribed, setAlreadyUnsubscribed] = useState(false);
+
+  // If the user is logged in, check their current alert status
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const resp = await fetch('/api/email-alerts');
+        if (!mounted) return;
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.settings && data.settings.enabled === false) {
+            setAlreadyUnsubscribed(true);
+          }
+        }
+      } catch (_e) {
+        // ignore – user might be logged out
+      } finally {
+        if (mounted) setCheckingStatus(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const handleUnsubscribe = async () => {
     if (!email) {
@@ -63,8 +87,28 @@ function UnsubscribeContent() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {email ? (
+          {checkingStatus ? (
+            <div className="text-center py-8 text-sm text-gray-500">Checking your subscription status…</div>
+          ) : email ? (
             <div className="space-y-6">
+              {alreadyUnsubscribed && !result && (
+                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                  <p className="text-blue-800 text-sm">
+                    You are already unsubscribed from email alerts and your plan is set to Free.
+                  </p>
+                  <p className="text-blue-700 text-sm mt-2">
+                    Want alerts again? Upgrade to Pro anytime.
+                  </p>
+                  <div className="mt-4">
+                    <a
+                      href="/pricing"
+                      className="w-full inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      View Pro Plans
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="text-center">
                 <p className="text-sm text-gray-600">
                   You're about to unsubscribe <strong>{email}</strong> from DogYenta email alerts.
@@ -111,13 +155,21 @@ function UnsubscribeContent() {
                   </button>
 
                   <div className="text-center">
-                    <Link 
-                      href="/"
-                      className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Back to DogFinder
-                    </Link>
+                    <div className="flex items-center justify-center gap-4">
+                      <Link 
+                        href="/"
+                        className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Home
+                      </Link>
+                      <Link 
+                        href="/pricing"
+                        className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500"
+                      >
+                        Upgrade to Pro
+                      </Link>
+                    </div>
                   </div>
                 </div>
               )}
@@ -137,10 +189,10 @@ function UnsubscribeContent() {
                     </Link>
                     
                     <Link 
-                      href="/"
+                      href="/pricing"
                       className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
-                      Back to Home
+                      View Pro Plans
                     </Link>
                   </div>
                 </div>
