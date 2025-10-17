@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStructuredResponse, runTextResponse, isOpenAIConfigured } from '@/lib/openai-client';
 
+/**
+ * AI Reasoning API Route
+ * 
+ * Generates AI-powered explanations for dog adoption recommendations.
+ * 
+ * Request Body:
+ * - prompt: string - The main prompt describing the dog and context
+ * - type: 'free' | 'top-pick' | 'short' - Type of reasoning to generate
+ * - max_tokens?: number - Maximum tokens for the response
+ * - temperature?: number - Temperature for response generation
+ * - temperaments?: string[] - User's temperament preferences (REQUIRED for top-pick reasoning)
+ * 
+ * For "top-pick" type, temperament preferences are mandatory context and responses will cite them explicitly.
+ * The AI will cross-reference requested temperaments with breed traits and provide parenthetical citations.
+ */
+
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, type, max_tokens, temperature } = await request.json();
+    const { prompt, type, max_tokens, temperature, temperaments } = await request.json();
     
     // Check if OpenAI is configured
     if (!isOpenAIConfigured()) {
@@ -25,14 +41,25 @@ export async function POST(request: NextRequest) {
     
     console.log('🚀 Calling OpenAI Responses API...');
     
-    const systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).';
+    // Build temperament-aware system prompt
+    let systemPrompt = 'You are an expert dog adoption counselor. Provide helpful, accurate, and encouraging recommendations for potential dog adopters. Be specific and reference user preferences by name when possible. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).';
+    
+    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
+      systemPrompt += `\n\nTEMPERAMENT REQUIREMENTS: You must consider the adopter's stated temperament preferences when recommending breeds. Cross-reference the adopter's requested temperaments with dog breeds known for those traits. Prioritize breeds whose typical dispositions align with the requested temperaments. Explain why each recommended breed fits by referencing known temperament traits (e.g., "Border Collies are energetic and eager to work"). Explicitly cite the adopter's preference text in parentheses, such as (requested temperament: "calm and patient").`;
+    }
+    
+    // Build user message with temperament context
+    let userMessage = prompt as string;
+    if (temperaments && Array.isArray(temperaments) && temperaments.length > 0) {
+      userMessage += `\n\nAdopter's temperament preferences: ${temperaments.join(', ')}`;
+    }
     
     const messages = [
       {
         role: 'system' as const,
         content: systemPrompt
       },
-      { role: 'user' as const, content: prompt as string }
+      { role: 'user' as const, content: userMessage }
     ];
 
     if (type === 'free') {

@@ -9,13 +9,13 @@ let clientInstance: OpenAI | null = null;
  * Get a memoized OpenAI client instance configured for the Responses API
  */
 export function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENAI_SECRET) {
-    throw new Error('OPENAI_SECRET environment variable is required but not configured. Please set it in your environment variables.');
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required but not configured. Please set it in your environment variables.');
   }
   
   if (!clientInstance) {
     clientInstance = new OpenAI({
-      apiKey: process.env.OPENAI_SECRET,
+      apiKey: process.env.OPENAI_API_KEY,
     });
   }
   return clientInstance;
@@ -25,7 +25,7 @@ export function getOpenAIClient(): OpenAI {
  * Check if OpenAI is properly configured
  */
 export function isOpenAIConfigured(): boolean {
-  return !!process.env.OPENAI_SECRET;
+  return !!process.env.OPENAI_API_KEY;
 }
 
 /**
@@ -117,17 +117,23 @@ export async function runStructuredResponse(
           properties: {
             primary: {
               type: 'string',
-              description: 'Summarize the best match and explicitly cite adopter details you relied on. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking).'
+              description: 'Summarize the best-fit dog (name/breed) and explain how its temperament matches the adopter\'s requested traits. Include parenthetical citations referencing the exact temperament phrases the adopter provided. Quote or paraphrase the adopter\'s own words when explaining recommendations, and include brief parenthetical citations such as (mentioned: enjoys hiking) or (requested temperament: "calm and patient").'
             },
             additional: {
               type: 'array',
-              items: { type: 'string' },
-              description: 'Additional positive traits, each citing specific adopter details when possible'
+              items: { 
+                type: 'string',
+                description: 'Detail why this alternative fits the temperament list; cite both the adopter\'s words and the breed\'s common traits.'
+              },
+              description: 'Additional positive traits, each citing specific adopter details and temperament matches when possible'
             },
             concerns: {
               type: 'array',
-              items: { type: 'string' },
-              description: 'Any concerns or considerations, citing relevant adopter details'
+              items: { 
+                type: 'string',
+                description: 'If a temperament mismatch exists, clearly state it and reference the conflicting preference.'
+              },
+              description: 'Any concerns or considerations, citing relevant adopter details and temperament conflicts'
             }
           },
           required: ['primary', 'additional', 'concerns'],
