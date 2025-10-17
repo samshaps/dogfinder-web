@@ -94,11 +94,17 @@ export async function POST(request: NextRequest) {
           eventHandled = true;
           break;
           
-        case 'customer.subscription.updated':
-          console.log(`🔔 [${requestId}] Processing customer.subscription.updated`);
-          await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, requestId);
-          eventHandled = true;
-          break;
+      case 'customer.subscription.updated':
+        console.log(`🔔 [${requestId}] Processing customer.subscription.updated`);
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, requestId);
+        eventHandled = true;
+        break;
+        
+      case 'customer.subscription.trial_will_end':
+        console.log(`🔔 [${requestId}] Processing customer.subscription.trial_will_end`);
+        await handleTrialWillEnd(event.data.object as Stripe.Subscription, requestId);
+        eventHandled = true;
+        break;
           
         case 'customer.subscription.deleted':
           console.log(`🔔 [${requestId}] Processing customer.subscription.deleted`);
@@ -257,6 +263,31 @@ function toIsoOrNull(epochSeconds: any): string | null {
 }
 
 /**
+ * Map Stripe subscription status to our plan status
+ */
+function mapStripeStatusToPlanStatus(stripeStatus: string): string {
+  switch (stripeStatus) {
+    case 'active':
+      return 'active';
+    case 'past_due':
+      return 'past_due';
+    case 'canceled':
+    case 'cancelled':
+      return 'cancelled';
+    case 'incomplete':
+    case 'incomplete_expired':
+      return 'incomplete';
+    case 'trialing':
+      return 'trialing';
+    case 'unpaid':
+      return 'unpaid';
+    default:
+      console.warn(`Unknown Stripe status: ${stripeStatus}`);
+      return 'unknown';
+  }
+}
+
+/**
  * Handle successful checkout session completion
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, requestId: string) {
@@ -312,17 +343,30 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
     // Update plan with subscription details
     const startIso = toIsoOrNull((subscription as any).current_period_start);
     const endIso = toIsoOrNull((subscription as any).current_period_end);
+    const trialEndIso = toIsoOrNull((subscription as any).trial_end);
+    
     const update: Record<string, any> = {
-      status: subscription.status,
+      status: mapStripeStatusToPlanStatus(subscription.status),
       stripe_subscription_id: subscription.id,
       updated_at: new Date().toISOString(),
     };
+    
     if (startIso) update.current_period_start = startIso;
     if (endIso) update.current_period_end = endIso;
+    if (trialEndIso) update.trial_end = trialEndIso;
+    
+    // Handle trial status
+    if (subscription.status === 'trialing') {
+      update.plan_type = 'pro'; // Ensure user gets Pro features during trial
+    }
     
     await updateUserPlan(userId, update);
     
-    console.log(`✅ [${requestId}] Subscription details updated`);
+    console.log(`✅ [${requestId}] Subscription created:`, {
+      status: subscription.status,
+      trialEnd: trialEndIso,
+      periodEnd: endIso,
+    });
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update subscription details:`, error);
     throw error;
@@ -346,21 +390,86 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
   }
   
   try {
-    // Update plan status
+    // Update plan status with enhanced lifecycle handling
     const startIso = toIsoOrNull((subscription as any).current_period_start);
     const endIso = toIsoOrNull((subscription as any).current_period_end);
+    const trialEndIso = toIsoOrNull((subscription as any).trial_end);
+    
     const update: Record<string, any> = {
-      status: subscription.status,
+      status: mapStripeStatusToPlanStatus(subscription.status),
       updated_at: new Date().toISOString(),
     };
+    
     if (startIso) update.current_period_start = startIso;
     if (endIso) update.current_period_end = endIso;
+    if (trialEndIso) update.trial_end = trialEndIso;
+    
+    // Handle specific lifecycle events
+    if (subscription.status === 'active' && subscription.trial_end) {
+      // Trial ended, subscription is now active
+      console.log(`🔄 [${requestId}] Trial ended, subscription now active`);
+    } else if (subscription.status === 'past_due') {
+      // Payment failed, subscription is past due
+      console.log(`⚠️ [${requestId}] Subscription past due - payment failed`);
+    } else if (subscription.status === 'canceled') {
+      // Subscription cancelled
+      console.log(`❌ [${requestId}] Subscription cancelled`);
+      update.plan_type = 'free'; // Downgrade to free
+    }
     
     await updateUserPlan(userId, update);
     
-    console.log(`✅ [${requestId}] Subscription updated`);
+    console.log(`✅ [${requestId}] Subscription updated:`, {
+      status: subscription.status,
+      trialEnd: trialEndIso,
+      periodEnd: endIso,
+    });
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update subscription:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Handle trial will end notification
+ */
+async function handleTrialWillEnd(subscription: Stripe.Subscription, requestId: string) {
+  console.log(`🔍 [${requestId}] Handling trial will end:`, subscription.id);
+  
+  const userId = subscription.metadata?.user_id;
+  
+  if (!userId) {
+    console.error(`❌ [${requestId}] Missing user_id in subscription metadata:`, {
+      subscriptionId: subscription.id,
+      metadata: subscription.metadata,
+    });
+    throw new Error('Missing user_id in subscription metadata');
+  }
+  
+  try {
+    // Get user email for notification
+    const client = getSupabaseClient();
+    const { data: user, error: userError } = await (client as any)
+      .from('users')
+      .select('email, name')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      console.error(`❌ [${requestId}] Could not find user:`, userError);
+      throw new Error('User not found');
+    }
+
+    // Send trial ending notification email
+    await sendTrialEndingNotification({
+      email: user.email,
+      name: user.name,
+      trialEndDate: new Date(subscription.trial_end! * 1000).toISOString(),
+    });
+
+    console.log(`✅ [${requestId}] Trial ending notification sent to ${user.email}`);
+  } catch (error) {
+    console.error(`❌ [${requestId}] Failed to handle trial will end:`, error);
     throw error;
   }
 }
@@ -474,5 +583,38 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, requestId: string) {
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update plan status:`, error);
     throw error;
+  }
+}
+
+/**
+ * Send trial ending notification email
+ */
+async function sendTrialEndingNotification(data: {
+  email: string;
+  name: string;
+  trialEndDate: string;
+}): Promise<void> {
+  try {
+    // This would integrate with your email service
+    // For now, just log the notification
+    console.log('📧 Trial ending notification:', {
+      email: data.email,
+      name: data.name,
+      trialEndDate: data.trialEndDate,
+    });
+    
+    // TODO: Implement actual email sending
+    // await sendEmail({
+    //   to: data.email,
+    //   subject: 'Your DogYenta trial is ending soon',
+    //   template: 'trial-ending',
+    //   data: {
+    //     name: data.name,
+    //     trialEndDate: data.trialEndDate,
+    //   }
+    // });
+  } catch (error) {
+    console.error('Failed to send trial ending notification:', error);
+    // Don't throw - this is not critical for webhook processing
   }
 }
