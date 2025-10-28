@@ -160,25 +160,32 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
     // If guidance text exists, normalize it via the LLM endpoint first
     if (params.guidance && params.guidance.trim().length > 0) {
       try {
-        const normResp = await fetch('/api/normalize-guidance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guidance: params.guidance })
-        });
-        if (normResp.ok) {
-          const norm = await normResp.json();
-          // Merge normalized preferences into the params (do not overwrite explicit selections)
-          const normAge = Array.isArray(norm.age) ? norm.age : undefined;
-          const normSize = Array.isArray(norm.size) ? norm.size : undefined;
-          const normTemps = Array.isArray(norm.temperament) ? norm.temperament : undefined;
-          const normEnergy = typeof norm.energy === 'string' ? norm.energy : undefined;
-          params = {
-            ...params,
-            age: params.age || normAge,
-            size: params.size || normSize,
-            temperament: params.temperament || normTemps,
-            energy: params.energy || (normEnergy as any)
-          };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        try {
+          const normResp = await fetch('/api/normalize-guidance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guidance: params.guidance }),
+            signal: controller.signal,
+          });
+          if (normResp.ok) {
+            const norm = await normResp.json();
+            // Merge normalized preferences into the params (do not overwrite explicit selections)
+            const normAge = Array.isArray(norm.age) ? norm.age : undefined;
+            const normSize = Array.isArray(norm.size) ? norm.size : undefined;
+            const normTemps = Array.isArray(norm.temperament) ? norm.temperament : undefined;
+            const normEnergy = typeof norm.energy === 'string' ? norm.energy : undefined;
+            params = {
+              ...params,
+              age: params.age || normAge,
+              size: params.size || normSize,
+              temperament: params.temperament || normTemps,
+              energy: params.energy || (normEnergy as any)
+            };
+          }
+        } finally {
+          clearTimeout(timeoutId);
         }
       } catch {}
     }

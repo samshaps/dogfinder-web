@@ -4,6 +4,7 @@ import { verifyBlurb, verifyBlurbWithTemperament } from './verify';
 import { COPY_MAX, COPY_SOFT } from './constants/copyLimits';
 import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments';
 import { buildReasoningMessages } from './reasoning-messages';
+import { runTextResponse, isOpenAIConfigured } from './openai-client';
 
 function resolveApiUrl(path: string): string {
   if (typeof window === 'undefined') {
@@ -190,14 +191,41 @@ export async function generateTop3Reasoning(
       // eslint-disable-next-line no-console
       console.log('[reasoning] FactPack:', facts);
     }
-    const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, type: 'free', max_tokens: 50, temperature: 0.1 }),
-    });
-    if (!response.ok) throw new Error(`AI service error: ${response.status}`);
-    const data = await response.json();
-    const raw = typeof data.reasoning === 'string' ? data.reasoning : '';
+    
+    // If running server-side and OpenAI is configured, call directly (faster)
+    // Otherwise, use HTTP API (for client-side or when OpenAI not configured)
+    const isServerSide = typeof window === 'undefined';
+    let raw: string;
+    
+    if (isServerSide && isOpenAIConfigured()) {
+      // Direct OpenAI call - much faster, no HTTP overhead
+      const messages = buildReasoningMessages(prompt, {
+        hasUserPreferences: (facts.prefs || []).length > 0,
+        temperaments: effectivePrefs.temperament.value as string[]
+      });
+      raw = await runTextResponse(messages, {
+        max_tokens: 50,
+        temperature: 0.1,
+      });
+    } else {
+      // HTTP API call (client-side or fallback)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      try {
+        const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, type: 'free', max_tokens: 50, temperature: 0.1 }),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`AI service error: ${response.status}`);
+        const data = await response.json();
+        raw = typeof data.reasoning === 'string' ? data.reasoning : '';
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+    
     const parsed = parseJSONResponse(raw);
     let text = typeof parsed?.text === 'string' ? parsed.text : '';
     const cited = Array.isArray(parsed?.cited) ? parsed.cited : [];
