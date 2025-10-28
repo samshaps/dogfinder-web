@@ -1,0 +1,85 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyUnsubToken, consumeTokenJti, recordTokenJtiConsumed } from '@/lib/tokens';
+import { getSupabaseClient } from '@/lib/supabase-auth';
+import { getStripeServer } from '@/lib/stripe/config';
+import { setPlan } from '@/lib/stripe/plan-sync';
+import { appConfig } from '@/lib/config';
+import { okJson, errJson, ApiErrors } from '@/lib/api/helpers';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { token } = await req.json().catch(() => ({}));
+    if (!token) {
+      return errJson(ApiErrors.validationError('Missing token'), req);
+    }
+
+    const payload = verifyUnsubToken(token);
+    if (payload.scope !== 'alerts+cancel') {
+      return errJson(ApiErrors.forbidden('Invalid scope'), req);
+    }
+
+    if (!appConfig.emailTokenSecret) {
+      throw new Error('EMAIL_TOKEN_SECRET not set');
+    }
+
+    // Check if token jti has already been consumed (idempotency)
+    const jti = String(payload.jti || '');
+    if (jti) {
+      const { alreadyUsed } = await consumeTokenJti(jti);
+      if (alreadyUsed) {
+        return okJson({ ok: true, message: 'Already processed' }, req);
+      }
+    }
+
+    const email = String(payload.sub);
+    const client = getSupabaseClient();
+    const { data: userRow, error: userErr } = await (client as any)
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (userErr || !userRow?.id) {
+      return errJson(ApiErrors.notFound('User'), req);
+    }
+    const userId = userRow.id as string;
+
+    // Disable alerts
+    await (client as any)
+      .from('alert_settings')
+      .update({ enabled: false })
+      .eq('user_id', userId);
+
+    // Cancel subscription and downgrade plan
+    const { data: planRow } = await (client as any)
+      .from('plans')
+      .select('stripe_subscription_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (planRow?.stripe_subscription_id) {
+      const stripe = getStripeServer();
+      await stripe.subscriptions.cancel(planRow.stripe_subscription_id as string);
+      
+      // Use centralized setPlan function
+      await setPlan({
+        userId,
+        planType: 'free',
+        status: 'cancelled',
+        stripeSubscriptionId: null,
+      });
+    }
+
+    // Record event and mark jti as consumed
+    await recordTokenJtiConsumed(jti, userId, 'unsubscribe_via_token');
+
+    return okJson({ ok: true }, req);
+  } catch (e: any) {
+    console.error('unsubscribe error', e);
+    const error = ApiErrors.validationError(e?.message || 'Unsubscribe failed');
+    error.statusCode = 400;
+    return errJson(error, req);
+  }
+}
+
+
