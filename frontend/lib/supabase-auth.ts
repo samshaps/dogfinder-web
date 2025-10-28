@@ -155,9 +155,10 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   console.log('🔍 Preferences data to save:', JSON.stringify(preferencesData, null, 2));
   
   // Check if preferences already exist (use maybeSingle to avoid error if no rows)
+  // Note: preferences table uses user_id as PRIMARY KEY, not a separate id column
   const { data: existingData, error: checkError } = await (client as any)
     .from('preferences')
-    .select('id')
+    .select('user_id')
     .eq('user_id', userId)
     .maybeSingle();
     
@@ -170,12 +171,39 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     throw checkError;
   }
     
+  // Map the new schema fields to the database schema
+  // Database has: location, radius, breed, size, age, gender, lifestyle, notes
+  // Code uses: zip_codes, age_preferences, size_preferences, energy_level, include_breeds, exclude_breeds, temperament_traits, living_situation
+  const dbData: any = {
+    user_id: userId,
+    location: preferencesData.zip_codes && preferencesData.zip_codes.length > 0 
+      ? preferencesData.zip_codes[0] 
+      : null,
+    radius: 50, // Default radius
+    // Map breeds - combine include and exclude into notes for now, or store in lifestyle JSONB
+    breed: preferencesData.include_breeds || null,
+    size: preferencesData.size_preferences || null,
+    age: preferencesData.age_preferences || null,
+    // Store additional data in lifestyle JSONB field
+    lifestyle: {
+      zip_codes: preferencesData.zip_codes || [],
+      energy_level: preferencesData.energy_level || null,
+      include_breeds: preferencesData.include_breeds || [],
+      exclude_breeds: preferencesData.exclude_breeds || [],
+      temperament_traits: preferencesData.temperament_traits || [],
+      living_situation: preferencesData.living_situation || {},
+    },
+    notes: preferencesData.living_situation?.description || null,
+  };
+    
   if (existingData) {
     // Update existing preferences
-    console.log('🔍 Updating existing preferences (id:', existingData.id, ')...');
+    console.log('🔍 Updating existing preferences for user_id:', userId);
+    console.log('🔍 DB data to update:', JSON.stringify(dbData, null, 2));
+    
     const { data, error } = await (client as any)
       .from('preferences')
-      .update(preferencesData)
+      .update(dbData)
       .eq('user_id', userId)
       .select('*')
       .single();
@@ -194,12 +222,11 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   } else {
     // Create new preferences
     console.log('🔍 Creating new preferences...');
-    const insertData = { user_id: userId, ...preferencesData };
-    console.log('🔍 Insert data:', JSON.stringify(insertData, null, 2));
+    console.log('🔍 DB data to insert:', JSON.stringify(dbData, null, 2));
     
     const { data, error } = await (client as any)
       .from('preferences')
-      .insert([insertData])
+      .insert([dbData])
       .select('*')
       .single();
       

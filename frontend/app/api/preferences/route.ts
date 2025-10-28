@@ -61,18 +61,22 @@ export async function GET(request: NextRequest) {
       }, request);
     }
     
+    // Map database schema to API schema
+    // Database: location, radius, breed, size, age, lifestyle (JSONB), notes
+    // API: zip_codes, age_preferences, size_preferences, energy_level, include_breeds, exclude_breeds, temperament_traits, living_situation
+    const lifestyle = preferences.lifestyle || {};
+    
     return okJson({
       preferences: {
-        id: preferences.id,
-        zip_codes: preferences.zip_codes || [],
-        age_preferences: preferences.age_preferences || [],
-        size_preferences: preferences.size_preferences || [],
-        energy_level: preferences.energy_level,
-        include_breeds: preferences.include_breeds || [],
-        exclude_breeds: preferences.exclude_breeds || [],
-        temperament_traits: preferences.temperament_traits || [],
-        living_situation: preferences.living_situation || {},
-        notification_preferences: preferences.notification_preferences || {},
+        zip_codes: lifestyle.zip_codes || (preferences.location ? [preferences.location] : []),
+        age_preferences: preferences.age || [],
+        size_preferences: preferences.size || [],
+        energy_level: lifestyle.energy_level || null,
+        include_breeds: lifestyle.include_breeds || preferences.breed || [],
+        exclude_breeds: lifestyle.exclude_breeds || [],
+        temperament_traits: lifestyle.temperament_traits || [],
+        living_situation: lifestyle.living_situation || (preferences.notes ? { description: preferences.notes } : {}),
+        notification_preferences: {},
         created_at: preferences.created_at,
         updated_at: preferences.updated_at,
       }
