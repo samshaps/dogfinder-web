@@ -385,9 +385,18 @@ export default function FindPage() {
             try {
               const errorData = JSON.parse(errorText);
               console.error('❌ Parsed error response:', errorData);
-              errorMessage = errorData.error || errorData.message || errorMessage;
+              // Handle wrapped API error format: {success: false, error: {code, message}}
+              if (errorData.error) {
+                errorMessage = typeof errorData.error === 'string' 
+                  ? errorData.error 
+                  : errorData.error.message || errorData.error.code || errorMessage;
+              } else if (errorData.message) {
+                errorMessage = errorData.message;
+              }
             } catch (e) {
               console.error('❌ Could not parse error response as JSON');
+              // If it's not JSON, use the raw text (might be HTML error page)
+              errorMessage = errorText.substring(0, 100);
             }
             
             // Show error to user but don't block navigation
