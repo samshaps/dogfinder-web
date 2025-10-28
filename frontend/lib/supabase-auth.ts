@@ -142,15 +142,22 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   
   console.log('🔍 Saving user preferences for:', userId);
   
-  // Check if preferences already exist
-  const { data: existingData } = await (client as any)
+  // Check if preferences already exist (use maybeSingle to avoid error if no rows)
+  const { data: existingData, error: checkError } = await (client as any)
     .from('preferences')
     .select('id')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+    
+  if (checkError && checkError.code !== 'PGRST116') {
+    // PGRST116 is "not found" which is fine, but other errors are real problems
+    console.error('Error checking for existing preferences:', checkError);
+    throw checkError;
+  }
     
   if (existingData) {
     // Update existing preferences
+    console.log('🔍 Updating existing preferences...');
     const { data, error } = await (client as any)
       .from('preferences')
       .update(preferencesData)
@@ -167,6 +174,7 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     return data;
   } else {
     // Create new preferences
+    console.log('🔍 Creating new preferences...');
     const { data, error } = await (client as any)
       .from('preferences')
       .insert([{ user_id: userId, ...preferencesData }])

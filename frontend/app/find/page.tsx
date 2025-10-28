@@ -371,17 +371,22 @@ export default function FindPage() {
             console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
             
             // Try to parse error response for more details
+            let errorMessage = 'Failed to save preferences';
             try {
               const errorData = JSON.parse(errorText);
               console.error('❌ Parsed error response:', errorData);
+              errorMessage = errorData.error || errorData.message || errorMessage;
             } catch (e) {
               console.error('❌ Could not parse error response as JSON');
             }
-            // Continue to results even if save fails (don't block the user)
+            
+            // Show error to user but don't block navigation
+            alert(`Warning: ${errorMessage}. Your search will still proceed, but preferences may not be saved.`);
           }
         } catch (error) {
           console.error('❌ Error saving preferences:', error);
-          // Continue to results even if save fails (don't block the user)
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          alert(`Error saving preferences: ${errorMessage}. Your search will still proceed.`);
         }
       }
 
