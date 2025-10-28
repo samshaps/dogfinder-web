@@ -171,47 +171,20 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     throw checkError;
   }
     
-  // Map the new schema fields to the database schema
-  // The actual database schema may differ from the migration - store everything in lifestyle JSONB to be safe
-  // Store all preference data in the lifestyle JSONB field which definitely exists
+  // The database schema matches our API schema! Use columns directly
+  // Columns: user_id, zip_codes, age_preferences, size_preferences, energy_level,
+  //          include_breeds, exclude_breeds, temperament_traits, living_situation
   const dbData: any = {
     user_id: userId,
-    // Location is required (NOT NULL), use first zip code or a default
-    location: preferencesData.zip_codes && preferencesData.zip_codes.length > 0 
-      ? preferencesData.zip_codes[0] 
-      : 'Unknown',
-    radius: 50, // Default radius
-    // Store ALL preference data in lifestyle JSONB field (this column definitely exists)
-    lifestyle: {
-      // Store all the API fields for easy retrieval
-      zip_codes: preferencesData.zip_codes || [],
-      age_preferences: preferencesData.age_preferences || [],
-      size_preferences: preferencesData.size_preferences || [],
-      energy_level: preferencesData.energy_level || null,
-      include_breeds: preferencesData.include_breeds || [],
-      exclude_breeds: preferencesData.exclude_breeds || [],
-      temperament_traits: preferencesData.temperament_traits || [],
-      living_situation: preferencesData.living_situation || {},
-      // Also store in old format for backward compatibility
-      breed: preferencesData.include_breeds || [],
-      size: preferencesData.size_preferences || [],
-      age: preferencesData.age_preferences || [],
-    },
-    notes: preferencesData.living_situation?.description || null,
+    zip_codes: preferencesData.zip_codes || [],
+    age_preferences: preferencesData.age_preferences || [],
+    size_preferences: preferencesData.size_preferences || [],
+    energy_level: preferencesData.energy_level || null,
+    include_breeds: preferencesData.include_breeds || [],
+    exclude_breeds: preferencesData.exclude_breeds || [],
+    temperament_traits: preferencesData.temperament_traits || [],
+    living_situation: preferencesData.living_situation || {},
   };
-  
-  // Only include array columns if they exist in the schema (will be added if migration has been run)
-  // For now, we'll try without them since they might not exist
-  // If breed/size/age columns exist, uncomment these:
-  // if (preferencesData.include_breeds && preferencesData.include_breeds.length > 0) {
-  //   dbData.breed = preferencesData.include_breeds;
-  // }
-  // if (preferencesData.size_preferences && preferencesData.size_preferences.length > 0) {
-  //   dbData.size = preferencesData.size_preferences;
-  // }
-  // if (preferencesData.age_preferences && preferencesData.age_preferences.length > 0) {
-  //   dbData.age = preferencesData.age_preferences;
-  // }
     
   if (existingData) {
     // Update existing preferences
