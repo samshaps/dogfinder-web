@@ -198,106 +198,121 @@ export async function sendTestEmail(
       searchParams.append('energy', preferences.energy_level);
     }
 
-    // Fetch real dogs from the internal API
-    // Construct base URL for server-side fetch
-    // Priority: publicBaseUrl env var > VERCEL_URL > localhost (dev) > production default
-    let baseUrl = appConfig.publicBaseUrl;
-    if (!baseUrl) {
-      if (process.env.VERCEL_URL) {
-        baseUrl = `https://${process.env.VERCEL_URL}`;
-      } else if (process.env.NODE_ENV === 'production') {
-        baseUrl = 'https://dogyenta.com';
-      } else {
-        baseUrl = 'http://localhost:3000';
-      }
-    }
-    console.log('🔍 Fetching real dogs for test email with params:', searchParams.toString());
-    console.log('🔍 Using base URL:', baseUrl);
-    
-    const dogsResponse = await fetch(`${baseUrl}/api/dogs?${searchParams.toString()}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    });
-
+    // Fetch real dogs from the internal API with timeout protection
+    // Wrap in try-catch to gracefully fall back if it fails
     let emailMatches: EmailDogMatch[] = [];
     let totalMatches = 0;
 
-    if (dogsResponse.ok) {
-      const dogsData = await dogsResponse.json();
-      const dogs = dogsData.items || [];
-      totalMatches = dogsData.total || dogs.length;
-
-      // Transform dogs to email format
-      emailMatches = dogs.slice(0, 5).map((dog: any) => {
-        // Extract breeds
-        const breeds: string[] = [];
-        if (dog.breeds?.primary) breeds.push(dog.breeds.primary);
-        if (dog.breeds?.secondary) breeds.push(dog.breeds.secondary);
-        if (breeds.length === 0) breeds.push('Mixed Breed');
-
-        // Extract photos
-        const photos: string[] = [];
-        if (dog.photos && dog.photos.length > 0) {
-          dog.photos.forEach((photo: any) => {
-            if (photo.large) photos.push(photo.large);
-            else if (photo.medium) photos.push(photo.medium);
-            else if (photo.small) photos.push(photo.small);
-          });
+    try {
+      // Construct base URL for server-side fetch
+      // Priority: publicBaseUrl env var > VERCEL_URL > localhost (dev) > production default
+      let baseUrl = appConfig.publicBaseUrl;
+      if (!baseUrl) {
+        if (process.env.VERCEL_URL) {
+          baseUrl = `https://${process.env.VERCEL_URL}`;
+        } else if (process.env.NODE_ENV === 'production') {
+          baseUrl = 'https://dogyenta.com';
+        } else {
+          baseUrl = 'http://localhost:3000';
         }
-
-        // Extract temperament from tags/attributes
-        const temperament: string[] = [];
-        if (dog.tags) {
-          dog.tags.forEach((tag: string) => {
-            if (tag && typeof tag === 'string') {
-              temperament.push(tag);
-            }
-          });
-        }
-        if (dog.attributes) {
-          Object.entries(dog.attributes).forEach(([key, value]) => {
-            if (value === true) {
-              temperament.push(key.replace(/_/g, ' '));
-            }
-          });
-        }
-
-        return {
-          id: dog.id || `dog-${Math.random().toString(36).slice(2, 10)}`,
-          name: dog.name || 'Unknown',
-          breeds,
-          age: dog.age || 'Unknown',
-          size: dog.size || 'Unknown',
-          energy: dog.energy || 'medium',
-          temperament,
-          location: {
-            city: dog.contact?.address?.city || dog.city || 'Unknown',
-            state: dog.contact?.address?.state || dog.state || 'Unknown',
-            distanceMi: dog.distance || dog.distanceMi,
-          },
-          photos,
-          matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
-          reasons: {
-            primary150: `This ${dog.age || 'charming'} ${dog.size || 'wonderful'} ${breeds[0] || 'dog'} is a great match for your preferences!`,
-            blurb50: 'Perfect companion',
-          },
-          shelter: {
-            name: dog.organization?.name || dog.shelter?.name || 'Local Shelter',
-            email: dog.contact?.email || dog.shelter?.email,
-            phone: dog.contact?.phone || dog.shelter?.phone,
-          },
-          url: dog.url ? dog.url : (dog.id ? `https://dogyenta.com/results?dog=${dog.id}` : '#'),
-          publishedAt: dog.published_at || dog.publishedAt,
-        };
+      }
+      console.log('🔍 Fetching real dogs for test email with params:', searchParams.toString());
+      console.log('🔍 Using base URL:', baseUrl);
+      
+      // Use shorter timeout (5 seconds) for test emails to avoid long waits
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const dogsResponse = await fetch(`${baseUrl}/api/dogs?${searchParams.toString()}`, {
+        cache: 'no-store',
+        signal: controller.signal,
       });
-    } else {
-      console.warn('⚠️ Failed to fetch dogs, falling back to stub data:', dogsResponse.status);
-      return sendTestEmailWithStubData(to, userEmail, resend, userName);
+
+      clearTimeout(timeoutId);
+
+      if (dogsResponse.ok) {
+        const dogsData = await dogsResponse.json();
+        const dogs = dogsData.items || [];
+        totalMatches = dogsData.total || dogs.length;
+
+        // Transform dogs to email format
+        emailMatches = dogs.slice(0, 5).map((dog: any) => {
+          // Extract breeds
+          const breeds: string[] = [];
+          if (dog.breeds?.primary) breeds.push(dog.breeds.primary);
+          if (dog.breeds?.secondary) breeds.push(dog.breeds.secondary);
+          if (breeds.length === 0) breeds.push('Mixed Breed');
+
+          // Extract photos
+          const photos: string[] = [];
+          if (dog.photos && dog.photos.length > 0) {
+            dog.photos.forEach((photo: any) => {
+              if (photo.large) photos.push(photo.large);
+              else if (photo.medium) photos.push(photo.medium);
+              else if (photo.small) photos.push(photo.small);
+            });
+          }
+
+          // Extract temperament from tags/attributes
+          const temperament: string[] = [];
+          if (dog.tags) {
+            dog.tags.forEach((tag: string) => {
+              if (tag && typeof tag === 'string') {
+                temperament.push(tag);
+              }
+            });
+          }
+          if (dog.attributes) {
+            Object.entries(dog.attributes).forEach(([key, value]) => {
+              if (value === true) {
+                temperament.push(key.replace(/_/g, ' '));
+              }
+            });
+          }
+
+          return {
+            id: dog.id || `dog-${Math.random().toString(36).slice(2, 10)}`,
+            name: dog.name || 'Unknown',
+            breeds,
+            age: dog.age || 'Unknown',
+            size: dog.size || 'Unknown',
+            energy: dog.energy || 'medium',
+            temperament,
+            location: {
+              city: dog.contact?.address?.city || dog.city || 'Unknown',
+              state: dog.contact?.address?.state || dog.state || 'Unknown',
+              distanceMi: dog.distance || dog.distanceMi,
+            },
+            photos,
+            matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
+            reasons: {
+              primary150: `This ${dog.age || 'charming'} ${dog.size || 'wonderful'} ${breeds[0] || 'dog'} is a great match for your preferences!`,
+              blurb50: 'Perfect companion',
+            },
+            shelter: {
+              name: dog.organization?.name || dog.shelter?.name || 'Local Shelter',
+              email: dog.contact?.email || dog.shelter?.email,
+              phone: dog.contact?.phone || dog.shelter?.phone,
+            },
+            url: dog.url ? dog.url : (dog.id ? `https://dogyenta.com/results?dog=${dog.id}` : '#'),
+            publishedAt: dog.published_at || dog.publishedAt,
+          };
+        });
+      } else {
+        console.warn('⚠️ Failed to fetch dogs (status:', dogsResponse.status, '), falling back to stub data');
+      }
+    } catch (fetchError) {
+      // Handle timeout or network errors gracefully
+      if (fetchError instanceof Error && (fetchError.name === 'AbortError' || fetchError.message.includes('timeout'))) {
+        console.warn('⚠️ Dog fetch timed out, using stub data with real preferences');
+      } else {
+        console.warn('⚠️ Dog fetch failed, using stub data with real preferences:', fetchError instanceof Error ? fetchError.message : 'Unknown error');
+      }
     }
 
     // If no dogs found, use stub data but with real preferences
     if (emailMatches.length === 0) {
-      console.warn('⚠️ No dogs found, using stub data with real preferences');
+      console.log('⚠️ No dogs found, using stub data with real preferences');
       emailMatches = [
         {
           id: 'test-dog-1',
