@@ -117,7 +117,13 @@ export async function runResponse(options: ResponseOptions): Promise<NormalizedR
     // Optimize for speed
     stream: false,
   }, {
-    timeout: 10000, // 10 second timeout
+    // Timeout based on benchmark data:
+    // - Warm requests: ~70-230ms
+    // - Cold starts: 2-5.5s
+    // - P95: 3.9s, P99: 5.5s
+    // Using 6s to handle p99 cold starts with buffer
+    // NOTE: If used sequentially with dog API (8s), total = ~14s
+    timeout: 6000, // 6 second timeout
   });
 
   const outputText = response.choices[0]?.message?.content?.trim() || '';
