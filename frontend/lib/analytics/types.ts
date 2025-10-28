@@ -64,6 +64,7 @@ export type ProfileEvent =
   | 'profile_downgrade_initiated'
   | 'profile_downgrade_success'
   | 'profile_downgrade_failed'
+  | 'profile_manage_subscription_clicked'
   | 'pricing_cta_free'
   | 'pricing_cta_pro'
   | 'pricing_page_viewed';

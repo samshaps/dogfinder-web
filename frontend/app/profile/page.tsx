@@ -80,6 +80,25 @@ function ProfilePageContent() {
         pollAttemptsRef.current = 0;
         setUpgradeSuccess(false); // Clear success message once upgrade is confirmed
       }
+
+      // Check if subscription is scheduled for cancellation
+      if (plan?.isPro) {
+        try {
+          const statusResponse = await fetch('/api/stripe/downgrade-status');
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            if (statusData.isScheduledForCancellation && statusData.periodEnd) {
+              setDowngradeSuccess({ periodEnd: statusData.periodEnd });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking downgrade status:', error);
+          // Don't fail the whole page load if this fails
+        }
+      } else {
+        // Clear downgrade success if not Pro
+        setDowngradeSuccess(null);
+      }
     } catch (error) {
       console.error('Error loading plan info:', error);
     } finally {
@@ -151,8 +170,11 @@ function ProfilePageContent() {
       setDowngradeSuccess({ periodEnd: data.periodEnd });
       setShowDowngradeModal(false);
       
-      // Reload plan info to reflect the change
+      // Reload plan info and email alert settings to reflect changes
       await loadPlanInfo();
+      
+      // Trigger a refresh of email alert settings if EmailAlertSettings component exists
+      // (it will auto-refresh on next render since we reloaded plan info)
     } catch (error: any) {
       console.error('Error downgrading:', error);
       alert(error.message || 'Failed to downgrade plan. Please try again or contact support.');
@@ -342,32 +364,53 @@ function ProfilePageContent() {
                     {planInfo.isPro && (
                       <div className="mt-3 space-y-3">
                         {downgradeSuccess?.periodEnd && (
-                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg" role="alert">
-                            <p className="text-sm text-amber-900 font-medium">
-                              Your Pro plan will end on {new Date(downgradeSuccess.periodEnd).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
-                              })}. You can re-upgrade anytime.
-                            </p>
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg" role="alert">
+                            <div className="space-y-3">
+                              <p className="text-sm text-amber-900 font-medium">
+                                Your Pro plan will end on {new Date(downgradeSuccess.periodEnd).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}.
+                              </p>
+                              <p className="text-xs text-amber-800">
+                                Email alerts have been disabled. You'll lose access to Pro features when your plan expires.
+                              </p>
+                              <button
+                                onClick={() => {
+                                  trackEvent('profile_manage_subscription_clicked', {
+                                    user_id: user?.id,
+                                    source: 'downgrade_success_message'
+                                  });
+                                  router.push('/pricing');
+                                }}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm"
+                              >
+                                Manage Subscription
+                              </button>
+                            </div>
                           </div>
                         )}
-                        <button
-                          onClick={() => {
-                            trackEvent('profile_downgrade_button_clicked', {
-                              user_id: user?.id,
-                              source: 'profile_page'
-                            });
-                            setShowDowngradeModal(true);
-                          }}
-                          className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                          aria-describedby="downgrade-description"
-                        >
-                          Downgrade to Free Plan
-                        </button>
-                        <p id="downgrade-description" className="text-xs text-gray-600 text-center">
-                          Cancel your Pro subscription. You'll keep access until the end of your billing period.
-                        </p>
+                        {!downgradeSuccess?.periodEnd && (
+                          <button
+                            onClick={() => {
+                              trackEvent('profile_downgrade_button_clicked', {
+                                user_id: user?.id,
+                                source: 'profile_page'
+                              });
+                              setShowDowngradeModal(true);
+                            }}
+                            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                            aria-describedby="downgrade-description"
+                          >
+                            Downgrade to Free Plan
+                          </button>
+                        )}
+                        {!downgradeSuccess?.periodEnd && (
+                          <p id="downgrade-description" className="text-xs text-gray-600 text-center">
+                            Cancel your Pro subscription. You'll keep access until the end of your billing period.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -479,8 +522,15 @@ function ProfilePageContent() {
             </div>
             
             <p className="text-gray-700 mb-6">
-              You'll keep your saved preferences but lose Pro features like email alerts and unlimited searches. 
-              Your Pro plan will remain active until the end of your current billing period.
+              You'll keep your saved preferences, but:
+            </p>
+            <ul className="text-gray-700 mb-6 list-disc list-inside space-y-2 text-sm">
+              <li>Email alerts will be <strong>immediately disabled</strong></li>
+              <li>You'll lose access to Pro features when your plan expires</li>
+              <li>Your Pro plan will remain active until the end of your current billing period</li>
+            </ul>
+            <p className="text-gray-700 mb-6 text-sm">
+              You can re-subscribe anytime before your plan expires to restore Pro features.
             </p>
             
             <div className="flex gap-3">

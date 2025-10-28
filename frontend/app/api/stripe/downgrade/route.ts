@@ -103,6 +103,12 @@ export async function POST(request: NextRequest) {
         ? new Date((updatedSubscription as any).current_period_end * 1000).toISOString()
         : null;
 
+      // Immediately disable email alerts (Pro feature)
+      await (client as any)
+        .from('alert_settings')
+        .update({ enabled: false })
+        .eq('user_id', userId);
+
       // Update plan status to reflect cancellation is scheduled
       // Keep plan_type as 'pro' until period end, but mark status appropriately
       // Note: We don't change plan_type to 'free' yet - that happens when webhook fires
@@ -118,6 +124,7 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Downgrade scheduled for user ${userId}:`, {
         subscriptionId: updatedSubscription.id,
         periodEnd,
+        emailAlertsDisabled: true,
       });
 
       return okJson({
