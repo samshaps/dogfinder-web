@@ -477,7 +477,7 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
   });
 
   // Try to update with period dates first
-  const { data: updateResult, error } = await (client as any)
+  let { data: updateResult, error } = await (client as any)
     .from('plans')
     .update(updatePayload)
     .eq('user_id', userId)
