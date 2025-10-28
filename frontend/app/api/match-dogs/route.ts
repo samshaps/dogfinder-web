@@ -3,14 +3,21 @@ import { processDogMatching, validateMatchingResults } from '@/lib/matching-flow
 import { UserPreferences, Dog } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
-  console.log('🎯 Match-dogs API POST endpoint called');
+  const startTime = Date.now();
+  const requestId = `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`[${requestId}] 🎯 Match-dogs API POST endpoint called`);
   
   try {
-    console.log('📥 Parsing request body...');
+    const parseStartTime = Date.now();
+    console.log(`[${requestId}] 📥 Parsing request body...`);
     const body = await request.json();
-    console.log('📝 Request body keys:', Object.keys(body));
+    const parseDuration = Date.now() - parseStartTime;
+    console.log(`[${requestId}] 📝 Request body parsed in ${parseDuration}ms, keys:`, Object.keys(body));
     
     const { userPreferences, dogs } = body;
+    const dogCount = Array.isArray(dogs) ? dogs.length : 0;
+    const hasGuidance = !!(userPreferences?.guidance);
     
     // Validate input
     console.log('🔍 Validating input...');
@@ -39,9 +46,11 @@ export async function POST(request: NextRequest) {
     console.log('🎯 API: User preferences:', userPreferences);
     
     // Process the matching
-    console.log('🔄 Calling processDogMatching...');
+    const matchingStartTime = Date.now();
+    console.log(`[${requestId}] 🔄 Calling processDogMatching for ${dogCount} dogs...`);
     const results = await processDogMatching(userPreferences as UserPreferences, dogs as Dog[]);
-    console.log('✅ processDogMatching completed');
+    const matchingDuration = Date.now() - matchingStartTime;
+    console.log(`[${requestId}] ✅ processDogMatching completed in ${matchingDuration}ms`);
     
     // Validate results
     const validation = validateMatchingResults(results, userPreferences, dogs);
@@ -54,7 +63,22 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ API: Validation warnings:', validation.warnings);
     }
     
+    const totalDuration = Date.now() - startTime;
+    console.log(`[${requestId}] ⏱️ /api/match-dogs total: ${totalDuration}ms`, {
+      parseDuration: `${parseDuration}ms`,
+      matchingDuration: `${matchingDuration}ms`,
+      dogCount,
+      hasGuidance,
+      topMatches: results.topMatches.length,
+      allMatches: results.allMatches.length
+    });
+    
     // Return results with validation info
+    const responseHeaders = new Headers();
+    responseHeaders.set('X-Request-ID', requestId);
+    responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+    responseHeaders.set('X-Matching-Duration', `${matchingDuration}`);
+    
     return NextResponse.json({
       success: true,
       results,
@@ -69,7 +93,7 @@ export async function POST(request: NextRequest) {
         allMatches: results.allMatches.length,
         expansionNotes: results.expansionNotes.length
       }
-    });
+    }, { headers: responseHeaders });
     
   } catch (error) {
     console.error('❌ API: Dog matching error:', error);

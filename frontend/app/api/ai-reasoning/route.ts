@@ -19,8 +19,20 @@ import { buildReasoningMessages } from '@/lib/reasoning-messages';
  */
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const requestId = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   try {
+    const parseStartTime = Date.now();
     const { prompt, type, max_tokens, temperature, temperaments } = await request.json();
+    const parseDuration = Date.now() - parseStartTime;
+    const promptLength = prompt?.length || 0;
+    
+    console.log(`[${requestId}] 🤖 AI reasoning request`, {
+      type,
+      promptLength,
+      parseDuration: `${parseDuration}ms`
+    });
     
     // Check if OpenAI is configured
     if (!isOpenAIConfigured()) {
@@ -40,7 +52,8 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('🚀 Calling OpenAI Responses API...');
+    const openaiStartTime = Date.now();
+    console.log(`[${requestId}] 🚀 Calling OpenAI Responses API...`);
     
     // Build messages using shared utility for consistency
     // Check if user has minimal preferences by looking for key indicators in the prompt
@@ -58,32 +71,63 @@ export async function POST(request: NextRequest) {
 
     if (type === 'free') {
       if (process.env.DEBUG_REASONING === '1') {
-        console.log('[ai-reasoning] FREE prompt:', prompt);
+        console.log(`[${requestId}] [ai-reasoning] FREE prompt:`, prompt);
       }
       // Plain text mode for free-form generation
       const reasoning = await runTextResponse(messages, {
         max_tokens: Math.min(Number(max_tokens || 60), 80),
         temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
-      return NextResponse.json({ reasoning });
+      const openaiDuration = Date.now() - openaiStartTime;
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] ⏱️ /api/ai-reasoning (free) total: ${totalDuration}ms`, {
+        openaiDuration: `${openaiDuration}ms`,
+        type: 'free'
+      });
+      const responseHeaders = new Headers();
+      responseHeaders.set('X-Request-ID', requestId);
+      responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+      responseHeaders.set('X-OpenAI-Duration', `${openaiDuration}`);
+      return NextResponse.json({ reasoning }, { headers: responseHeaders });
     } else if (type === 'top-pick') {
       // Structured response for top picks with JSON schema validation
       const reasoning = await runStructuredResponse(messages, {
         max_tokens: 150,
         temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
-      return NextResponse.json({ reasoning });
+      const openaiDuration = Date.now() - openaiStartTime;
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] ⏱️ /api/ai-reasoning (top-pick) total: ${totalDuration}ms`, {
+        openaiDuration: `${openaiDuration}ms`,
+        type: 'top-pick'
+      });
+      const responseHeaders = new Headers();
+      responseHeaders.set('X-Request-ID', requestId);
+      responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+      responseHeaders.set('X-OpenAI-Duration', `${openaiDuration}`);
+      return NextResponse.json({ reasoning }, { headers: responseHeaders });
     } else {
       // Short response for all matches
       const reasoning = await runTextResponse(messages, {
         max_tokens: 50,
         temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
       });
-      return NextResponse.json({ reasoning: reasoning.substring(0, 50) });
+      const openaiDuration = Date.now() - openaiStartTime;
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] ⏱️ /api/ai-reasoning (short) total: ${totalDuration}ms`, {
+        openaiDuration: `${openaiDuration}ms`,
+        type: 'short'
+      });
+      const responseHeaders = new Headers();
+      responseHeaders.set('X-Request-ID', requestId);
+      responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+      responseHeaders.set('X-OpenAI-Duration', `${openaiDuration}`);
+      return NextResponse.json({ reasoning: reasoning.substring(0, 50) }, { headers: responseHeaders });
     }
 
   } catch (error) {
-    console.error('AI reasoning API error:', error);
+    const totalDuration = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ AI reasoning API error after ${totalDuration}ms:`, error);
     return NextResponse.json(
       { error: 'Failed to generate AI reasoning' },
       { status: 500 }

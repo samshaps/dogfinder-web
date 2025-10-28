@@ -1,49 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Backend API base URL - use environment variable or default to deployed backend
-const BACKEND_API_BASE = process.env.BACKEND_API_BASE || 'https://dogfinder-web.onrender.com';
+// Support staging backend URL via environment variable
+const BACKEND_API_BASE = process.env.BACKEND_API_BASE || 
+  (process.env.VERCEL_ENV === 'preview' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview' 
+    ? 'https://dogfinder-web-staging.onrender.com' 
+    : 'https://dogfinder-web.onrender.com');
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   try {
     // Get the search params from the request
     const { searchParams } = new URL(request.url);
     
-    // Build the backend URL with all query parameters
+    // Log request details
+    const hasGuidance = searchParams.has('guidance');
+    const guidanceLength = searchParams.get('guidance')?.length || 0;
+    console.log(`[${requestId}] 🔄 /api/dogs called`, {
+      hasGuidance,
+      guidanceLength,
+      params: Object.fromEntries(searchParams.entries()),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Build the backend URL with all query parameters (FOR NOW - we'll measure with guidance first)
     const backendUrl = new URL('/api/dogs', BACKEND_API_BASE);
     searchParams.forEach((value, key) => {
       backendUrl.searchParams.set(key, value);
     });
 
-    console.log('🔄 Proxying request to backend:', backendUrl.toString());
+    console.log(`[${requestId}] 🔄 Proxying request to backend:`, backendUrl.toString());
+    const backendStartTime = Date.now();
 
     // Forward the request to the backend with manual timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
-    const response = await fetch(backendUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
+    let backendDuration = 0;
+    let response: Response;
+    try {
+      response = await fetch(backendUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      backendDuration = Date.now() - backendStartTime;
+      clearTimeout(timeoutId);
+      console.log(`[${requestId}] ✅ Backend responded in ${backendDuration}ms (status: ${response.status})`);
+    } catch (fetchError) {
+      backendDuration = Date.now() - backendStartTime;
+      clearTimeout(timeoutId);
+      console.error(`[${requestId}] ❌ Backend fetch failed after ${backendDuration}ms:`, fetchError);
+      throw fetchError;
+    }
 
     if (!response.ok) {
-      console.error('❌ Backend API error:', response.status, response.statusText);
+      console.error(`[${requestId}] ❌ Backend API error:`, response.status, response.statusText);
       
       // Check if it's a rate limit error (429 from Petfinder) - check for 400 status
       if (response.status === 400) {
         try {
           const errorText = await response.text();
-          console.log('📄 Backend error response:', errorText);
+          console.log(`[${requestId}] 📄 Backend error response:`, errorText);
           
           // Parse the JSON and check for rate limit
           if (errorText) {
             const errorData = JSON.parse(errorText);
             if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
-              console.log('🚫 Rate limit detected, returning 429');
+              console.log(`[${requestId}] 🚫 Rate limit detected, returning 429`);
               return NextResponse.json(
                 { 
                   error: 'RATE_LIMIT_EXCEEDED',
@@ -55,9 +83,12 @@ export async function GET(request: NextRequest) {
             }
           }
         } catch (e) {
-          console.error('❌ Error parsing backend response:', e);
+          console.error(`[${requestId}] ❌ Error parsing backend response:`, e);
         }
       }
+      
+      const totalDuration = Date.now() - startTime;
+      console.log(`[${requestId}] ⏱️ /api/dogs total duration: ${totalDuration}ms (backend: ${backendDuration}ms)`);
       
       return NextResponse.json(
         { error: 'Backend API error', status: response.status },
@@ -65,20 +96,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const parseStartTime = Date.now();
     const data = await response.json();
-    console.log('✅ Backend API success, returning data');
+    const parseDuration = Date.now() - parseStartTime;
+    const totalDuration = Date.now() - startTime;
     
-    return NextResponse.json(data);
+    console.log(`[${requestId}] ✅ Backend API success`, {
+      totalDuration: `${totalDuration}ms`,
+      backendDuration: `${backendDuration}ms`,
+      parseDuration: `${parseDuration}ms`,
+      dogCount: data.items?.length || 0,
+      hasGuidance
+    });
+    
+    // Add performance headers
+    const responseHeaders = new Headers();
+    responseHeaders.set('X-Request-ID', requestId);
+    responseHeaders.set('X-Backend-Duration', `${backendDuration}`);
+    responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+    
+    return NextResponse.json(data, { headers: responseHeaders });
   } catch (error) {
-    console.error('❌ Error proxying to backend:', error);
+    const totalDuration = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ Error proxying to backend after ${totalDuration}ms:`, error);
     
     // Handle timeout/abort specifically
     if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+      console.error(`[${requestId}] ⏱️ TIMEOUT - Request exceeded 15s limit (actual: ${totalDuration}ms)`);
       return NextResponse.json(
         { 
           error: 'Backend timeout', 
           message: 'The backend API is taking too long to respond. Please try again later.',
-          details: 'Backend API timeout after 10 seconds'
+          details: `Backend API timeout after ${totalDuration}ms`
         },
         { status: 504 }
       );
