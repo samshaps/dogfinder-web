@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       }
 
       return errJson(
-        ApiErrors.serverError('Failed to cancel subscription'),
+        ApiErrors.internalError('Failed to cancel subscription'),
         request
       );
     }
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in downgrade endpoint:', error);
     return errJson(
-      ApiErrors.serverError('An unexpected error occurred'),
+      ApiErrors.internalError('An unexpected error occurred'),
       request
     );
   }
