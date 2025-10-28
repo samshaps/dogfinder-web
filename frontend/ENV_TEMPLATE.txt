@@ -1,0 +1,100 @@
+# Copy this file to .env.local and fill in the values
+# DO NOT commit .env.local to git
+
+# ============================================
+# Database (Supabase)
+# ============================================
+# Get from: https://supabase.com/dashboard/project/[your-project]/settings/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Legacy database URL (if using direct PostgreSQL)
+DATABASE_URL=postgresql://dogfinder:dogfinder_dev@localhost:5432/dogfinder_dev
+
+# ============================================
+# NextAuth (Module 3)
+# ============================================
+NEXTAUTH_URL=http://localhost:3000
+# Generate with: openssl rand -base64 32
+NEXTAUTH_SECRET=
+
+# Google OAuth
+# Get from: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# NextAuth Configuration (for compatibility with existing setup)
+AUTH_GOOGLE_ID=${GOOGLE_CLIENT_ID}
+AUTH_GOOGLE_SECRET=${GOOGLE_CLIENT_SECRET}
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+
+# ============================================
+# Umami Analytics (Module 2)
+# ============================================
+# Get from: https://cloud.umami.is/ or your self-hosted instance
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://cloud.umami.is/script.js
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=415738ea-b38c-4c89-b4e7-3435b7fcadc9
+
+# ============================================
+# Feature Flags (toggle as you implement)
+# ============================================
+NEXT_PUBLIC_FEATURE_PRICING=false
+NEXT_PUBLIC_FEATURE_AUTH=false
+NEXT_PUBLIC_FEATURE_PRO=false
+NEXT_PUBLIC_FEATURE_ALERTS=false
+NEXT_PUBLIC_FEATURE_PAYMENTS=false
+
+# ============================================
+# Stripe (Module 5)
+# ============================================
+# Get from: https://dashboard.stripe.com/test
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRO_PRICE_ID=
+
+# ============================================
+# Resend Email Service (Module 6)
+# ============================================
+# Get from: https://resend.com/
+RESEND_API_KEY=
+EMAIL_FROM=theyenta@dogyenta.com
+EMAIL_REPLY_TO=support@dogyenta.com
+EMAIL_DOMAIN=dogyenta.com
+EMAIL_UNSUBSCRIBE_URL=https://dogyenta.com/unsubscribe
+DASHBOARD_URL=https://dogyenta.com/profile
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+# ============================================
+# Cron Job Security
+# ============================================
+# Generate with: openssl rand -base64 32
+CRON_SECRET_PROD=your-production-cron-secret-here
+CRON_SECRET_STAGING=your-staging-cron-secret-here
+
+# ============================================
+# Email Token Security (unsubscribe link signing)
+# ============================================
+# Generate with: openssl rand -base64 32
+EMAIL_TOKEN_SECRET=your-email-token-secret-here
+
+# ============================================
+# AI Services
+# ============================================
+# Get from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# ============================================
+# Petfinder (existing v1 integration)
+# ============================================
+PETFINDER_API_KEY=
+PETFINDER_SECRET=
+
+# ============================================
+# Optional: Rate Limiting
+# ============================================
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW_MS=60000
+

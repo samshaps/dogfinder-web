@@ -221,10 +221,9 @@ export async function sendTestEmail(
       
       // Timeout based on benchmark data:
       // - Warm requests: ~100-230ms
-      // - Cold starts: 3-5.5s (backend spin-up on Render.com)
+      // - Cold starts: 3-5.5s (backend spin-up)
       // - P95: 3.3s, P99: 5.5s
       // Using 8s to handle cold starts while still failing fast
-      // NOTE: If generating AI reasoning for matches, add OpenAI timeout (6s) = ~14s total
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       

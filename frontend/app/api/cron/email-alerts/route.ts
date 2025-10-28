@@ -206,11 +206,6 @@ export async function POST(request: NextRequest) {
         const dogsToSend = newDogs.slice(0, maxDogs);
 
         // Convert dogs to email format
-        // NOTE: Currently using placeholder reasoning. If AI reasoning is added:
-        // - Dog API fetch: ~8s timeout (p99: 5.5s + buffer)
-        // - OpenAI per match: ~6s timeout (p99: 5.5s + buffer)  
-        // - If generating for all matches sequentially: 8s + (6s × matches) = total timeout needed
-        // - If generating in parallel: 8s + 6s = ~14s total
         const emailMatches = dogsToSend.map((dog: any) => ({
           id: dog.id,
           name: dog.name,
