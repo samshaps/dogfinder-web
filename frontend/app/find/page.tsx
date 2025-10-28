@@ -116,15 +116,13 @@ export default function FindPage() {
   const [newExcludeBreed, setNewExcludeBreed] = useState('');
   const [showTooltip, setShowTooltip] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
-  const previousPathnameRef = useRef<string | null>(null);
-  const lastLoadedUserIdRef = useRef<string | null>(null);
+  const isLoadingPreferencesRef = useRef(false);
+  const lastLoadTimeRef = useRef<number>(0);
 
   // Load saved preferences when user is authenticated or when navigating to this page
   useEffect(() => {
     // Only proceed if we're on the /find page
     if (pathname !== '/find') {
-      // Track that we've navigated away
-      previousPathnameRef.current = pathname;
       return;
     }
 
@@ -132,25 +130,18 @@ export default function FindPage() {
       // Don't load if no user
       if (!user) return;
 
-      // Check if we just navigated TO /find (either from another page or initial mount)
-      // This ensures we reload preferences when coming back to /find
-      const justNavigatedToFind = previousPathnameRef.current !== '/find';
-      
-      // Check if user changed (which would require reloading preferences)
-      const userChanged = lastLoadedUserIdRef.current !== user.id;
-      
-      // Update the ref after checking, but only load if:
-      // 1. We just navigated to /find, OR
-      // 2. This is the first mount (previousPathnameRef.current is null), OR
-      // 3. The user changed
-      if (!justNavigatedToFind && previousPathnameRef.current !== null && !userChanged) {
-        return; // Already on /find, already loaded, and same user
+      // Prevent duplicate loads within 1 second
+      const now = Date.now();
+      if (isLoadingPreferencesRef.current || (now - lastLoadTimeRef.current < 1000)) {
+        console.log('⏭️ Skipping duplicate load request');
+        return;
       }
 
-      previousPathnameRef.current = pathname;
-      lastLoadedUserIdRef.current = user.id;
+      isLoadingPreferencesRef.current = true;
+      lastLoadTimeRef.current = now;
 
       console.log('🔍 Starting to load preferences for user:', user.email);
+      console.log('🔍 Current pathname:', pathname);
       
       try {
         console.log('🔍 Making request to /api/preferences...');
@@ -193,8 +184,8 @@ export default function FindPage() {
         }
       } catch (error) {
         console.error('❌ Failed to load preferences:', error);
-        // Reset on error so we can try again
-        lastLoadedUserIdRef.current = null;
+      } finally {
+        isLoadingPreferencesRef.current = false;
       }
     };
 
@@ -356,41 +347,43 @@ export default function FindPage() {
           console.log('🔍 Generated API payload:', prefsPayload);
           console.log('🔍 JSON.stringify result:', JSON.stringify(prefsPayload));
 
-            const response = await fetch('/api/preferences', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(prefsPayload)
+          const response = await fetch('/api/preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(prefsPayload)
+          });
+
+          console.log('🔍 Save response status:', response.status);
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Preferences saved successfully:', result);
+            
+            setPreferencesSaved(true);
+            trackEvent('preferences_saved', {
+              user_id: user.id,
+              source: 'find_page'
             });
-
-            console.log('🔍 Save response status:', response.status);
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log('✅ Preferences saved successfully:', result);
-              
-              setPreferencesSaved(true);
-              trackEvent('preferences_saved', {
-                user_id: user.id,
-                source: 'find_page'
-              });
-              setTimeout(() => setPreferencesSaved(false), 2000);
-            } else {
-              const errorText = await response.text();
-              console.error('❌ Failed to save preferences:', response.status, errorText);
-              console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
-              
-              // Try to parse error response for more details
-              try {
-                const errorData = JSON.parse(errorText);
-                console.error('❌ Parsed error response:', errorData);
-              } catch (e) {
-                console.error('❌ Could not parse error response as JSON');
-              }
+            setTimeout(() => setPreferencesSaved(false), 2000);
+          } else {
+            const errorText = await response.text();
+            console.error('❌ Failed to save preferences:', response.status, errorText);
+            console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+            
+            // Try to parse error response for more details
+            try {
+              const errorData = JSON.parse(errorText);
+              console.error('❌ Parsed error response:', errorData);
+            } catch (e) {
+              console.error('❌ Could not parse error response as JSON');
             }
-          } catch (error) {
-            console.error('❌ Error saving preferences:', error);
+            // Continue to results even if save fails (don't block the user)
           }
+        } catch (error) {
+          console.error('❌ Error saving preferences:', error);
+          // Continue to results even if save fails (don't block the user)
         }
+      }
 
     // Build query parameters
     const params = new URLSearchParams();
