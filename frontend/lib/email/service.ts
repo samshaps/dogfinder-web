@@ -219,9 +219,13 @@ export async function sendTestEmail(
       console.log('🔍 Fetching real dogs for test email with params:', searchParams.toString());
       console.log('🔍 Using base URL:', baseUrl);
       
-      // Use shorter timeout (5 seconds) for test emails to avoid long waits
+      // Timeout based on benchmark data:
+      // - Warm requests: ~100-230ms
+      // - Cold starts: 3-5.5s (backend spin-up)
+      // - P95: 3.3s, P99: 5.5s
+      // Using 8s to handle cold starts while still failing fast
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
       const dogsResponse = await fetch(`${baseUrl}/api/dogs?${searchParams.toString()}`, {
         cache: 'no-store',
