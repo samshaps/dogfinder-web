@@ -129,31 +129,92 @@ export async function sendDogMatchAlert(
 }
 
 /**
- * Fetch AI reasoning for dogs from the API
+ * Enrich dogs with AI reasoning - fetches reasoning for a batch of dogs
+ * Uses AI_REASONING_URL env var if set, otherwise falls back to public API endpoint
+ * Optionally uses AI_INTERNAL_TOKEN for authentication if provided
+ * @param userId - User ID for logging context
+ * @param dogs - Array of dog objects
+ * @param preferences - User preferences to include in reasoning context
+ * @returns Map of dog ID to reasoning string (both string and number IDs normalized to strings)
  */
-async function fetchAIReasoningForDogs(userId: string, dogs: any[]): Promise<Record<string, string>> {
+export async function fetchAIReasoningForDogs(
+  userId: string, 
+  dogs: any[], 
+  preferences?: any
+): Promise<Record<string, string>> {
   try {
-    const baseUrl = appConfig.publicBaseUrl || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                   process.env.NODE_ENV === 'production' ? 'https://dogyenta.com' : 'http://localhost:3000');
+    // Use AI_REASONING_URL if set, otherwise construct from publicBaseUrl
+    let reasoningUrl = process.env.AI_REASONING_URL;
+    if (!reasoningUrl) {
+      // Determine base URL - use publicBaseUrl or fallback logic
+      let baseUrl = appConfig.publicBaseUrl;
+      if (!baseUrl) {
+        if (process.env.VERCEL_URL) {
+          baseUrl = `https://${process.env.VERCEL_URL}`;
+        } else if (process.env.NODE_ENV === 'production') {
+          baseUrl = 'https://dogyenta.com';
+        } else {
+          baseUrl = 'http://localhost:3000';
+        }
+      }
+      reasoningUrl = `${baseUrl}/api/ai-reasoning`;
+    }
+    
+    const hasInternalToken = !!process.env.AI_INTERNAL_TOKEN;
+    console.log(`🤖 Fetching AI reasoning for ${dogs.length} dogs (userId: ${userId}, url: ${reasoningUrl}, auth: ${hasInternalToken ? 'token' : 'none'})`);
+    
+    // Build preference context for prompt
+    let prefContext = '';
+    if (preferences) {
+      const prefParts: string[] = [];
+      if (preferences.age_preferences?.length) {
+        prefParts.push(`Ages: ${preferences.age_preferences.join(', ')}`);
+      }
+      if (preferences.size_preferences?.length) {
+        prefParts.push(`Sizes: ${preferences.size_preferences.join(', ')}`);
+      }
+      if (preferences.energy_level) {
+        prefParts.push(`Energy: ${preferences.energy_level}`);
+      }
+      if (preferences.temperament_traits?.length) {
+        prefParts.push(`Temperament: ${preferences.temperament_traits.join(', ')}`);
+      }
+      if (preferences.include_breeds?.length) {
+        prefParts.push(`Include breeds: ${preferences.include_breeds.join(', ')}`);
+      }
+      if (prefParts.length > 0) {
+        prefContext = ` User preferences: ${prefParts.join('. ')}.`;
+      }
+    }
+    
+    // Build headers - include internal token if available
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (process.env.AI_INTERNAL_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.AI_INTERNAL_TOKEN}`;
+    }
     
     // For each dog, call the AI reasoning endpoint
     const reasoningPromises = dogs.map(async (dog) => {
+      // Normalize ID to string for consistent lookup
+      const dogId = String(dog.id);
+      
       try {
-        // Build a prompt similar to what the matching flow would use
-        const prompt = `Dog: ${dog.name}, ${dog.breeds?.join(', ') || 'Mixed Breed'}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}. ${dog.attributes ? JSON.stringify(dog.attributes) : ''}. Tags: ${dog.tags?.join(', ') || 'None'}.`;
+        // Build a comprehensive prompt with dog details and user preferences
+        const breeds = Array.isArray(dog.breeds) ? dog.breeds.join(', ') : (dog.breeds?.primary || 'Mixed Breed');
+        const prompt = `Dog: ${dog.name || 'Unknown'}, ${breeds}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}${dog.energy ? `, ${dog.energy} energy` : ''}.${prefContext} Explain why this dog would be a good match in one concise sentence (max 50 words).`;
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
-        const resp = await fetch(`${baseUrl}/api/ai-reasoning`, {
+        const resp = await fetch(reasoningUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           cache: 'no-store',
           signal: controller.signal,
           body: JSON.stringify({
             prompt,
             type: 'free',
-            max_tokens: 50,
+            max_tokens: 60,
             temperature: 0.1
           }),
         });
@@ -161,29 +222,48 @@ async function fetchAIReasoningForDogs(userId: string, dogs: any[]): Promise<Rec
         clearTimeout(timeoutId);
         
         if (!resp.ok) {
-          console.warn(`AI reasoning failed for dog ${dog.id}:`, resp.status);
-          return { id: dog.id, reason: '' };
+          const errorText = await resp.text().catch(() => '');
+          console.warn(`❌ AI reasoning failed for dog ${dogId} (${dog.name}): HTTP ${resp.status} - ${errorText.substring(0, 100)}`);
+          return { id: dogId, reason: '' };
         }
         
         const data = await resp.json();
-        return { id: dog.id, reason: data.reasoning || '' };
+        const reason = typeof data.reasoning === 'string' ? data.reasoning.trim() : '';
+        
+        if (!reason) {
+          console.warn(`⚠️ Empty AI reasoning for dog ${dogId} (${dog.name})`);
+          return { id: dogId, reason: '' };
+        }
+        
+        console.log(`✅ AI reasoning for dog ${dogId} (${dog.name}): ${reason.substring(0, 50)}...`);
+        return { id: dogId, reason };
       } catch (error) {
-        console.warn(`AI reasoning error for dog ${dog.id}:`, error instanceof Error ? error.message : 'Unknown error');
-        return { id: dog.id, reason: '' };
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn(`⏱️ AI reasoning timeout for dog ${dogId} (${dog.name})`);
+        } else {
+          console.warn(`❌ AI reasoning error for dog ${dogId} (${dog.name}):`, errorMsg);
+        }
+        return { id: dogId, reason: '' };
       }
     });
     
     const results = await Promise.all(reasoningPromises);
     const reasonsMap: Record<string, string> = {};
+    let successCount = 0;
+    
     results.forEach(({ id, reason }) => {
       if (reason) {
         reasonsMap[id] = reason;
+        successCount++;
       }
     });
     
+    console.log(`📊 AI reasoning results: ${successCount}/${dogs.length} dogs got reasoning`);
+    
     return reasonsMap;
   } catch (error) {
-    console.warn('Failed to fetch AI reasoning:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('❌ Failed to fetch AI reasoning:', error instanceof Error ? error.message : 'Unknown error');
     return {};
   }
 }
@@ -300,7 +380,11 @@ export async function sendTestEmail(
         totalMatches = dogsData.total || dogs.length;
 
         // Get real AI reasoning for test emails as well
-        const aiReasons = await fetchAIReasoningForDogs(userId, dogs.slice(0, 5)).catch(() => ({}));
+        console.log('🤖 Fetching AI reasoning for test email...');
+        const aiReasons = await fetchAIReasoningForDogs(userId, dogs.slice(0, 5), preferences).catch((err) => {
+          console.warn('⚠️ AI reasoning fetch failed for test email, continuing with fallback:', err instanceof Error ? err.message : 'Unknown error');
+          return {};
+        });
 
         // Transform dogs to email format
         emailMatches = dogs.slice(0, 5).map((dog: any) => {
@@ -353,7 +437,18 @@ export async function sendTestEmail(
             photos,
             matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
             reasons: {
-              primary150: (typeof aiReasons === 'object' && aiReasons !== null && dog.id in aiReasons) ? (aiReasons as Record<string, string>)[dog.id] : '',
+              // Normalize dog.id to string for lookup, handle both string and number IDs
+              // Use empty string when missing - conditional render will hide the section
+              primary150: (() => {
+                const dogIdStr = String(dog.id);
+                const reason = (typeof aiReasons === 'object' && aiReasons !== null && dogIdStr in aiReasons) 
+                  ? (aiReasons as Record<string, string>)[dogIdStr] 
+                  : '';
+                if (!reason) {
+                  console.log(`⚠️ No AI reasoning for dog ${dogIdStr} (${dog.name || 'unknown'}) - will be omitted from email`);
+                }
+                return reason; // Empty string when missing - conditional render hides it
+              })(),
               blurb50: '',
             },
             shelter: {

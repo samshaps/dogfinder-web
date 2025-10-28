@@ -205,33 +205,58 @@ export async function POST(request: NextRequest) {
         const maxDogs = 5; // Could be configurable per user
         const dogsToSend = newDogs.slice(0, maxDogs);
 
+        // Fetch AI reasoning for dogs (with timeout/error handling)
+        console.log(`🤖 Fetching AI reasoning for ${dogsToSend.length} dogs for ${userEmail}...`);
+        let aiReasons: Record<string, string> = {};
+        try {
+          const { fetchAIReasoningForDogs } = await import('@/lib/email/service');
+          aiReasons = await fetchAIReasoningForDogs((alertSetting as any).user_id, dogsToSend, preferences).catch((err) => {
+            console.warn(`⚠️ AI reasoning fetch failed for ${userEmail}, continuing with fallback:`, err instanceof Error ? err.message : 'Unknown error');
+            return {};
+          });
+        } catch (importError) {
+          console.warn(`⚠️ Failed to import fetchAIReasoningForDogs for ${userEmail}:`, importError instanceof Error ? importError.message : 'Unknown error');
+        }
+
         // Convert dogs to email format
-        const emailMatches = dogsToSend.map((dog: any) => ({
-          id: dog.id,
-          name: dog.name,
-          breeds: dog.breeds,
-          age: dog.age,
-          size: dog.size,
-          energy: dog.energy || 'medium',
-          temperament: dog.temperament || [],
-          location: {
-            city: dog.city || 'Unknown',
-            state: dog.state || 'Unknown',
-            distanceMi: dog.distanceMi,
-          },
-          photos: dog.photos || [],
-          matchScore: Math.floor(Math.random() * 30) + 70, // Placeholder - would use actual matching score
-          reasons: {
-            primary150: `This ${dog.age} ${dog.size} ${dog.breeds[0] || 'dog'} is a great match for your lifestyle!`,
-            blurb50: 'Perfect family companion',
-          },
-          shelter: {
-            name: dog.shelter?.name || 'Local Shelter',
-            email: dog.shelter?.email,
-            phone: dog.shelter?.phone,
-          },
-          url: dog.url || '#',
-        }));
+        const emailMatches = dogsToSend.map((dog: any) => {
+          // Normalize ID to string for lookup consistency
+          const dogIdStr = String(dog.id);
+          // Use empty string when AI reasoning is missing - conditional render will hide the section
+          const aiReason = aiReasons[dogIdStr] || '';
+          
+          if (!aiReason) {
+            console.log(`⚠️ No AI reasoning for dog ${dogIdStr} (${dog.name || 'unknown'}) - will be omitted from email`);
+          }
+          
+          return {
+            id: dog.id,
+            name: dog.name,
+            breeds: Array.isArray(dog.breeds) ? dog.breeds : (dog.breeds?.primary ? [dog.breeds.primary] : ['Mixed Breed']),
+            age: dog.age,
+            size: dog.size,
+            energy: dog.energy || 'medium',
+            temperament: dog.temperament || [],
+            location: {
+              city: dog.city || 'Unknown',
+              state: dog.state || 'Unknown',
+              distanceMi: dog.distanceMi,
+            },
+            photos: dog.photos || [],
+            matchScore: Math.floor(Math.random() * 30) + 70, // Placeholder - would use actual matching score
+            reasons: {
+              primary150: aiReason, // Empty string when missing - conditional render hides it
+              blurb50: '',
+            },
+            shelter: {
+              name: dog.shelter?.name || 'Local Shelter',
+              email: dog.shelter?.email,
+              phone: dog.shelter?.phone,
+            },
+            url: dog.url || '#',
+            publishedAt: dog.publishedAt || dog.published_at,
+          };
+        });
 
         // Send email alert with retry logic
         console.log(`📧 Sending email alert to ${userEmail} with ${emailMatches.length} matches`);
