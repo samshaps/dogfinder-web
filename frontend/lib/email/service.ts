@@ -305,12 +305,18 @@ export async function sendTestEmail(
   userEmail: string
 ): Promise<EmailServiceResponse> {
   try {
-    console.log('📧 Sending test email to:', to);
+    console.log('📧 [1/8] Starting sendTestEmail - to:', to, 'userEmail:', userEmail);
     
+    console.log('📧 [2/8] Getting Resend client...');
     const resend = getResendClient();
+    console.log('📧 [3/8] Resend client obtained successfully');
+    
+    console.log('📧 [4/8] Getting Supabase client...');
     const client = getSupabaseClient();
+    console.log('📧 [5/8] Supabase client obtained successfully');
     
     // Get user ID and name
+    console.log('📧 [6/8] Fetching user data from database...');
     const { data: userData, error: userError } = await client
       .from('users')
       .select('id, name')
@@ -318,10 +324,12 @@ export async function sendTestEmail(
       .single();
 
     if (userError || !userData) {
-      console.warn('⚠️ User not found, using default data:', userError?.message);
+      console.warn('⚠️ [6/8] User not found, using default data:', userError?.message);
       // Fall back to stub data if user not found
+      console.log('📧 [6/8] Falling back to stub data function');
       return sendTestEmailWithStubData(to, userEmail, resend);
     }
+    console.log('📧 [6/8] User data found:', { userId: (userData as any).id, userName: (userData as any).name });
 
     const userId = (userData as any).id;
     const userName = (userData as any).name || 'Dog Lover';
@@ -564,30 +572,39 @@ export async function sendTestEmail(
     const htmlContent = generateEmailHTML(testWithLink);
     const textContent = generateEmailText(testWithLink);
     
+    console.log('📧 [7/8] Preparing to call Resend API...');
     console.log('📤 Calling Resend API with:', {
       from: EMAIL_CONFIG.from,
       to,
       replyTo: EMAIL_CONFIG.replyTo,
     });
 
-    const result = await resend.emails.send({
-      from: EMAIL_CONFIG.from,
-      to: [to],
-      replyTo: EMAIL_CONFIG.replyTo,
-      subject: '🐕 DogFinder Test Email - Email Alerts Setup Complete!',
-      html: htmlContent,
-      text: textContent,
-      headers: {
-        'X-Entity-Ref-ID': `test-email-${to}-${Date.now()}`,
-        'List-Unsubscribe': `<${testWithLink.unsubscribeUrl}>, <mailto:${EMAIL_CONFIG.replyTo}?subject=unsubscribe>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'List-ID': 'DogYenta Alerts <alerts.dogyenta.com>',
-      },
-      tags: [
-        { name: 'type', value: 'test-email' },
-        { name: 'user', value: userEmail.replace(/[^a-zA-Z0-9]/g, '_') },
-      ],
-    });
+    console.log('📧 [8/8] Making Resend API call NOW...');
+    let result;
+    try {
+      result = await resend.emails.send({
+        from: EMAIL_CONFIG.from,
+        to: [to],
+        replyTo: EMAIL_CONFIG.replyTo,
+        subject: '🐕 DogFinder Test Email - Email Alerts Setup Complete!',
+        html: htmlContent,
+        text: textContent,
+        headers: {
+          'X-Entity-Ref-ID': `test-email-${to}-${Date.now()}`,
+          'List-Unsubscribe': `<${testWithLink.unsubscribeUrl}>, <mailto:${EMAIL_CONFIG.replyTo}?subject=unsubscribe>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          'List-ID': 'DogYenta Alerts <alerts.dogyenta.com>',
+        },
+        tags: [
+          { name: 'type', value: 'test-email' },
+          { name: 'user', value: userEmail.replace(/[^a-zA-Z0-9]/g, '_') },
+        ],
+      });
+      console.log('📧 [9/9] Resend API call completed, processing response...');
+    } catch (apiError) {
+      console.error('📧 [ERROR] Resend API call threw exception:', apiError);
+      throw apiError;
+    }
 
     console.log('📥 Resend API response (full):', JSON.stringify({
       hasError: !!result.error,
