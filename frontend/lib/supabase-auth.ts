@@ -141,6 +141,7 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   const client = getSupabaseClient();
   
   console.log('🔍 Saving user preferences for:', userId);
+  console.log('🔍 Preferences data to save:', JSON.stringify(preferencesData, null, 2));
   
   // Check if preferences already exist (use maybeSingle to avoid error if no rows)
   const { data: existingData, error: checkError } = await (client as any)
@@ -151,13 +152,16 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     
   if (checkError && checkError.code !== 'PGRST116') {
     // PGRST116 is "not found" which is fine, but other errors are real problems
-    console.error('Error checking for existing preferences:', checkError);
+    console.error('❌ Error checking for existing preferences:', checkError);
+    console.error('❌ Check error code:', checkError.code);
+    console.error('❌ Check error message:', checkError.message);
+    console.error('❌ Check error details:', checkError.details);
     throw checkError;
   }
     
   if (existingData) {
     // Update existing preferences
-    console.log('🔍 Updating existing preferences...');
+    console.log('🔍 Updating existing preferences (id:', existingData.id, ')...');
     const { data, error } = await (client as any)
       .from('preferences')
       .update(preferencesData)
@@ -166,7 +170,11 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
       .single();
       
     if (error) {
-      console.error('Error updating preferences:', error);
+      console.error('❌ Error updating preferences:', error);
+      console.error('❌ Update error code:', error.code);
+      console.error('❌ Update error message:', error.message);
+      console.error('❌ Update error details:', error.details);
+      console.error('❌ Update error hint:', error.hint);
       throw error;
     }
     
@@ -175,14 +183,21 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   } else {
     // Create new preferences
     console.log('🔍 Creating new preferences...');
+    const insertData = { user_id: userId, ...preferencesData };
+    console.log('🔍 Insert data:', JSON.stringify(insertData, null, 2));
+    
     const { data, error } = await (client as any)
       .from('preferences')
-      .insert([{ user_id: userId, ...preferencesData }])
+      .insert([insertData])
       .select('*')
       .single();
       
     if (error) {
-      console.error('Error creating preferences:', error);
+      console.error('❌ Error creating preferences:', error);
+      console.error('❌ Insert error code:', error.code);
+      console.error('❌ Insert error message:', error.message);
+      console.error('❌ Insert error details:', error.details);
+      console.error('❌ Insert error hint:', error.hint);
       throw error;
     }
     

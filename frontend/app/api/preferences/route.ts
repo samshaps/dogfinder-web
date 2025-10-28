@@ -156,8 +156,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Error saving preferences:', error);
-    return errJson(ApiErrors.internalError('Failed to save preferences'), request);
+    // Log detailed error information
+    console.error('❌ Error saving preferences - full error:', error);
+    if (error instanceof Error) {
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+    }
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('❌ Error code:', (error as any).code);
+      console.error('❌ Error details:', (error as any).details);
+      console.error('❌ Error hint:', (error as any).hint);
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save preferences';
+    return errJson(ApiErrors.internalError(errorMessage), request);
   }
 }
 
