@@ -153,43 +153,12 @@ function transformDogData(raw: RawDog): Dog {
 
 // Fetch dogs with search parameters
 export async function searchDogs(params: SearchParams = {}): Promise<DogsResponse> {
-  // Expand structured prefs with guidance before hitting the backend so the backend fetch includes expanded filters
+  // NOTE: Guidance normalization removed from here - it was blocking the dog fetch with a slow LLM call.
+  // Guidance is now processed locally in the matching system (normalizeUserPreferences) using fast tokenization.
+  // The backend doesn't need pre-processed guidance; it just passes it through and we handle it in matching.
+  
+  // Create effective preferences for the API call
   try {
-    // Guidance processing is now handled by the new matching system
-    // const { mergeGuidanceIntoPrefs } = await import('@/utils/matching');
-    // If guidance text exists, normalize it via the LLM endpoint first
-    if (params.guidance && params.guidance.trim().length > 0) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-        try {
-          const normResp = await fetch('/api/normalize-guidance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ guidance: params.guidance }),
-            signal: controller.signal,
-          });
-          if (normResp.ok) {
-            const norm = await normResp.json();
-            // Merge normalized preferences into the params (do not overwrite explicit selections)
-            const normAge = Array.isArray(norm.age) ? norm.age : undefined;
-            const normSize = Array.isArray(norm.size) ? norm.size : undefined;
-            const normTemps = Array.isArray(norm.temperament) ? norm.temperament : undefined;
-            const normEnergy = typeof norm.energy === 'string' ? norm.energy : undefined;
-            params = {
-              ...params,
-              age: params.age || normAge,
-              size: params.size || normSize,
-              temperament: params.temperament || normTemps,
-              energy: params.energy || (normEnergy as any)
-            };
-          }
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      } catch {}
-    }
-    // Create effective preferences for the API call
     const effectiveParams = {
       age: Array.isArray(params.age) ? params.age as string[] : (params.age ? String(params.age).split(',') : undefined),
       size: Array.isArray(params.size) ? params.size as string[] : (params.size ? String(params.size).split(',') : undefined),
@@ -197,14 +166,11 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
       excludeBreeds: Array.isArray(params.excludeBreeds) ? params.excludeBreeds as string[] : (params.excludeBreeds ? String(params.excludeBreeds).split(',') : undefined),
       temperament: Array.isArray(params.temperament) ? params.temperament as string[] : (params.temperament ? String(params.temperament).split(',') : undefined),
       energy: params.energy as any,
-      guidance: params.guidance,
+      guidance: params.guidance, // Pass guidance through - matching system will process it
     };
     params = { ...params, ...effectiveParams };
-    // Debug log (prints in Next dev terminal for SSR, and in browser on CSR)
-    // eslint-disable-next-line no-console
-    console.log('🔎 Expanded search params:', { age: params.age, size: params.size, energy: params.energy, temperament: params.temperament, guidance: params.guidance });
   } catch {
-    // No-op if dynamic import fails in some environments
+    // No-op if processing fails
   }
   // Support multiple zip codes by batching calls and merging
   const zips: string[] = (params.zip || '')
