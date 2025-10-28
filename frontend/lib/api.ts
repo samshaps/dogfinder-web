@@ -153,9 +153,9 @@ function transformDogData(raw: RawDog): Dog {
 
 // Fetch dogs with search parameters
 export async function searchDogs(params: SearchParams = {}): Promise<DogsResponse> {
-  // NOTE: Guidance normalization removed from here - it was blocking the dog fetch with a slow LLM call.
-  // Guidance is now processed locally in the matching system (normalizeUserPreferences) using fast tokenization.
-  // The backend doesn't need pre-processed guidance; it just passes it through and we handle it in matching.
+  // NOTE: Guidance is processed locally in matching system, not sent to backend
+  // The backend doesn't need guidance - it may be processing it with LLM which causes 30s+ delays
+  // We handle all guidance processing client-side using fast tokenization
   
   // Create effective preferences for the API call
   try {
@@ -166,7 +166,8 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
       excludeBreeds: Array.isArray(params.excludeBreeds) ? params.excludeBreeds as string[] : (params.excludeBreeds ? String(params.excludeBreeds).split(',') : undefined),
       temperament: Array.isArray(params.temperament) ? params.temperament as string[] : (params.temperament ? String(params.temperament).split(',') : undefined),
       energy: params.energy as any,
-      guidance: params.guidance, // Pass guidance through - matching system will process it
+      // DO NOT send guidance to backend - it causes 30s+ delays if backend processes it
+      // Guidance is handled client-side in matching system
     };
     params = { ...params, ...effectiveParams };
   } catch {
@@ -185,19 +186,44 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
     // eslint-disable-next-line no-console
     console.log('🔎 Fetching:', primaryUrl);
     let resp: Response | null = null;
+    
+    // Add timeout protection (20s total, slightly longer than proxy timeout)
+    const makeFetchWithTimeout = async (url: string): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+      try {
+        const response = await fetch(url, { 
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error(`Request timeout: ${url} took longer than 20 seconds`);
+        }
+        throw error;
+      }
+    };
+    
     try {
-      resp = await fetch(primaryUrl, { cache: 'no-store' });
+      resp = await makeFetchWithTimeout(primaryUrl);
       if (!resp.ok && API_BASE) {
         // eslint-disable-next-line no-console
         console.warn('⚠️ Primary API_BASE fetch failed, retrying without base:', resp.status, resp.statusText);
-        resp = await fetch(fallbackUrl, { cache: 'no-store' });
+        resp = await makeFetchWithTimeout(fallbackUrl);
       }
     } catch (e) {
       if (API_BASE) {
         // Network error to API_BASE, retry without base
         // eslint-disable-next-line no-console
         console.warn('⚠️ Primary API_BASE fetch errored, retrying without base:', (e as Error)?.message);
-        resp = await fetch(fallbackUrl, { cache: 'no-store' });
+        try {
+          resp = await makeFetchWithTimeout(fallbackUrl);
+        } catch (fallbackError) {
+          throw new Error(`Failed to fetch dogs: ${(e as Error)?.message || 'Unknown error'}. Fallback also failed: ${(fallbackError as Error)?.message}`);
+        }
       } else {
         throw e;
       }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
@@ -90,6 +90,7 @@ function PillControl({ options, selectedValues, onChange, multiSelect = true, sh
 
 export default function FindPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useUser();
   const [formData, setFormData] = useState({
     zipCodes: [] as string[],
@@ -114,13 +115,40 @@ export default function FindPage() {
   const [newIncludeBreed, setNewIncludeBreed] = useState('');
   const [newExcludeBreed, setNewExcludeBreed] = useState('');
   const [showTooltip, setShowTooltip] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
+  const previousPathnameRef = useRef<string | null>(null);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
 
-  // Load saved preferences when user is authenticated
+  // Load saved preferences when user is authenticated or when navigating to this page
   useEffect(() => {
+    // Only proceed if we're on the /find page
+    if (pathname !== '/find') {
+      // Track that we've navigated away
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
     const loadPreferences = async () => {
-      if (!user || preferencesLoaded) return;
+      // Don't load if no user
+      if (!user) return;
+
+      // Check if we just navigated TO /find (either from another page or initial mount)
+      // This ensures we reload preferences when coming back to /find
+      const justNavigatedToFind = previousPathnameRef.current !== '/find';
+      
+      // Check if user changed (which would require reloading preferences)
+      const userChanged = lastLoadedUserIdRef.current !== user.id;
+      
+      // Update the ref after checking, but only load if:
+      // 1. We just navigated to /find, OR
+      // 2. This is the first mount (previousPathnameRef.current is null), OR
+      // 3. The user changed
+      if (!justNavigatedToFind && previousPathnameRef.current !== null && !userChanged) {
+        return; // Already on /find, already loaded, and same user
+      }
+
+      previousPathnameRef.current = pathname;
+      lastLoadedUserIdRef.current = user.id;
 
       console.log('🔍 Starting to load preferences for user:', user.email);
       
@@ -163,15 +191,15 @@ export default function FindPage() {
           const errorText = await response.text();
           console.error('❌ API request failed:', response.status, errorText);
         }
-        setPreferencesLoaded(true);
       } catch (error) {
         console.error('❌ Failed to load preferences:', error);
-        setPreferencesLoaded(true);
+        // Reset on error so we can try again
+        lastLoadedUserIdRef.current = null;
       }
     };
 
     loadPreferences();
-  }, [user, preferencesLoaded]);
+  }, [user, pathname]);
 
   const ageOptions = [
     { value: 'baby', label: 'Baby', description: '0–6 months' },
