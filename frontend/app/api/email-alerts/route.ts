@@ -125,6 +125,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         message: 'Test email sent successfully',
         messageId: result.messageId,
+        resendMessageId: result.messageId, // Resend message ID for lookup in dashboard
+        resendDashboardUrl: `https://resend.com/emails/${result.messageId}`,
+        note: 'Email accepted by Resend. Check your inbox and spam folder. You can also view delivery status in the Resend dashboard using the message ID.',
       });
     }
 

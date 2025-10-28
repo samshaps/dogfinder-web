@@ -21,7 +21,7 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
   const [showTestEmail, setShowTestEmail] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [testEmailLoading, setTestEmailLoading] = useState(false);
-  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string; messageId?: string; resendDashboardUrl?: string } | null>(null);
 
   const handleToggleAlerts = async (enabled: boolean) => {
     try {
@@ -46,8 +46,13 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
     setTestEmailResult(null);
 
     try {
-      await sendTestEmail(testEmail.trim());
-      setTestEmailResult({ success: true, message: 'Test email sent successfully!' });
+      const response = await sendTestEmail(testEmail.trim());
+      setTestEmailResult({ 
+        success: true, 
+        message: 'Test email sent successfully!',
+        messageId: (response as any)?.resendMessageId || (response as any)?.messageId,
+        resendDashboardUrl: (response as any)?.resendDashboardUrl,
+      });
       setTestEmail('');
       setShowTestEmail(false);
     } catch (error) {
@@ -107,12 +112,27 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
               </p>
               {testEmailResult.success && (
                 <div className="mt-2 text-sm text-green-600">
+                  {testEmailResult.messageId && (
+                    <div className="mb-2 p-2 bg-green-50 rounded border border-green-200">
+                      <p className="text-xs text-green-600 mb-1"><strong>Resend Message ID:</strong> {testEmailResult.messageId}</p>
+                      {testEmailResult.resendDashboardUrl && (
+                        <a 
+                          href={testEmailResult.resendDashboardUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          View in Resend Dashboard →
+                        </a>
+                      )}
+                    </div>
+                  )}
                   <p className="font-medium mb-1">Not seeing the email?</p>
                   <ul className="list-disc list-inside space-y-1 text-green-700">
                     <li>Check your spam/junk folder</li>
+                    <li>Resend marks as "Delivered" when it reaches your mail server, but may still be filtered</li>
+                    <li>Check the Resend dashboard link above for detailed delivery status</li>
                     <li>Verify your domain is configured in Resend dashboard</li>
-                    <li>In development, Resend only sends to verified recipient addresses</li>
-                    <li>Check the Resend dashboard for delivery status</li>
                   </ul>
                 </div>
               )}

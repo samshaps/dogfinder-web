@@ -589,12 +589,18 @@ export async function sendTestEmail(
       ],
     });
 
-    console.log('📥 Resend API response:', {
+    console.log('📥 Resend API response (full):', JSON.stringify({
       hasError: !!result.error,
       hasData: !!result.data,
       messageId: result.data?.id,
-      error: result.error,
-    });
+      error: result.error ? {
+        name: result.error.name,
+        message: result.error.message,
+        statusCode: (result.error as any).statusCode,
+      } : null,
+      data: result.data,
+      rawResult: result, // Full result for debugging
+    }, null, 2));
 
     if (result.error) {
       console.error('❌ Test email failed:', result.error);
