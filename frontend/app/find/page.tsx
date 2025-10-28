@@ -149,29 +149,31 @@ export default function FindPage() {
         console.log('🔍 Response status:', response.status);
         
         if (response.ok) {
-          const data = await response.json();
-          console.log('🔍 Response data:', data);
+          const responseData = await response.json();
+          console.log('🔍 Response data:', responseData);
           
-          if (data.preferences) {
-            const prefs = data.preferences;
-            console.log('🔍 Raw preferences from API:', prefs);
+          // Handle wrapped API response format: {success: true, data: {preferences: {...}}}
+          const preferences = responseData.data?.preferences || responseData.preferences;
+          
+          if (preferences) {
+            console.log('🔍 Raw preferences from API:', preferences);
             
             setFormData({
-              zipCodes: prefs.zip_codes || [],
-              age: prefs.age_preferences || [],
-              size: prefs.size_preferences || [],
-              includeBreeds: prefs.include_breeds || [],
-              excludeBreeds: prefs.exclude_breeds || [],
-              temperament: prefs.temperament_traits || [],
-              energy: prefs.energy_level || '',
-              guidance: prefs.living_situation?.description || '',
+              zipCodes: preferences.zip_codes || [],
+              age: preferences.age_preferences || [],
+              size: preferences.size_preferences || [],
+              includeBreeds: preferences.include_breeds || [],
+              excludeBreeds: preferences.exclude_breeds || [],
+              temperament: preferences.temperament_traits || [],
+              energy: preferences.energy_level || '',
+              guidance: preferences.living_situation?.description || '',
               touched: {
-                age: (prefs.age_preferences?.length || 0) > 0,
-                size: (prefs.size_preferences?.length || 0) > 0,
-                energy: !!prefs.energy_level,
-                temperament: (prefs.temperament_traits?.length || 0) > 0,
-                breedsInclude: (prefs.include_breeds?.length || 0) > 0,
-                breedsExclude: (prefs.exclude_breeds?.length || 0) > 0,
+                age: (preferences.age_preferences?.length || 0) > 0,
+                size: (preferences.size_preferences?.length || 0) > 0,
+                energy: !!preferences.energy_level,
+                temperament: (preferences.temperament_traits?.length || 0) > 0,
+                breedsInclude: (preferences.include_breeds?.length || 0) > 0,
+                breedsExclude: (preferences.exclude_breeds?.length || 0) > 0,
               }
             });
             console.log('✅ Loaded saved preferences and updated form data');
@@ -358,6 +360,14 @@ export default function FindPage() {
           if (response.ok) {
             const result = await response.json();
             console.log('✅ Preferences saved successfully:', result);
+            
+            // Verify the save was successful
+            const savedPreferences = result.data?.preferences || result.preferences;
+            if (savedPreferences) {
+              console.log('✅ Verified preferences saved:', savedPreferences);
+            } else {
+              console.warn('⚠️ Save response received but preferences data not found in response');
+            }
             
             setPreferencesSaved(true);
             trackEvent('preferences_saved', {
