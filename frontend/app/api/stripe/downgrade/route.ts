@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getServerSession } from 'next-auth';
 import { getStripeServer } from '@/lib/stripe/config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { setPlan } from '@/lib/stripe/plan-sync';
@@ -14,13 +13,24 @@ import { okJson, errJson, ApiErrors } from '@/lib/api/helpers';
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getServerSession();
+    if (!session?.user?.email) {
       return errJson(ApiErrors.unauthorized('Authentication required'), request);
     }
 
-    const userId = session.user.id;
+    // Get user ID from email
     const client = getSupabaseClient();
+    const { data: userData, error: userError } = await (client as any)
+      .from('users')
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userError || !userData) {
+      return errJson(ApiErrors.notFound('User not found'), request);
+    }
+
+    const userId = (userData as any).id;
     const stripe = getStripeServer();
 
     // Get current plan and subscription
