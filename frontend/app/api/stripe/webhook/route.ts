@@ -295,30 +295,76 @@ function mapStripeStatusToPlanStatus(stripeStatus: string): string {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling checkout completed:`, session.id);
   
-  const userId = session.metadata?.user_id;
-  const planType = session.metadata?.plan_type;
+  const userId = session.metadata?.user_id || (session as any).client_reference_id;
+  const planType = session.metadata?.plan_type || 'pro';
   
-  if (!userId || !planType) {
-    console.error(`❌ [${requestId}] Missing metadata in checkout session:`, {
-      userId: !!userId,
-      planType: !!planType,
+  if (!userId) {
+    console.error(`❌ [${requestId}] Missing user_id in checkout session:`, {
       metadata: session.metadata,
+      client_reference_id: (session as any).client_reference_id,
     });
-    throw new Error('Missing required metadata in checkout session');
+    throw new Error('Missing required user_id in checkout session');
   }
   
-  console.log(`✅ [${requestId}] Upgrading user to Pro:`, userId);
+  console.log(`✅ [${requestId}] Processing checkout for user:`, userId);
   
   try {
+    const stripe = getStripeServer();
+    
+    // Get subscription if it exists
+    let subscriptionId: string | null = null;
+    let subscriptionStatus: string = 'active';
+    let currentPeriodStart: string | null = null;
+    let currentPeriodEnd: string | null = null;
+    
+    if (session.subscription) {
+      subscriptionId = typeof session.subscription === 'string' 
+        ? session.subscription 
+        : session.subscription.id;
+      
+      // Retrieve full subscription to get status and period dates
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        subscriptionStatus = subscription.status;
+        currentPeriodStart = toIsoOrNull((subscription as any).current_period_start);
+        currentPeriodEnd = toIsoOrNull((subscription as any).current_period_end);
+        
+        // Use subscription metadata if session metadata is missing
+        if (!planType && subscription.metadata?.plan_type) {
+          const subPlanType = subscription.metadata.plan_type;
+          console.log(`ℹ️ [${requestId}] Using plan type from subscription metadata:`, subPlanType);
+        }
+        
+        console.log(`✅ [${requestId}] Retrieved subscription:`, {
+          id: subscriptionId,
+          status: subscriptionStatus,
+          periodEnd: currentPeriodEnd,
+        });
+      } catch (subError: any) {
+        console.warn(`⚠️ [${requestId}] Could not retrieve subscription ${subscriptionId}:`, subError.message);
+        // Continue with what we have
+      }
+    }
+    
+    // Map subscription status to our plan status
+    const planStatus = mapStripeStatusToPlanStatus(subscriptionStatus) as any;
+    
     await setPlan({
       userId,
       planType: planType as 'free' | 'pro',
-      status: 'active',
-      stripeSubscriptionId: session.subscription as string,
+      status: planStatus,
+      stripeSubscriptionId: subscriptionId,
+      currentPeriodStart,
+      currentPeriodEnd,
       stripeEventId: eventId,
     });
     
-    console.log(`✅ [${requestId}] User plan updated successfully`);
+    console.log(`✅ [${requestId}] User plan updated successfully:`, {
+      userId,
+      planType,
+      status: planStatus,
+      subscriptionId,
+    });
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update user plan:`, error);
     throw error;

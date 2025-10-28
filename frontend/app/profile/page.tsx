@@ -2,9 +2,9 @@
 
 import { useUser } from "@/lib/auth/user-context";
 import { ProtectedRoute } from "@/lib/auth/protected-route";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { trackEvent } from "@/lib/analytics/tracking";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Edit, Crown, Star, AlertCircle } from "lucide-react";
 import { getUserPlan } from "@/lib/stripe/plan-utils";
 import { PLANS } from "@/lib/stripe/config";
@@ -21,8 +21,13 @@ interface PlanInfo {
 function ProfilePageContent() {
   const { user, signOut } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const maxPollAttempts = 10; // Poll for up to 20 seconds (2s intervals)
+  const pollAttemptsRef = useRef(0);
 
   useEffect(() => {
     trackEvent("profile_viewed", {
@@ -30,10 +35,31 @@ function ProfilePageContent() {
       user_id: user?.id,
     });
 
-    if (user?.id) {
+    // Check for upgrade success parameter
+    const upgradeParam = searchParams?.get('upgrade');
+    if (upgradeParam === 'success') {
+      setUpgradeSuccess(true);
+      // Remove the query parameter from URL
+      router.replace('/profile', { scroll: false });
+      
+      // Immediately reload plan info
+      if (user?.id) {
+        loadPlanInfo();
+        
+        // Start polling for plan update (webhook might take a moment)
+        startPollingForPlanUpdate();
+      }
+    } else if (user?.id) {
       loadPlanInfo();
     }
-  }, [user]);
+
+    // Cleanup polling on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [user, searchParams]);
 
   const loadPlanInfo = async () => {
     if (!user?.id) return;
@@ -42,11 +68,48 @@ function ProfilePageContent() {
       setLoading(true);
       const plan = await getUserPlan(user.id);
       setPlanInfo(plan);
+      
+      // If we're polling and plan is now Pro, stop polling
+      if (plan?.isPro && pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        pollAttemptsRef.current = 0;
+        setUpgradeSuccess(false); // Clear success message once upgrade is confirmed
+      }
     } catch (error) {
       console.error('Error loading plan info:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const startPollingForPlanUpdate = () => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    pollAttemptsRef.current = 0;
+    
+    // Poll every 2 seconds for plan update
+    pollingIntervalRef.current = setInterval(async () => {
+      pollAttemptsRef.current += 1;
+      
+      if (pollAttemptsRef.current >= maxPollAttempts) {
+        // Stop polling after max attempts
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        pollAttemptsRef.current = 0;
+        return;
+      }
+      
+      // Reload plan info
+      if (user?.id) {
+        await loadPlanInfo();
+      }
+    }, 2000);
   };
 
   return (
@@ -101,6 +164,16 @@ function ProfilePageContent() {
                   Current Plan
                 </h2>
                 
+                {upgradeSuccess && !planInfo?.isPro && pollingIntervalRef.current && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg" role="alert">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <p className="text-sm text-blue-900 font-medium">
+                        Upgrade successful! Activating your Pro plan...
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {loading ? (
                   <div className="bg-gray-50 rounded-lg p-4" role="status" aria-live="polite">
                     <div className="flex items-center gap-3">
@@ -131,21 +204,24 @@ function ProfilePageContent() {
                           : planInfo.status === 'trialing'
                           ? 'bg-blue-100 text-blue-800'
                           : planInfo.status === 'past_due'
-                          ? 'bg-red-100 text-red-800'
+                          ? 'bg-amber-100 text-amber-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      }`} aria-label={`Plan status: ${planInfo.status === 'active' ? 'Active' : 
+                         planInfo.status === 'trialing' ? 'Free Trial' :
+                         planInfo.status === 'past_due' ? 'Payment Required' :
+                         planInfo.status}`}>
                         {planInfo.status === 'active' ? 'Active' : 
-                         planInfo.status === 'trialing' ? 'Trial' :
-                         planInfo.status === 'past_due' ? 'Payment Issue' :
+                         planInfo.status === 'trialing' ? 'Free Trial' :
+                         planInfo.status === 'past_due' ? 'Payment Required' :
                          planInfo.status}
                       </span>
                     </div>
                     
                     <div className="space-y-2 mb-4">
-                      <p className="text-sm text-gray-600 mb-3">
+                      <p className="text-sm text-gray-700 mb-3" role="status">
                         {planInfo.isPro 
-                          ? 'You have access to all Pro features including email alerts and unlimited searches.'
-                          : 'Upgrade to Pro for email alerts, unlimited searches, and premium features.'
+                          ? 'You have full access to all Pro features, including email alerts for new dog matches and unlimited searches.'
+                          : 'Enjoy the free plan with basic search. Upgrade to Pro to receive email alerts when new dogs match your preferences and unlock unlimited searches.'
                         }
                       </p>
                       {planInfo.features.slice(0, 3).map((feature, index) => (
@@ -157,8 +233,8 @@ function ProfilePageContent() {
                         </div>
                       ))}
                       {planInfo.features.length > 3 && (
-                        <p className="text-sm text-gray-500 ml-6">
-                          +{planInfo.features.length - 3} more features available
+                        <p className="text-sm text-gray-600 ml-6">
+                          +{planInfo.features.length - 3} more feature{planInfo.features.length - 3 !== 1 ? 's' : ''} available
                         </p>
                       )}
                     </div>
@@ -178,19 +254,19 @@ function ProfilePageContent() {
                         >
                           <span className="flex items-center justify-center gap-2">
                             <Crown className="w-4 h-4" aria-hidden="true" />
-                            Upgrade to Pro
+                            Upgrade to Pro Plan
                           </span>
                         </button>
-                        <p id="upgrade-description" className="text-xs text-gray-500 text-center">
-                          Get email alerts, unlimited searches, and premium features
+                        <p id="upgrade-description" className="text-xs text-gray-600 text-center">
+                          Unlock email alerts, unlimited searches, and all premium features for $9.99/month
                         </p>
                       </div>
                     )}
                     
                     {planInfo.isPro && planInfo.status === 'trialing' && (
-                      <div className="mt-3 p-3 bg-blue-100 rounded-lg">
-                        <p className="text-sm text-blue-800 font-medium">
-                          🎉 You're in your free trial! Enjoy all Pro features.
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg" role="alert">
+                        <p className="text-sm text-blue-900 font-medium">
+                          <span aria-hidden="true">🎉</span> You're currently in your free trial period. Enjoy access to all Pro features!
                         </p>
                       </div>
                     )}
@@ -281,7 +357,13 @@ function ProfilePageContent() {
 export default function ProfilePage() {
   return (
     <ProtectedRoute>
-      <ProfilePageContent />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <ProfilePageContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

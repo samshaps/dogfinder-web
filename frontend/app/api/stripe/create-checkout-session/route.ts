@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       success_url: `${request.nextUrl.origin}/profile?upgrade=success`,
       cancel_url: `${request.nextUrl.origin}/pricing?upgrade=cancelled`,
       customer_email: session.user.email,
+      client_reference_id: userId, // Backup way to pass user ID
       metadata: {
         user_id: userId,
         plan_type: 'pro',
