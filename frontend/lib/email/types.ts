@@ -58,6 +58,7 @@ export interface EmailDogMatch {
     phone?: string;
   };
   url: string;
+  publishedAt?: string; // ISO datetime string for "Posted X hours ago"
 }
 
 // Email template data schema with validation
