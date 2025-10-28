@@ -26,7 +26,12 @@ export function ProtectedRoute({
         authenticated: false,
       });
       
-      router.push(redirectTo);
+      // Preserve current path as returnTo parameter
+      const currentPath = window.location.pathname + window.location.search;
+      const returnTo = encodeURIComponent(currentPath);
+      const signInUrl = `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}returnTo=${returnTo}`;
+      
+      router.push(signInUrl);
     }
   }, [user, isLoading, router, redirectTo]);
 
@@ -57,7 +62,12 @@ export function useRequireAuth(redirectTo: string = "/auth/signin") {
         authenticated: false,
       });
       
-      router.push(redirectTo);
+      // Preserve current path as returnTo parameter
+      const currentPath = window.location.pathname + window.location.search;
+      const returnTo = encodeURIComponent(currentPath);
+      const signInUrl = `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}returnTo=${returnTo}`;
+      
+      router.push(signInUrl);
     }
   }, [user, isLoading, router, redirectTo]);
 

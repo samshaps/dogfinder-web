@@ -236,15 +236,27 @@ export async function POST(request: NextRequest) {
         // Send email alert with retry logic
         console.log(`📧 Sending email alert to ${userEmail} with ${emailMatches.length} matches`);
         
+        // Normalize zipCodes - handle both location string and zip_codes array
+        let zipCodes: string[] = [];
+        if (preferences.zip_codes && Array.isArray(preferences.zip_codes) && preferences.zip_codes.length > 0) {
+          zipCodes = preferences.zip_codes;
+        } else if (preferences.location) {
+          zipCodes = [preferences.location];
+        } else {
+          zipCodes = ['Unknown'];
+        }
+
         const emailResult = await sendEmailWithRetry({
           user: {
             name: user.name || 'Dog Lover',
             email: userEmail,
           },
           preferences: {
-            zipCodes: preferences.location ? [preferences.location] : ['Unknown'],
-            radiusMi: preferences.radius || 50,
+            zipCodes,
+            radiusMi: preferences.radius || preferences.radius_mi || 50,
             frequency: (alertSetting as any).cadence || 'daily',
+            // Spread all other preference fields for email template
+            ...preferences,
           },
           matches: emailMatches,
           unsubscribeUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/unsubscribe?email=${encodeURIComponent(userEmail)}`,

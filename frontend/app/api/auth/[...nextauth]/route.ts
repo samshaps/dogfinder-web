@@ -43,8 +43,15 @@ const handler = NextAuth({
   callbacks: {
     async redirect({ url, baseUrl }) {
       // Handle callbackUrl parameter for post-authentication redirects
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
+      // This preserves returnTo from email links and other sources
+      if (url.startsWith("/")) {
+        // If it's a relative path, ensure it's within our domain
+        return `${baseUrl}${url}`;
+      } else if (url.startsWith(baseUrl)) {
+        // If it's a full URL within our domain, use it as-is
+        return url;
+      }
+      // Default to home page for external or invalid URLs
       return baseUrl;
     },
     async signIn({ user, account, profile }) {

@@ -129,6 +129,66 @@ export async function sendDogMatchAlert(
 }
 
 /**
+ * Fetch AI reasoning for dogs from the API
+ */
+async function fetchAIReasoningForDogs(userId: string, dogs: any[]): Promise<Record<string, string>> {
+  try {
+    const baseUrl = appConfig.publicBaseUrl || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                   process.env.NODE_ENV === 'production' ? 'https://dogyenta.com' : 'http://localhost:3000');
+    
+    // For each dog, call the AI reasoning endpoint
+    const reasoningPromises = dogs.map(async (dog) => {
+      try {
+        // Build a prompt similar to what the matching flow would use
+        const prompt = `Dog: ${dog.name}, ${dog.breeds?.join(', ') || 'Mixed Breed'}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}. ${dog.attributes ? JSON.stringify(dog.attributes) : ''}. Tags: ${dog.tags?.join(', ') || 'None'}.`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const resp = await fetch(`${baseUrl}/api/ai-reasoning`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          signal: controller.signal,
+          body: JSON.stringify({
+            prompt,
+            type: 'free',
+            max_tokens: 50,
+            temperature: 0.1
+          }),
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!resp.ok) {
+          console.warn(`AI reasoning failed for dog ${dog.id}:`, resp.status);
+          return { id: dog.id, reason: '' };
+        }
+        
+        const data = await resp.json();
+        return { id: dog.id, reason: data.reasoning || '' };
+      } catch (error) {
+        console.warn(`AI reasoning error for dog ${dog.id}:`, error instanceof Error ? error.message : 'Unknown error');
+        return { id: dog.id, reason: '' };
+      }
+    });
+    
+    const results = await Promise.all(reasoningPromises);
+    const reasonsMap: Record<string, string> = {};
+    results.forEach(({ id, reason }) => {
+      if (reason) {
+        reasonsMap[id] = reason;
+      }
+    });
+    
+    return reasonsMap;
+  } catch (error) {
+    console.warn('Failed to fetch AI reasoning:', error instanceof Error ? error.message : 'Unknown error');
+    return {};
+  }
+}
+
+/**
  * Send a test email to verify email configuration
  * Uses real user preferences and recent dog postings for proper visual QA
  */
@@ -239,6 +299,9 @@ export async function sendTestEmail(
         const dogs = dogsData.items || [];
         totalMatches = dogsData.total || dogs.length;
 
+        // Get real AI reasoning for test emails as well
+        const aiReasons = await fetchAIReasoningForDogs(userId, dogs.slice(0, 5)).catch(() => ({}));
+
         // Transform dogs to email format
         emailMatches = dogs.slice(0, 5).map((dog: any) => {
           // Extract breeds
@@ -290,8 +353,8 @@ export async function sendTestEmail(
             photos,
             matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
             reasons: {
-              primary150: `This ${dog.age || 'charming'} ${dog.size || 'wonderful'} ${breeds[0] || 'dog'} is a great match for your preferences!`,
-              blurb50: 'Perfect companion',
+              primary150: (typeof aiReasons === 'object' && aiReasons !== null && dog.id in aiReasons) ? (aiReasons as Record<string, string>)[dog.id] : '',
+              blurb50: '',
             },
             shelter: {
               name: dog.organization?.name || dog.shelter?.name || 'Local Shelter',
@@ -349,13 +412,16 @@ export async function sendTestEmail(
     
     const frequency = (alertSettings as any)?.cadence || 'daily';
 
+    // Spread full preferences object if available, otherwise use minimal
     const testTemplateData: EmailTemplateData = {
       user: { name: userName, email: userEmail },
       preferences: {
         zipCodes,
         radiusMi,
         frequency,
-      },
+        // Spread all other preference fields if they exist
+        ...(preferences || {}),
+      } as any,
       matches: emailMatches,
       unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?email=${encodeURIComponent(userEmail)}`,
       dashboardUrl: EMAIL_CONFIG.dashboardUrl,
@@ -623,42 +689,35 @@ function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
  * Generate personalized email subject line
  */
 function generateEmailSubject(data: EmailTemplateData): string {
-  const { matches, totalMatches, preferences, user } = data;
-  const zip = preferences?.zipCodes?.[0] || 'your area';
+  const { matches, preferences, user } = data;
+  const matchCount = matches.length;
   
-  if (matches.length === 1) {
+  if (matchCount === 1) {
     const d = matches[0];
-    const dist = d.location.distanceMi ? ` (${Math.round(d.location.distanceMi)} mi)` : '';
-    return `${user.name ? user.name + ', ' : ''}meet ${d.name} — ${d.matchScore}% in ${d.location.city}${dist}`;
+    return `${user.name ? user.name + ', ' : ''}meet ${d.name} near ${d.location.city}`;
   }
   
-  const nearby = matches.filter((m: EmailDogMatch) => (m.location.distanceMi ?? 9999) <= 15).length;
-  const nearbyBit = nearby > 0 ? `, ${nearby} ≤15mi` : '';
-  return `${user.name ? user.name + ', ' : ''}${matches.length} new matches near ${zip}${nearbyBit}`;
+  return `${user.name ? user.name + ', ' : ''}${matchCount} new matches near ${preferences?.zipCodes?.[0] || ''}`;
 }
 
 /**
  * Build URL with UTM tracking parameters
  */
-function buildUTMUrl(baseUrl: string, dogId: string, frequency: string, contentType: string = 'card'): string {
+function buildUTMUrl(path: string, content: string, frequency: string = 'na'): string {
   try {
-    // Ensure we have a full URL
-    let fullUrl = baseUrl;
-    if (!baseUrl.includes('://')) {
-      fullUrl = baseUrl.startsWith('/') 
-        ? `https://dogyenta.com${baseUrl}`
-        : `https://dogyenta.com/${baseUrl}`;
-    }
-    const url = new URL(fullUrl);
+    const baseUrl = appConfig.publicBaseUrl || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://dogyenta.com');
+    const url = new URL(path, baseUrl);
     url.searchParams.set('utm_source', 'email');
     url.searchParams.set('utm_medium', 'alert');
     url.searchParams.set('utm_campaign', `alerts_${frequency}`);
-    url.searchParams.set('utm_content', `${contentType}_${dogId}`);
+    url.searchParams.set('utm_content', content);
     return url.toString();
   } catch (error) {
     // Fallback: append as query string if URL parsing fails
-    const separator = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${separator}utm_source=email&utm_medium=alert&utm_campaign=alerts_${frequency}&utm_content=${contentType}_${dogId}`;
+    const baseUrl = appConfig.publicBaseUrl || 'https://dogyenta.com';
+    const fullPath = path.startsWith('/') ? path : `/${path}`;
+    const separator = fullPath.includes('?') ? '&' : '?';
+    return `${baseUrl}${fullPath}${separator}utm_source=email&utm_medium=alert&utm_campaign=alerts_${frequency}&utm_content=${content}`;
   }
 }
 
@@ -691,30 +750,26 @@ function generateDogCard(dog: EmailDogMatch, preferences: EmailTemplateData['pre
   const alt = `${dog.name} — ${dog.breeds.join(', ')}`;
   const distance = dog.location.distanceMi ? ` (${Math.round(dog.location.distanceMi)} mi)` : '';
   const timeAgo = formatTimeAgo(dog.publishedAt);
-  const dogUrl = buildUTMUrl(dog.url, dog.id, preferences.frequency, 'card');
-  const separator = dogUrl.includes('?') ? '&' : '?';
+  const prefs = preferences as any;
+  const dogUrl = dog.url ? buildUTMUrl(dog.url, `card_${dog.id}`, prefs.frequency || 'na') : buildUTMUrl('/results', `card_${dog.id}`, prefs.frequency || 'na');
   
   return `
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" 
          style="border:1px solid #e2e8f0;border-radius:12px;margin:16px 0;background:#fff;max-width:600px;">
     <tr>
       <td style="padding:0;">
-        <img src="${photo}" width="600" height="320" alt="${alt}" 
-             style="width:100%;max-width:600px;height:auto;border-radius:12px 12px 0 0;display:block;border:none;">
+        <img src="${photo}" width="420" height="280" alt="${alt}" 
+             style="width:100%;max-width:420px;height:auto;border-radius:12px 12px 0 0;display:block;border:none;margin:0 0 12px 0;">
       </td>
     </tr>
     <tr>
       <td style="padding:16px 20px;">
-        <div style="color:#6b7280;font-size:14px;margin-bottom:8px;">
-          ${dog.breeds.join(', ')} • ${dog.age} • ${dog.size}
-        </div>
+        <p style="color:#4a5568;font-size:14px;margin:0 0 8px 0;">
+          ${dog.breeds && dog.breeds.length ? dog.breeds.join(', ') : 'Mixed Breed'}
+        </p>
         <h3 style="margin:0 0 12px 0;font-size:20px;line-height:1.2;color:#1f2937;font-weight:700;">${dog.name}</h3>
         <div style="margin:0 0 12px 0;">
-          <span style="display:inline-block;background:#10b981;color:#fff;
-                       padding:6px 12px;border-radius:20px;font-weight:700;font-size:14px;line-height:1.4;">
-            ${dog.matchScore}% match
-          </span>
-          <span style="color:#6b7280;font-size:13px;margin-left:8px;">
+          <span style="color:#6b7280;font-size:13px;">
             ${dog.location.city}, ${dog.location.state}${distance}${timeAgo ? ' · ' + timeAgo : ''}
           </span>
         </div>
@@ -752,11 +807,10 @@ function generateDogCard(dog: EmailDogMatch, preferences: EmailTemplateData['pre
  * Generate HTML email content with improved layout and deliverability
  */
 function generateEmailHTML(data: EmailTemplateData): string {
-  const { user, matches, preferences, unsubscribeUrl, dashboardUrl } = data;
-  const preheader = `New matches near ${preferences.zipCodes[0]} · Edit prefs or snooze anytime.`;
-  const viewOnlineUrl = buildUTMUrl(`${dashboardUrl}?view=email-${encodeURIComponent(user.email)}`, 'view-online', preferences.frequency, 'view_online');
-  const snoozeUrl = `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/api/alerts/snooze?days=7&u=${encodeURIComponent(user.email)}`;
-  const dashboardUrlWithUTM = buildUTMUrl(dashboardUrl, 'dashboard-top', preferences.frequency, 'dashboard_cta');
+  const { user, matches, preferences, unsubscribeUrl } = data;
+  const prefs = preferences as any; // Access full preferences object
+  const resultsUrl = buildUTMUrl('/results', 'dashboard_cta_top', prefs.frequency || 'na');
+  const findUrl = buildUTMUrl('/find', 'manage_prefs_footer', prefs.frequency || 'na');
   
   return `
 <!DOCTYPE html>
@@ -768,72 +822,44 @@ function generateEmailHTML(data: EmailTemplateData): string {
     <title>New Dog Matches Found</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#1f2937;">
-    <!-- Preheader (hidden) -->
-    <div style="display:none!important;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px;mso-hide:all;">
-        ${preheader}
-    </div>
-    
-    <!-- View in browser link -->
-    <div style="text-align:right;font-size:12px;padding:8px 12px;color:#6b7280;">
-        <a href="${viewOnlineUrl}" style="color:#6b7280;text-decoration:underline;">View in browser</a>
-    </div>
-    
     <!-- Container -->
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8fafc;">
         <tr>
             <td align="center" style="padding:0;">
                 <table role="presentation" width="600" cellspacing="0" cellpadding="0" 
                        style="max-width:600px;background-color:#ffffff;margin:0 auto;">
-                    <!-- Header -->
-                    <tr>
-                        <td style="background-color:#667eea;padding:30px 20px;text-align:center;">
-                            <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;line-height:1.2;">🐕 New Dog Matches!</h1>
-                            <p style="margin:10px 0 0 0;font-size:16px;color:#ffffff;opacity:0.95;">
-                                We found ${data.matches.length} amazing dog${data.matches.length > 1 ? 's' : ''} that match your preferences
-                            </p>
-                        </td>
-                    </tr>
-                    <!-- Dashboard CTA (top) -->
-                    <tr>
-                        <td style="padding:12px 20px 0 20px;text-align:center;">
-                            <a href="${dashboardUrlWithUTM}" 
-                               style="color:#667eea;text-decoration:underline;font-size:14px;">
-                                View all matches in your dashboard →
-                            </a>
-                        </td>
-                    </tr>
                     <!-- Content -->
                     <tr>
                         <td style="padding:20px;">
-                            <!-- Greeting -->
-                            <div style="font-size:18px;margin-bottom:20px;color:#1f2937;">
-                                Hi ${user.name || 'there'}! 👋
+                            <!-- Greeting (above header) -->
+                            <div style="font-size:18px;margin:20px 20px;color:#2d3748;">
+                                Hi ${user.name || 'there'}! Here's your latest update from the yenta. 👋
+                            </div>
+                            
+                            <!-- Header -->
+                            <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:24px 20px;text-align:center;border-radius:12px;margin:0 20px;">
+                                <h1 style="margin:0;font-size:24px;font-weight:700;">🐕 New Dog Matches!</h1>
+                                <p style="margin:10px 0 0 0;opacity:.9;font-size:14px;">
+                                    We found ${data.matches.length} dog${data.matches.length > 1 ? 's' : ''} that match your preferences
+                                </p>
                             </div>
                             
                             <!-- Summary Box -->
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" 
-                                   style="background-color:#f7fafc;border-left:4px solid #667eea;border-radius:0 8px 8px 0;margin:20px 0;">
-                                <tr>
-                                    <td style="padding:20px;">
-                                        <h2 style="margin:0 0 10px 0;color:#1f2937;font-size:20px;font-weight:700;">Your Search Summary</h2>
-                                        <p style="margin:5px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-                                            <strong>Location:</strong> ${preferences.zipCodes.join(', ')} (within ${preferences.radiusMi} miles)
-                                        </p>
-                                        <p style="margin:5px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-                                            <strong>Frequency:</strong> ${preferences.frequency} alerts
-                                        </p>
-                                        <p style="margin:5px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-                                            <strong>Matches Found:</strong> ${data.totalMatches} total, showing top ${data.matches.length}
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
+                            <div style="background:#f7fafc;border-left:4px solid #667eea;padding:16px 20px;margin:20px;border-radius:0 8px 8px 0;">
+                                <h2 style="margin:0 0 8px 0;color:#2d3748;font-size:18px;">Your Search Summary</h2>
+                                <p style="margin:4px 0;color:#4a5568;"><strong>Location:</strong> ${preferences.zipCodes.join(', ')} (within ${preferences.radiusMi} miles)</p>
+                                ${prefs?.include_breeds?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Include breeds:</strong> ${prefs.include_breeds.join(', ')}</p>` : ''}
+                                ${prefs?.exclude_breeds?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Exclude breeds:</strong> ${prefs.exclude_breeds.join(', ')}</p>` : ''}
+                                ${prefs?.age_preferences?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Ages:</strong> ${prefs.age_preferences.join(', ')}</p>` : ''}
+                                ${prefs?.size_preferences?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Sizes:</strong> ${prefs.size_preferences.join(', ')}</p>` : ''}
+                                ${prefs?.energy_level ? `<p style="margin:4px 0;color:#4a5568;"><strong>Energy:</strong> ${prefs.energy_level}</p>` : ''}
+                                ${prefs?.temperament_traits?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Temperament:</strong> ${prefs.temperament_traits.join(', ')}</p>` : ''}
+                                <p style="margin:4px 0;color:#4a5568;"><strong>Matches Found:</strong> ${data.totalMatches} total · showing top ${data.matches.length}</p>
+                            </div>
                             
                             <!-- Control Strip -->
                             <div style="text-align:center;font-size:12px;color:#6b7280;margin:16px 0 24px 0;padding-top:16px;border-top:1px solid #e5e7eb;">
-                                <a href="${dashboardUrl}" style="color:#6b7280;text-decoration:underline;">Edit preferences</a>
-                                &nbsp;·&nbsp;
-                                <a href="${snoozeUrl}" style="color:#6b7280;text-decoration:underline;">Snooze 7 days</a>
+                                <a href="${findUrl}" style="color:#6b7280;text-decoration:underline;">Edit preferences</a>
                                 &nbsp;·&nbsp;
                                 <a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>
                             </div>
@@ -847,7 +873,7 @@ function generateEmailHTML(data: EmailTemplateData): string {
                                     <td align="center" style="padding:0;">
                                         <!--[if mso]>
                                         <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" 
-                                                     href="${buildUTMUrl(dashboardUrl, 'dashboard-bottom', preferences.frequency, 'dashboard_cta')}" 
+                                                     href="${resultsUrl}" 
                                                      arcsize="8%" fillcolor="#667eea" stroke="f" 
                                                      style="height:44px;v-text-anchor:middle;width:280px;">
                                             <w:anchorlock/>
@@ -857,7 +883,7 @@ function generateEmailHTML(data: EmailTemplateData): string {
                                         </v:roundrect>
                                         <![endif]-->
                                         <![if !mso]>
-                                        <a href="${buildUTMUrl(dashboardUrl, 'dashboard-bottom', preferences.frequency, 'dashboard_cta')}" 
+                                        <a href="${resultsUrl}" 
                                            style="display:inline-block;background:#667eea;color:#fff;padding:12px 24px;border-radius:8px;
                                                   font-weight:700;font-size:16px;text-decoration:none;min-height:44px;line-height:44px;text-align:center;">
                                             View All Matches in Dashboard →
@@ -873,15 +899,12 @@ function generateEmailHTML(data: EmailTemplateData): string {
                         <td style="background-color:#1f2937;color:#ffffff;padding:30px 20px;text-align:center;">
                             <p style="margin:5px 0;opacity:0.9;font-size:14px;line-height:1.6;">Happy dog hunting! 🐕</p>
                             <p style="margin:5px 0;opacity:0.9;font-size:14px;line-height:1.6;">The DogYenta Team</p>
-                            <p style="margin:20px 0 5px 0;opacity:0.7;font-size:12px;line-height:1.6;padding-top:20px;border-top:1px solid #374151;">
-                                DogYenta, 123 Example Ave, Brooklyn, NY 11211
-                            </p>
                             <div style="margin-top:20px;padding-top:20px;border-top:1px solid #374151;">
                                 <p style="margin:5px 0;opacity:0.8;font-size:13px;line-height:1.6;">
                                     Don't want these alerts? <a href="${unsubscribeUrl}" style="color:#90cdf4;text-decoration:underline;">Unsubscribe here</a>
                                 </p>
                                 <p style="margin:5px 0;opacity:0.8;font-size:13px;line-height:1.6;">
-                                    Or <a href="${dashboardUrl}" style="color:#90cdf4;text-decoration:underline;">manage your preferences</a> to customize your alerts
+                                    Or <a href="${findUrl}" style="color:#90cdf4;text-decoration:underline;">manage your preferences</a> to customize your alerts
                                 </p>
                             </div>
                         </td>
@@ -898,21 +921,21 @@ function generateEmailHTML(data: EmailTemplateData): string {
  * Generate plain text email content with improved formatting
  */
 function generateEmailText(data: EmailTemplateData): string {
-  const { user, matches, preferences, dashboardUrl, unsubscribeUrl } = data;
-  const preheader = `New matches near ${preferences.zipCodes[0]} · Edit prefs or snooze anytime.`;
-  const snoozeUrl = `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/api/alerts/snooze?days=7&u=${encodeURIComponent(user.email)}`;
+  const { user, matches, preferences, unsubscribeUrl } = data;
+  const prefs = preferences as any;
+  const resultsUrl = buildUTMUrl('/results', 'dashboard_text', prefs.frequency || 'na');
+  const findUrl = buildUTMUrl('/find', 'manage_prefs_footer', prefs.frequency || 'na');
   
-  let text = `${preheader}\n\n`;
-  text += `Hi ${user.name || 'there'},\n\n`;
+  let text = `Hi ${user.name || 'there'}! Here's your latest update from the yenta. 👋\n\n`;
   text += `We found ${matches.length} new match(es) within ${preferences.radiusMi} miles.\n\n`;
   
   matches.forEach((dog: EmailDogMatch, i: number) => {
     const dist = dog.location.distanceMi ? ` (${Math.round(dog.location.distanceMi)} mi)` : '';
-    const dogUrl = buildUTMUrl(dog.url, dog.id, preferences.frequency, 'card');
+    const dogUrl = dog.url ? buildUTMUrl(dog.url, `card_${dog.id}`, prefs.frequency || 'na') : buildUTMUrl('/results', `card_${dog.id}`, prefs.frequency || 'na');
     const timeAgo = formatTimeAgo(dog.publishedAt);
     
-    text += `${i+1}. ${dog.name} — ${dog.matchScore}% match\n`;
-    text += `   ${dog.breeds.join(', ')} • ${dog.age} • ${dog.size}\n`;
+    text += `${i+1}. ${dog.name}\n`;
+    text += `   ${dog.breeds && dog.breeds.length ? dog.breeds.join(', ') : 'Mixed Breed'}\n`;
     text += `   ${dog.location.city}, ${dog.location.state}${dist}${timeAgo ? ' · ' + timeAgo : ''}\n`;
     if (dog.shelter.name) {
       text += `   From: ${dog.shelter.name} · ${dog.location.city}, ${dog.location.state}\n`;
@@ -923,12 +946,11 @@ function generateEmailText(data: EmailTemplateData): string {
     text += `   ${dogUrl}\n\n`;
   });
   
-  text += `All matches: ${buildUTMUrl(dashboardUrl, 'dashboard-text', preferences.frequency, 'dashboard_cta')}\n`;
-  text += `Snooze 7 days: ${snoozeUrl}\n`;
-  text += `Unsubscribe: ${unsubscribeUrl}\n\n`;
+  text += `All matches: ${resultsUrl}\n`;
+  text += `Unsubscribe: ${unsubscribeUrl}\n`;
+  text += `Manage preferences: ${findUrl}\n\n`;
   text += `Happy dog hunting! 🐕\n`;
-  text += `The DogYenta Team\n\n`;
-  text += `DogYenta, 123 Example Ave, Brooklyn, NY 11211\n`;
+  text += `The DogYenta Team\n`;
   
   return text;
 }

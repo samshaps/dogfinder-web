@@ -2,9 +2,12 @@
 
 import { signIn } from "next-auth/react";
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { trackEvent } from "@/lib/analytics/tracking";
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  
   useEffect(() => {
     trackEvent("auth_page_viewed", {
       source: "direct",
@@ -18,7 +21,10 @@ export default function SignInPage() {
       source: "signin_page",
     });
     
-    signIn("google", { callbackUrl: "/" });
+    // Get returnTo or callbackUrl from query params, default to home
+    const returnTo = searchParams.get('returnTo') || searchParams.get('callbackUrl') || '/';
+    
+    signIn("google", { callbackUrl: returnTo });
   };
 
   return (
