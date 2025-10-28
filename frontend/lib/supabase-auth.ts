@@ -1,27 +1,27 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Supabase client for authentication operations
-let supabase: ReturnType<typeof createClient> | null = null;
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Get Supabase client for server-side operations
  * Uses service role key when available (bypasses RLS), otherwise falls back to anon key
  */
-export function getSupabaseClient(): ReturnType<typeof createClient> {
+export function getSupabaseClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
-  if (!supabaseUrl || (!serviceRoleKey && !anonKey)) {
-    throw new Error('Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+  }
+  
+  if (!serviceRoleKey && !anonKey) {
+    throw new Error('Missing Supabase API key. Please set either SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 
   // Use service role key if available (for server-side operations that need to bypass RLS)
-  const apiKey = serviceRoleKey || anonKey!; // Safe to use ! here since we checked above
+  const apiKey: string = serviceRoleKey || anonKey!; // Safe to use ! here since we checked above
   const usingServiceRole = !!serviceRoleKey;
 
-  // Create a new client each time since we might need different keys in different contexts
-  // For server-side operations, we prefer the service role key
+  // Create a new client - always use service role key for server-side operations when available
   const client = createClient(supabaseUrl, apiKey, {
     auth: {
       autoRefreshToken: false,
@@ -29,20 +29,16 @@ export function getSupabaseClient(): ReturnType<typeof createClient> {
     }
   });
 
-  if (!supabase || usingServiceRole !== (!!process.env.SUPABASE_SERVICE_ROLE_KEY)) {
-    console.log('🔍 Creating Supabase client:', {
-      url: supabaseUrl,
-      usingServiceRole,
-      hasServiceRoleKey: !!serviceRoleKey,
-      hasAnonKey: !!anonKey,
-      nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV
-    });
-    
-    supabase = client;
-  }
+  console.log('🔍 Creating Supabase client:', {
+    url: supabaseUrl,
+    usingServiceRole,
+    hasServiceRoleKey: !!serviceRoleKey,
+    hasAnonKey: !!anonKey,
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV
+  });
 
-  return supabase || client; // Return cached client or new client, never null
+  return client;
 }
 
 /**
