@@ -476,44 +476,54 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
     updatePayload,
   });
 
-  let updateResult: any;
-  let error: any;
-  
-  try {
-    const result = await (client as any)
+  // Try to update with period dates first
+  const { data: updateResult, error } = await (client as any)
+    .from('plans')
+    .update(updatePayload)
+    .eq('user_id', userId)
+    .select();
+
+  // If we get a column error, retry without period date columns
+  if (error && (
+      error.message?.includes('current_period_start') || 
+      error.message?.includes('current_period_end') ||
+      error.message?.includes('schema cache'))) {
+    console.warn(`⚠️ Column error detected: ${error.message}. Retrying without period date columns for user ${userId}`);
+    
+    // Remove period date columns and retry
+    const safePayload = { ...updatePayload };
+    delete safePayload.current_period_start;
+    delete safePayload.current_period_end;
+    
+    const { data: retryResult, error: retryError } = await (client as any)
       .from('plans')
-      .update(updatePayload)
+      .update(safePayload)
       .eq('user_id', userId)
       .select();
     
-    updateResult = result.data;
-    error = result.error;
-  } catch (updateError: any) {
-    // Handle column not found errors - retry without period date columns
-    if (updateError?.message?.includes('current_period_start') || 
-        updateError?.message?.includes('current_period_end') ||
-        updateError?.message?.includes('schema cache')) {
-      console.warn(`⚠️ Column error detected, retrying without period date columns for user ${userId}`);
-      
-      // Remove period date columns and retry
-      const safePayload = { ...updatePayload };
-      delete safePayload.current_period_start;
-      delete safePayload.current_period_end;
-      
-      const retryResult = await (client as any)
-        .from('plans')
-        .update(safePayload)
-        .eq('user_id', userId)
-        .select();
-      
-      updateResult = retryResult.data;
-      error = retryResult.error;
-    } else {
-      throw updateError;
+    if (retryError) {
+      console.error(`❌ Failed to set plan for user ${userId} even after retry:`, retryError);
+      throw new Error(`Failed to update plan: ${retryError.message}`);
     }
-  }
-
-  if (error) {
+    
+    if (!retryResult || retryResult.length === 0) {
+      console.warn(`⚠️ Plan update returned no rows for user ${userId} - plan may not exist`);
+      // Plan might not exist - try creating it without period dates
+      const safeInsertPayload = { user_id: userId, ...safePayload, created_at: new Date().toISOString() };
+      const { error: insertError } = await (client as any)
+        .from('plans')
+        .insert(safeInsertPayload);
+      
+      if (insertError) {
+        console.error(`❌ Failed to create plan for user ${userId}:`, insertError);
+        throw new Error(`Failed to create plan: ${insertError.message}`);
+      }
+      console.log(`✅ Created new plan for user ${userId}`);
+      return;
+    }
+    
+    console.log(`✅ Plan updated successfully for user ${userId} (without period dates):`, retryResult);
+  } else if (error) {
     console.error(`❌ Failed to set plan for user ${userId}:`, error);
     throw new Error(`Failed to update plan: ${error.message}`);
   }
