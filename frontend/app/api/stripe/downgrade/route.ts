@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       // Check if already scheduled for cancellation
       if (subscription.cancel_at_period_end) {
         // Already scheduled, just return the end date
-        const periodEnd = subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
+        const periodEnd = (subscription as any).current_period_end
+          ? new Date((subscription as any).current_period_end * 1000).toISOString()
           : null;
 
         return okJson({
@@ -99,8 +99,8 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      const periodEnd = updatedSubscription.current_period_end
-        ? new Date(updatedSubscription.current_period_end * 1000).toISOString()
+      const periodEnd = (updatedSubscription as any).current_period_end
+        ? new Date((updatedSubscription as any).current_period_end * 1000).toISOString()
         : null;
 
       // Update plan status to reflect cancellation is scheduled
