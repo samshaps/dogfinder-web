@@ -59,6 +59,7 @@ export async function sendDogMatchAlert(
     const textContent = generateEmailText(withLink);
     
     // Send email via Resend
+    console.log('📤 Calling Resend API to send alert to:', templateData.user.email);
     const result = await resend.emails.send({
       from: EMAIL_CONFIG.from,
       to: [templateData.user.email],
@@ -79,6 +80,12 @@ export async function sendDogMatchAlert(
       ],
     });
 
+    console.log('📥 Resend API response:', {
+      hasError: !!result.error,
+      hasData: !!result.data,
+      messageId: result.data?.id,
+    });
+
     if (result.error) {
       console.error('❌ Email send failed:', result.error);
       await logEmailEvent({
@@ -87,13 +94,34 @@ export async function sendDogMatchAlert(
         metadata: { error: result.error },
       });
       
+      let errorMessage = result.error.message || 'Failed to send email';
+      // Provide helpful guidance for common Resend errors
+      if (errorMessage.includes('domain') || errorMessage.includes('Domain')) {
+        errorMessage = `${errorMessage}. Please verify your domain in the Resend dashboard.`;
+      } else if (errorMessage.includes('unverified') || errorMessage.includes('verification')) {
+        errorMessage = `${errorMessage}. Check domain and sender verification in Resend dashboard.`;
+      }
+      
       return {
         success: false,
-        error: result.error.message || 'Failed to send email',
+        error: errorMessage,
       };
     }
 
-    console.log('✅ Email sent successfully:', result.data?.id);
+    if (!result.data || !result.data.id) {
+      console.error('❌ Resend returned success but no message ID:', JSON.stringify(result, null, 2));
+      await logEmailEvent({
+        userId: templateData.user.email,
+        eventType: 'alert_failed',
+        metadata: { error: 'Invalid response from Resend - no message ID' },
+      });
+      return {
+        success: false,
+        error: 'Email service returned an invalid response',
+      };
+    }
+
+    console.log('✅ Email accepted by Resend:', result.data.id);
     
     // Log successful email event
     await logEmailEvent({
@@ -536,6 +564,12 @@ export async function sendTestEmail(
     const htmlContent = generateEmailHTML(testWithLink);
     const textContent = generateEmailText(testWithLink);
     
+    console.log('📤 Calling Resend API with:', {
+      from: EMAIL_CONFIG.from,
+      to,
+      replyTo: EMAIL_CONFIG.replyTo,
+    });
+
     const result = await resend.emails.send({
       from: EMAIL_CONFIG.from,
       to: [to],
@@ -555,27 +589,64 @@ export async function sendTestEmail(
       ],
     });
 
+    console.log('📥 Resend API response:', {
+      hasError: !!result.error,
+      hasData: !!result.data,
+      messageId: result.data?.id,
+      error: result.error,
+    });
+
     if (result.error) {
       console.error('❌ Test email failed:', result.error);
+      const errorMessage = result.error.message || 'Failed to send test email';
+      let enhancedError = errorMessage;
+      
+      // Provide helpful guidance for common Resend errors
+      if (errorMessage.includes('domain') || errorMessage.includes('Domain')) {
+        enhancedError = `${errorMessage}. Please verify your domain in the Resend dashboard (resend.com/domains).`;
+      } else if (errorMessage.includes('from') || errorMessage.includes('sender')) {
+        enhancedError = `${errorMessage}. Please verify your sender email address in the Resend dashboard.`;
+      } else if (errorMessage.includes('unverified') || errorMessage.includes('verification')) {
+        enhancedError = `${errorMessage}. In development mode, Resend only sends to verified email addresses. Check your Resend dashboard.`;
+      }
+      
       return {
         success: false,
-        error: result.error.message || 'Failed to send test email',
+        error: enhancedError,
       };
     }
 
-    console.log('✅ Test email sent successfully:', result.data?.id);
+    // Check if we got a valid response
+    if (!result.data || !result.data.id) {
+      console.warn('⚠️ Resend returned success but no message ID. Full response:', JSON.stringify(result, null, 2));
+      return {
+        success: false,
+        error: 'Email service returned an invalid response. Please check your Resend API key and domain verification status.',
+      };
+    }
+
+    console.log('✅ Test email accepted by Resend:', result.data.id);
+    console.log('⚠️ IMPORTANT: If you don\'t receive the email, check:');
+    console.log('   1. Spam/junk folder');
+    console.log('   2. Domain verification in Resend dashboard (resend.com/domains)');
+    console.log('   3. "From" address verification in Resend');
+    console.log('   4. In development, Resend only sends to verified recipient addresses');
     
     await logEmailEvent({
       userId: userEmail,
       eventType: 'test_email',
       emailProvider: 'resend',
-      messageId: result.data?.id,
-      metadata: { testEmail: to },
+      messageId: result.data.id,
+      metadata: { 
+        testEmail: to,
+        from: EMAIL_CONFIG.from,
+        replyTo: EMAIL_CONFIG.replyTo,
+      },
     });
 
     return {
       success: true,
-      messageId: result.data?.id,
+      messageId: result.data.id,
     };
 
   } catch (error) {
@@ -643,6 +714,12 @@ async function sendTestEmailWithStubData(
     const htmlContent = generateEmailHTML(testWithLink);
     const textContent = generateEmailText(testWithLink);
     
+    console.log('📤 Calling Resend API with stub data:', {
+      from: EMAIL_CONFIG.from,
+      to,
+      replyTo: EMAIL_CONFIG.replyTo,
+    });
+
     const result = await resend.emails.send({
       from: EMAIL_CONFIG.from,
       to: [to],
@@ -659,15 +736,36 @@ async function sendTestEmailWithStubData(
       ],
     });
 
+    console.log('📥 Resend API response (stub data):', {
+      hasError: !!result.error,
+      hasData: !!result.data,
+      messageId: result.data?.id,
+    });
+
     if (result.error) {
-      console.error('❌ Test email failed:', result.error);
+      console.error('❌ Test email failed (stub data):', result.error);
+      let enhancedError = result.error.message || 'Failed to send test email';
+      if (enhancedError.includes('domain') || enhancedError.includes('Domain')) {
+        enhancedError = `${enhancedError}. Please verify your domain in the Resend dashboard (resend.com/domains).`;
+      } else if (enhancedError.includes('unverified') || enhancedError.includes('verification')) {
+        enhancedError = `${enhancedError}. In development mode, Resend only sends to verified email addresses.`;
+      }
       return {
         success: false,
-        error: result.error.message || 'Failed to send test email',
+        error: enhancedError,
       };
     }
 
-    console.log('✅ Test email sent successfully (with stub data):', result.data?.id);
+    if (!result.data || !result.data.id) {
+      console.warn('⚠️ Resend returned success but no message ID (stub data)');
+      return {
+        success: false,
+        error: 'Email service returned an invalid response. Please check your Resend API key and domain verification status.',
+      };
+    }
+
+    console.log('✅ Test email accepted by Resend (stub data):', result.data.id);
+    console.log('⚠️ IMPORTANT: If you don\'t receive the email, check domain verification in Resend dashboard');
     
     await logEmailEvent({
       userId: userEmail,

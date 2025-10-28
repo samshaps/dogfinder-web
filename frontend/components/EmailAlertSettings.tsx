@@ -95,15 +95,28 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
             ? 'bg-green-50 border border-green-200' 
             : 'bg-red-50 border border-red-200'
         }`}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             {testEmailResult.success ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             )}
-            <p className={testEmailResult.success ? 'text-green-700' : 'text-red-700'}>
-              {testEmailResult.message}
-            </p>
+            <div className="flex-1">
+              <p className={testEmailResult.success ? 'text-green-700' : 'text-red-700'}>
+                {testEmailResult.message}
+              </p>
+              {testEmailResult.success && (
+                <div className="mt-2 text-sm text-green-600">
+                  <p className="font-medium mb-1">Not seeing the email?</p>
+                  <ul className="list-disc list-inside space-y-1 text-green-700">
+                    <li>Check your spam/junk folder</li>
+                    <li>Verify your domain is configured in Resend dashboard</li>
+                    <li>In development, Resend only sends to verified recipient addresses</li>
+                    <li>Check the Resend dashboard for delivery status</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
