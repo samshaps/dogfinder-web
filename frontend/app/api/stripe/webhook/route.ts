@@ -83,6 +83,9 @@ export async function POST(request: NextRequest) {
             customer_email: (session.customer_details as any)?.email,
             subscription: session.subscription,
             metadata: session.metadata,
+            client_reference_id: (session as any).client_reference_id,
+            payment_status: session.payment_status,
+            mode: session.mode,
           });
           await handleCheckoutCompleted(session, requestId, event.id);
           eventHandled = true;

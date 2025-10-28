@@ -395,7 +395,41 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
 
   const client = getSupabaseClient();
 
-  // Check for idempotency if Stripe event ID is provided
+  // Check current plan state for idempotency (better than checking event records)
+  const { data: currentPlan } = await (client as any)
+    .from('plans')
+    .select('plan_type, status, stripe_subscription_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  // If plan is already in the desired state, skip update (idempotent)
+  if (currentPlan && 
+      currentPlan.plan_type === planType && 
+      currentPlan.status === status &&
+      (stripeSubscriptionId === null || currentPlan.stripe_subscription_id === stripeSubscriptionId)) {
+    console.log(`ℹ️ Plan for user ${userId} already in desired state (${planType}/${status}), skipping update`);
+    
+    // Still record the event for audit purposes if provided
+    if (stripeEventId) {
+      try {
+        await (client as any)
+          .from('webhook_events')
+          .insert({
+            stripe_event_id: stripeEventId,
+            event_type: 'plan_update',
+            handled: true,
+            request_id: `setPlan_${userId}_${Date.now()}`,
+            processed_at: new Date().toISOString(),
+          }).catch(() => {}); // Ignore duplicate event errors
+      } catch (eventError) {
+        // Ignore - this is just for audit
+      }
+    }
+    return;
+  }
+
+  // If event ID provided, check if this exact event already processed this exact change
+  // (prevent processing the same event twice)
   if (stripeEventId) {
     const { data: existingEvent } = await (client as any)
       .from('webhook_events')
@@ -403,10 +437,13 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
       .eq('stripe_event_id', stripeEventId)
       .maybeSingle();
 
-    if (existingEvent) {
-      console.log(`ℹ️ Stripe event ${stripeEventId} already processed, skipping plan update`);
-      return; // Idempotent - already processed
+    if (existingEvent && currentPlan && 
+        currentPlan.plan_type === planType && 
+        currentPlan.status === status) {
+      console.log(`ℹ️ Stripe event ${stripeEventId} already processed with same result, skipping plan update`);
+      return; // Event already processed with same outcome
     }
+    // Otherwise, proceed with update (might be a retry or correction)
   }
 
   // Build update payload
@@ -430,14 +467,42 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
   }
 
   // Update plan
-  const { error } = await (client as any)
+  console.log(`🔄 Updating plan for user ${userId}:`, {
+    planType,
+    status,
+    stripeSubscriptionId,
+    updatePayload,
+  });
+
+  const { data: updateResult, error } = await (client as any)
     .from('plans')
     .update(updatePayload)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .select();
 
   if (error) {
     console.error(`❌ Failed to set plan for user ${userId}:`, error);
     throw new Error(`Failed to update plan: ${error.message}`);
+  }
+
+  if (!updateResult || updateResult.length === 0) {
+    console.warn(`⚠️ Plan update returned no rows for user ${userId} - plan may not exist`);
+    // Plan might not exist - try creating it
+    const { error: insertError } = await (client as any)
+      .from('plans')
+      .insert({
+        user_id: userId,
+        ...updatePayload,
+        created_at: new Date().toISOString(),
+      });
+    
+    if (insertError) {
+      console.error(`❌ Failed to create plan for user ${userId}:`, insertError);
+      throw new Error(`Failed to create plan: ${insertError.message}`);
+    }
+    console.log(`✅ Created new plan for user ${userId}`);
+  } else {
+    console.log(`✅ Plan updated successfully for user ${userId}:`, updateResult);
   }
 
   // If Stripe event ID provided, record it for idempotency

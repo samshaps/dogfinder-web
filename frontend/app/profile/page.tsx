@@ -25,6 +25,7 @@ function ProfilePageContent() {
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+  const [pollingFailed, setPollingFailed] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxPollAttempts = 10; // Poll for up to 20 seconds (2s intervals)
   const pollAttemptsRef = useRef(0);
@@ -90,6 +91,7 @@ function ProfilePageContent() {
     }
     
     pollAttemptsRef.current = 0;
+    setPollingFailed(false);
     
     // Poll every 2 seconds for plan update
     pollingIntervalRef.current = setInterval(async () => {
@@ -102,6 +104,9 @@ function ProfilePageContent() {
           pollingIntervalRef.current = null;
         }
         pollAttemptsRef.current = 0;
+        setPollingFailed(true);
+        setUpgradeSuccess(false);
+        console.warn('⏱️ Polling stopped: Plan update not detected within timeout');
         return;
       }
       
@@ -171,6 +176,21 @@ function ProfilePageContent() {
                       <p className="text-sm text-blue-900 font-medium">
                         Upgrade successful! Activating your Pro plan...
                       </p>
+                    </div>
+                  </div>
+                )}
+                {pollingFailed && !planInfo?.isPro && (
+                  <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg" role="alert">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="flex-1">
+                        <p className="text-sm text-amber-900 font-medium mb-1">
+                          Upgrade processing is taking longer than expected
+                        </p>
+                        <p className="text-xs text-amber-800">
+                          Your payment was successful. Please refresh the page in a few moments, or contact support if the issue persists.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
