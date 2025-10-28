@@ -60,10 +60,26 @@ function UnsubscribeContent() {
       }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to unsubscribe');
+      if (!response.ok) {
+        // Handle specific error types from API
+        const errorCode = data.error?.code || '';
+        const errorMessage = data.error?.message || data.error || 'Failed to unsubscribe';
+        
+        // Map error codes to user-friendly messages with guidance
+        if (errorCode === 'TOKEN_EXPIRED') {
+          throw new Error('EXPIRED_TOKEN:' + errorMessage);
+        } else if (errorCode === 'INVALID_TOKEN') {
+          throw new Error('INVALID_TOKEN:' + errorMessage);
+        } else if (errorMessage.includes('already been used') || errorMessage.includes('already processed')) {
+          throw new Error('TOKEN_USED:' + errorMessage);
+        } else {
+          throw new Error(errorMessage);
+        }
+      }
       setResult({ success: true, message: 'Successfully unsubscribed and cancelled plan' });
     } catch (error) {
-      setResult({ success: false, message: error instanceof Error ? error.message : 'Failed to unsubscribe' });
+      const errorMsg = error instanceof Error ? error.message : 'Failed to unsubscribe';
+      setResult({ success: false, message: errorMsg });
     } finally {
       setLoading(false);
     }
@@ -146,31 +162,92 @@ function UnsubscribeContent() {
               )}
 
               {result && (
-                <div className={`p-6 rounded-lg ${
-                  result.success 
-                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200' 
-                    : 'bg-gradient-to-r from-red-50 to-rose-50 border border-red-200'
-                }`} role="alert">
-                  <div className="flex items-start gap-3">
-                    {result.success ? (
-                      <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                    ) : (
-                      <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                    )}
-                    <div className="flex-1">
-                      <h3 className={`text-lg font-semibold mb-2 ${
-                        result.success ? 'text-green-900' : 'text-red-900'
-                      }`}>
-                        {result.success ? 'Successfully Unsubscribed' : 'Unsubscribe Failed'}
-                      </h3>
-                      <p className={`text-sm ${
-                        result.success ? 'text-green-700' : 'text-red-700'
-                      }`}>
-                        {result.message}
-                      </p>
+                <>
+                  {result.success ? (
+                    <div className="p-6 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200" role="alert">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold mb-2 text-green-900">
+                            Successfully Unsubscribed
+                          </h3>
+                          <p className="text-sm text-green-700">
+                            {result.message}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  ) : (
+                    <div className={`p-6 rounded-lg border ${
+                      result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')
+                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
+                        : result.message.startsWith('TOKEN_USED:')
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                        : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                    }`} role="alert">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${
+                          result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')
+                            ? 'text-amber-600'
+                            : result.message.startsWith('TOKEN_USED:')
+                            ? 'text-blue-600'
+                            : 'text-red-600'
+                        }`} aria-hidden="true" />
+                        <div className="flex-1">
+                          <h3 className={`text-lg font-semibold mb-2 ${
+                            result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')
+                              ? 'text-amber-900'
+                              : result.message.startsWith('TOKEN_USED:')
+                              ? 'text-blue-900'
+                              : 'text-red-900'
+                          }`}>
+                            {result.message.startsWith('EXPIRED_TOKEN:') 
+                              ? 'Unsubscribe Link Expired'
+                              : result.message.startsWith('INVALID_TOKEN:')
+                              ? 'Invalid Unsubscribe Link'
+                              : result.message.startsWith('TOKEN_USED:')
+                              ? 'Link Already Used'
+                              : 'Unsubscribe Failed'}
+                          </h3>
+                          <p className={`text-sm mb-3 ${
+                            result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')
+                              ? 'text-amber-800'
+                              : result.message.startsWith('TOKEN_USED:')
+                              ? 'text-blue-800'
+                              : 'text-red-700'
+                          }`}>
+                            {result.message.includes(':') ? result.message.split(':').slice(1).join(':') : result.message}
+                          </p>
+                          
+                          {/* Show specific guidance for token errors */}
+                          {(result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')) && (
+                            <div className={`mt-4 p-4 rounded-lg ${
+                              result.message.startsWith('EXPIRED_TOKEN:') || result.message.startsWith('INVALID_TOKEN:')
+                                ? 'bg-amber-100 border border-amber-200'
+                                : ''
+                            }`}>
+                              <p className="text-sm font-medium text-amber-900 mb-2">What you can do:</p>
+                              <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                                <li>Sign in to your account and manage email preferences from your profile</li>
+                                <li>Request a new unsubscribe link from your email alert settings</li>
+                                <li>Contact support if you need assistance</li>
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {result.message.startsWith('TOKEN_USED:') && (
+                            <div className="mt-4 p-4 rounded-lg bg-blue-100 border border-blue-200">
+                              <p className="text-sm text-blue-900 mb-2">
+                                <strong>Good news:</strong> Your subscription has already been cancelled and you're unsubscribed from email alerts. 
+                                You can re-enable email alerts anytime by upgrading to Pro again.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {!alreadyUnsubscribed && !result?.success && (
@@ -270,11 +347,16 @@ function UnsubscribeContent() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Invalid Unsubscribe Link</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  This unsubscribe link is missing required information or has expired.
+                  This unsubscribe link is missing required information. Unsubscribe links are valid for 7 days after they're sent.
                 </p>
-                <p className="text-xs text-gray-500">
-                  Please contact support if you need help unsubscribing from email alerts.
-                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left mb-4">
+                  <p className="text-sm font-medium text-amber-900 mb-2">What you can do:</p>
+                  <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                    <li>Sign in to your account to manage email preferences from your profile page</li>
+                    <li>Check your email for a newer unsubscribe link</li>
+                    <li>Contact support if you continue to have issues</li>
+                  </ul>
+                </div>
               </div>
               
               <div className="space-y-3">

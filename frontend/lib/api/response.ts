@@ -210,6 +210,12 @@ export const ApiErrors = {
   
   databaseError: (message: string, details?: any) => 
     createApiError(ERROR_CODES.DATABASE_ERROR, message, HTTP_STATUS.SERVICE_UNAVAILABLE, details),
+  
+  invalidToken: (message = 'Invalid token') => 
+    createApiError(ERROR_CODES.INVALID_TOKEN, message, HTTP_STATUS.BAD_REQUEST),
+  
+  tokenExpired: (message = 'Token has expired') => 
+    createApiError(ERROR_CODES.TOKEN_EXPIRED, message, HTTP_STATUS.BAD_REQUEST),
 };
 
 /**

@@ -8,6 +8,8 @@ import {
 } from './types';
 import { getSupabaseClient } from '@/lib/supabase';
 import { signUnsubToken } from '@/lib/tokens';
+import { getUserPreferences } from '@/lib/supabase-auth';
+import { appConfig } from '@/lib/config';
 
 /**
  * Send a dog match alert email to a user
@@ -125,6 +127,7 @@ export async function sendDogMatchAlert(
 
 /**
  * Send a test email to verify email configuration
+ * Uses real user preferences and recent dog postings for proper visual QA
  */
 export async function sendTestEmail(
   to: string,
@@ -134,15 +137,164 @@ export async function sendTestEmail(
     console.log('📧 Sending test email to:', to);
     
     const resend = getResendClient();
+    const client = getSupabaseClient();
     
-    const testTemplateData: EmailTemplateData = {
-      user: { name: 'Test User', email: userEmail },
-      preferences: {
-        zipCodes: ['10001'],
-        radiusMi: 50,
-        frequency: 'daily',
-      },
-      matches: [
+    // Get user ID and name
+    const { data: userData, error: userError } = await client
+      .from('users')
+      .select('id, name')
+      .eq('email', userEmail)
+      .single();
+
+    if (userError || !userData) {
+      console.warn('⚠️ User not found, using default data:', userError?.message);
+      // Fall back to stub data if user not found
+      return sendTestEmailWithStubData(to, userEmail, resend);
+    }
+
+    const userId = (userData as any).id;
+    const userName = (userData as any).name || 'Dog Lover';
+
+    // Get user preferences
+    const preferences = await getUserPreferences(userId);
+    
+    // Determine zip codes and radius from preferences
+    let zipCodes: string[] = ['10001']; // Default fallback
+    let radiusMi = 50; // Default fallback
+    
+    if (preferences) {
+      // Handle both schema formats: zip_codes array or location single string
+      if (preferences.zip_codes && Array.isArray(preferences.zip_codes) && preferences.zip_codes.length > 0) {
+        zipCodes = preferences.zip_codes;
+      } else if (preferences.location) {
+        zipCodes = [preferences.location];
+      }
+      
+      radiusMi = preferences.radius || preferences.radius_mi || 50;
+    }
+
+    // Convert preferences to search parameters (similar to cron job)
+    const searchParams = new URLSearchParams({
+      zip: zipCodes[0] || '10001',
+      radius: radiusMi.toString(),
+      sort: 'freshness',
+      limit: '5', // Get top 5 for test email
+    });
+
+    // Add optional filters if they exist in preferences
+    if (preferences?.age_preferences && Array.isArray(preferences.age_preferences) && preferences.age_preferences.length > 0) {
+      searchParams.append('age', preferences.age_preferences.join(','));
+    }
+    if (preferences?.size_preferences && Array.isArray(preferences.size_preferences) && preferences.size_preferences.length > 0) {
+      searchParams.append('size', preferences.size_preferences.join(','));
+    }
+    if (preferences?.include_breeds && Array.isArray(preferences.include_breeds) && preferences.include_breeds.length > 0) {
+      searchParams.append('breed', preferences.include_breeds.join(','));
+    }
+    if (preferences?.energy_level) {
+      searchParams.append('energy', preferences.energy_level);
+    }
+
+    // Fetch real dogs from the internal API
+    // Construct base URL for server-side fetch
+    // Priority: publicBaseUrl env var > VERCEL_URL > localhost (dev) > production default
+    let baseUrl = appConfig.publicBaseUrl;
+    if (!baseUrl) {
+      if (process.env.VERCEL_URL) {
+        baseUrl = `https://${process.env.VERCEL_URL}`;
+      } else if (process.env.NODE_ENV === 'production') {
+        baseUrl = 'https://dogyenta.com';
+      } else {
+        baseUrl = 'http://localhost:3000';
+      }
+    }
+    console.log('🔍 Fetching real dogs for test email with params:', searchParams.toString());
+    console.log('🔍 Using base URL:', baseUrl);
+    
+    const dogsResponse = await fetch(`${baseUrl}/api/dogs?${searchParams.toString()}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    let emailMatches: EmailDogMatch[] = [];
+    let totalMatches = 0;
+
+    if (dogsResponse.ok) {
+      const dogsData = await dogsResponse.json();
+      const dogs = dogsData.items || [];
+      totalMatches = dogsData.total || dogs.length;
+
+      // Transform dogs to email format
+      emailMatches = dogs.slice(0, 5).map((dog: any) => {
+        // Extract breeds
+        const breeds: string[] = [];
+        if (dog.breeds?.primary) breeds.push(dog.breeds.primary);
+        if (dog.breeds?.secondary) breeds.push(dog.breeds.secondary);
+        if (breeds.length === 0) breeds.push('Mixed Breed');
+
+        // Extract photos
+        const photos: string[] = [];
+        if (dog.photos && dog.photos.length > 0) {
+          dog.photos.forEach((photo: any) => {
+            if (photo.large) photos.push(photo.large);
+            else if (photo.medium) photos.push(photo.medium);
+            else if (photo.small) photos.push(photo.small);
+          });
+        }
+
+        // Extract temperament from tags/attributes
+        const temperament: string[] = [];
+        if (dog.tags) {
+          dog.tags.forEach((tag: string) => {
+            if (tag && typeof tag === 'string') {
+              temperament.push(tag);
+            }
+          });
+        }
+        if (dog.attributes) {
+          Object.entries(dog.attributes).forEach(([key, value]) => {
+            if (value === true) {
+              temperament.push(key.replace(/_/g, ' '));
+            }
+          });
+        }
+
+        return {
+          id: dog.id || `dog-${Math.random().toString(36).slice(2, 10)}`,
+          name: dog.name || 'Unknown',
+          breeds,
+          age: dog.age || 'Unknown',
+          size: dog.size || 'Unknown',
+          energy: dog.energy || 'medium',
+          temperament,
+          location: {
+            city: dog.contact?.address?.city || dog.city || 'Unknown',
+            state: dog.contact?.address?.state || dog.state || 'Unknown',
+            distanceMi: dog.distance || dog.distanceMi,
+          },
+          photos,
+          matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
+          reasons: {
+            primary150: `This ${dog.age || 'charming'} ${dog.size || 'wonderful'} ${breeds[0] || 'dog'} is a great match for your preferences!`,
+            blurb50: 'Perfect companion',
+          },
+          shelter: {
+            name: dog.organization?.name || dog.shelter?.name || 'Local Shelter',
+            email: dog.contact?.email || dog.shelter?.email,
+            phone: dog.contact?.phone || dog.shelter?.phone,
+          },
+          url: dog.url || dog.id ? `https://dogyenta.com/results?dog=${dog.id}` : '#',
+        };
+      });
+    } else {
+      console.warn('⚠️ Failed to fetch dogs, falling back to stub data:', dogsResponse.status);
+      return sendTestEmailWithStubData(to, userEmail, resend, userName);
+    }
+
+    // If no dogs found, use stub data but with real preferences
+    if (emailMatches.length === 0) {
+      console.warn('⚠️ No dogs found, using stub data with real preferences');
+      emailMatches = [
         {
           id: 'test-dog-1',
           name: 'Buddy',
@@ -152,19 +304,39 @@ export async function sendTestEmail(
           energy: 'medium',
           temperament: ['friendly', 'playful'],
           location: { city: 'New York', state: 'NY', distanceMi: 5 },
-          photos: ['https://example.com/dog1.jpg'],
+          photos: ['https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=400'],
           matchScore: 95,
           reasons: {
-            primary150: 'Buddy is a perfect match for your active lifestyle!',
-            blurb50: 'Great family dog',
+            primary150: 'This is a sample dog match shown in your test email. When alerts are enabled, you\'ll see real dog postings that match your preferences!',
+            blurb50: 'Sample match',
           },
-          shelter: { name: 'Test Shelter', email: 'test@shelter.com' },
-          url: 'https://example.com/dog1',
+          shelter: { name: 'Sample Shelter', email: 'info@sample.org' },
+          url: 'https://dogyenta.com/results',
         },
-      ],
+      ];
+      totalMatches = 1;
+    }
+
+    // Get alert settings for frequency
+    const { data: alertSettings } = await client
+      .from('alert_settings')
+      .select('cadence')
+      .eq('user_id', userId)
+      .single();
+    
+    const frequency = (alertSettings as any)?.cadence || 'daily';
+
+    const testTemplateData: EmailTemplateData = {
+      user: { name: userName, email: userEmail },
+      preferences: {
+        zipCodes,
+        radiusMi,
+        frequency,
+      },
+      matches: emailMatches,
       unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?email=${encodeURIComponent(userEmail)}`,
       dashboardUrl: EMAIL_CONFIG.dashboardUrl,
-      totalMatches: 1,
+      totalMatches,
       generatedAt: new Date().toISOString(),
     };
 
@@ -221,6 +393,110 @@ export async function sendTestEmail(
 
   } catch (error) {
     console.error('❌ Test email service error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Fallback function to send test email with stub data
+ * Used when user data cannot be fetched or dogs API fails
+ */
+async function sendTestEmailWithStubData(
+  to: string,
+  userEmail: string,
+  resend: any,
+  userName: string = 'Test User'
+): Promise<EmailServiceResponse> {
+  try {
+    const testTemplateData: EmailTemplateData = {
+      user: { name: userName, email: userEmail },
+      preferences: {
+        zipCodes: ['10001'],
+        radiusMi: 50,
+        frequency: 'daily',
+      },
+      matches: [
+        {
+          id: 'test-dog-1',
+          name: 'Buddy',
+          breeds: ['Golden Retriever', 'Labrador Mix'],
+          age: 'young',
+          size: 'large',
+          energy: 'medium',
+          temperament: ['friendly', 'playful'],
+          location: { city: 'New York', state: 'NY', distanceMi: 5 },
+          photos: ['https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=400'],
+          matchScore: 95,
+          reasons: {
+            primary150: 'This is a sample dog match shown in your test email. When alerts are enabled, you\'ll see real dog postings that match your preferences!',
+            blurb50: 'Sample match',
+          },
+          shelter: { name: 'Sample Shelter', email: 'info@sample.org' },
+          url: 'https://dogyenta.com/results',
+        },
+      ],
+      unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?email=${encodeURIComponent(userEmail)}`,
+      dashboardUrl: EMAIL_CONFIG.dashboardUrl,
+      totalMatches: 1,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const testToken = signUnsubToken({
+      sub: userEmail,
+      scope: 'alerts+cancel',
+      jti: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    });
+    const testWithLink = {
+      ...testTemplateData,
+      unsubscribeUrl: `${EMAIL_CONFIG.unsubscribeUrl}?token=${encodeURIComponent(testToken)}`,
+    };
+    const htmlContent = generateEmailHTML(testWithLink);
+    const textContent = generateEmailText(testWithLink);
+    
+    const result = await resend.emails.send({
+      from: EMAIL_CONFIG.from,
+      to: [to],
+      replyTo: EMAIL_CONFIG.replyTo,
+      subject: '🐕 DogFinder Test Email - Email Alerts Setup Complete!',
+      html: htmlContent,
+      text: textContent,
+      headers: {
+        'X-Entity-Ref-ID': `test-email-${to}-${Date.now()}`,
+      },
+      tags: [
+        { name: 'type', value: 'test-email' },
+        { name: 'user', value: userEmail.replace(/[^a-zA-Z0-9]/g, '_') },
+      ],
+    });
+
+    if (result.error) {
+      console.error('❌ Test email failed:', result.error);
+      return {
+        success: false,
+        error: result.error.message || 'Failed to send test email',
+      };
+    }
+
+    console.log('✅ Test email sent successfully (with stub data):', result.data?.id);
+    
+    await logEmailEvent({
+      userId: userEmail,
+      eventType: 'test_email',
+      emailProvider: 'resend',
+      messageId: result.data?.id,
+      metadata: { testEmail: to, usedStubData: true },
+    });
+
+    return {
+      success: true,
+      messageId: result.data?.id,
+    };
+
+  } catch (error) {
+    console.error('❌ Test email stub service error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

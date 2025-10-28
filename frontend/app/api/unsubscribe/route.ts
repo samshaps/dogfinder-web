@@ -13,13 +13,30 @@ export async function POST(req: NextRequest) {
       return errJson(ApiErrors.validationError('Missing token'), req);
     }
 
-    const payload = verifyUnsubToken(token);
-    if (payload.scope !== 'alerts+cancel') {
-      return errJson(ApiErrors.forbidden('Invalid scope'), req);
-    }
-
     if (!appConfig.emailTokenSecret) {
       throw new Error('EMAIL_TOKEN_SECRET not set');
+    }
+
+    // Verify token and handle token-specific errors
+    let payload;
+    try {
+      payload = verifyUnsubToken(token);
+    } catch (error: any) {
+      const errorMessage = error?.message || '';
+      // Token expired
+      if (errorMessage.includes('expired') || errorMessage === 'Token expired') {
+        return errJson(ApiErrors.tokenExpired('This unsubscribe link has expired. Please request a new one from your email settings or contact support.'), req);
+      }
+      // Invalid/malformed token
+      if (errorMessage.includes('Malformed') || errorMessage.includes('Bad signature') || errorMessage === 'Malformed token' || errorMessage === 'Bad signature') {
+        return errJson(ApiErrors.invalidToken('This unsubscribe link is invalid or has been tampered with. Please request a new one from your email settings.'), req);
+      }
+      // Generic token error
+      return errJson(ApiErrors.invalidToken('Invalid unsubscribe token. Please request a new link from your email settings.'), req);
+    }
+
+    if (payload.scope !== 'alerts+cancel') {
+      return errJson(ApiErrors.forbidden('Invalid scope'), req);
     }
 
     // Check if token jti has already been consumed (idempotency)
@@ -27,7 +44,8 @@ export async function POST(req: NextRequest) {
     if (jti) {
       const { alreadyUsed } = await consumeTokenJti(jti);
       if (alreadyUsed) {
-        return okJson({ ok: true, message: 'Already processed' }, req);
+        // Token has already been used - return a clear message
+        return errJson(ApiErrors.validationError('This unsubscribe link has already been used. Your subscription is already cancelled. If you need help, please contact support.'), req);
       }
     }
 
