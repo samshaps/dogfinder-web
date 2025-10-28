@@ -387,7 +387,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
     
     // Handle specific lifecycle events
     let planType: 'free' | 'pro' = 'pro';
-    if (subscription.status === 'canceled' || subscription.status === 'cancelled') {
+    if (subscription.status === 'canceled') {
       planType = 'free'; // Downgrade to free on cancellation
       console.log(`❌ [${requestId}] Subscription cancelled, downgrading to free`);
     }
