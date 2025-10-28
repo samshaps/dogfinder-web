@@ -60,6 +60,10 @@ export type ProfileEvent =
   | 'preferences_viewed'
   | 'search_history_viewed'
   | 'profile_upgrade_clicked'
+  | 'profile_downgrade_button_clicked'
+  | 'profile_downgrade_initiated'
+  | 'profile_downgrade_success'
+  | 'profile_downgrade_failed'
   | 'pricing_cta_free'
   | 'pricing_cta_pro'
   | 'pricing_page_viewed';

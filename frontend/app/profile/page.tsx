@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/lib/auth/protected-route";
 import { useEffect, useState, useRef, Suspense } from "react";
 import { trackEvent } from "@/lib/analytics/tracking";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Edit, Crown, Star, AlertCircle } from "lucide-react";
+import { Edit, Crown, Star, AlertCircle, X } from "lucide-react";
 import { getUserPlan } from "@/lib/stripe/plan-utils";
 import { PLANS } from "@/lib/stripe/config";
 import EmailAlertSettings from "@/components/EmailAlertSettings";
@@ -29,6 +29,9 @@ function ProfilePageContent() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxPollAttempts = 10; // Poll for up to 20 seconds (2s intervals)
   const pollAttemptsRef = useRef(0);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
+  const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
 
   useEffect(() => {
     trackEvent("profile_viewed", {
@@ -115,6 +118,51 @@ function ProfilePageContent() {
         await loadPlanInfo();
       }
     }, 2000);
+  };
+
+  const handleDowngrade = async () => {
+    if (!user?.id) return;
+
+    try {
+      setDowngrading(true);
+      trackEvent('profile_downgrade_initiated', {
+        user_id: user.id,
+        source: 'profile_page'
+      });
+
+      const response = await fetch('/api/stripe/downgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to downgrade plan');
+      }
+
+      const data = await response.json();
+      
+      trackEvent('profile_downgrade_success', {
+        user_id: user.id,
+        periodEnd: data.periodEnd,
+      });
+
+      // Show success message
+      setDowngradeSuccess({ periodEnd: data.periodEnd });
+      setShowDowngradeModal(false);
+      
+      // Reload plan info to reflect the change
+      await loadPlanInfo();
+    } catch (error: any) {
+      console.error('Error downgrading:', error);
+      alert(error.message || 'Failed to downgrade plan. Please try again or contact support.');
+      trackEvent('profile_downgrade_failed', {
+        user_id: user.id,
+        error: error.message,
+      });
+    } finally {
+      setDowngrading(false);
+    }
   };
 
   return (
@@ -290,6 +338,38 @@ function ProfilePageContent() {
                         </p>
                       </div>
                     )}
+
+                    {planInfo.isPro && (
+                      <div className="mt-3 space-y-3">
+                        {downgradeSuccess?.periodEnd && (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg" role="alert">
+                            <p className="text-sm text-amber-900 font-medium">
+                              Your Pro plan will end on {new Date(downgradeSuccess.periodEnd).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}. You can re-upgrade anytime.
+                            </p>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            trackEvent('profile_downgrade_button_clicked', {
+                              user_id: user?.id,
+                              source: 'profile_page'
+                            });
+                            setShowDowngradeModal(true);
+                          }}
+                          className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                          aria-describedby="downgrade-description"
+                        >
+                          Downgrade to Free Plan
+                        </button>
+                        <p id="downgrade-description" className="text-xs text-gray-600 text-center">
+                          Cancel your Pro subscription. You'll keep access until the end of your billing period.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4" role="alert">
@@ -370,6 +450,65 @@ function ProfilePageContent() {
           </div>
         </div>
       </div>
+
+      {/* Downgrade Confirmation Modal */}
+      {showDowngradeModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => !downgrading && setShowDowngradeModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="downgrade-modal-title"
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 id="downgrade-modal-title" className="text-2xl font-bold text-gray-900">
+                Downgrade to Free?
+              </h2>
+              <button
+                onClick={() => !downgrading && setShowDowngradeModal(false)}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
+                aria-label="Close modal"
+                disabled={downgrading}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <p className="text-gray-700 mb-6">
+              You'll keep your saved preferences but lose Pro features like email alerts and unlimited searches. 
+              Your Pro plan will remain active until the end of your current billing period.
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => !downgrading && setShowDowngradeModal(false)}
+                disabled={downgrading}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDowngrade}
+                disabled={downgrading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {downgrading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Processing...
+                  </span>
+                ) : (
+                  'Confirm Downgrade'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
