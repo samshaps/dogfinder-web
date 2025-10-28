@@ -386,8 +386,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
     const endIso = toIsoOrNull((subscription as any).current_period_end);
     
     // Handle specific lifecycle events
+    // Note: subscription.status can be 'canceled' even if TypeScript types don't show it
+    const stripeStatus = subscription.status as string;
     let planType: 'free' | 'pro' = 'pro';
-    if (subscription.status === 'canceled') {
+    if (stripeStatus === 'canceled' || stripeStatus === 'cancelled') {
       planType = 'free'; // Downgrade to free on cancellation
       console.log(`❌ [${requestId}] Subscription cancelled, downgrading to free`);
     }
@@ -395,7 +397,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
     await setPlan({
       userId,
       planType,
-      status: mapStripeStatusToPlanStatus(subscription.status) as any,
+      status: mapStripeStatusToPlanStatus(stripeStatus) as any,
       currentPeriodStart: startIso,
       currentPeriodEnd: endIso,
       stripeEventId: eventId,
