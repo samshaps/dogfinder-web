@@ -7,6 +7,20 @@ import { getStripeServer } from './config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { appConfig } from '@/lib/config';
 
+export type PlanType = 'free' | 'pro';
+export type PlanStatus = 'active' | 'past_due' | 'cancelled' | 'incomplete' | 'trialing' | 'unpaid' | 'unknown';
+
+export interface SetPlanOptions {
+  userId: string;
+  planType: PlanType;
+  status?: PlanStatus;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
+  currentPeriodStart?: string | null;
+  currentPeriodEnd?: string | null;
+  stripeEventId?: string; // For idempotency tracking
+}
+
 export interface PlanSyncResult {
   success: boolean;
   synced: number;
@@ -361,4 +375,88 @@ export async function validatePlanConsistency(): Promise<{
     issues.push(`Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return { valid: false, issues };
   }
+}
+
+/**
+ * Set user plan state with idempotent transitions
+ * This is the central function for all plan updates - use this instead of direct DB updates
+ */
+export async function setPlan(options: SetPlanOptions): Promise<void> {
+  const {
+    userId,
+    planType,
+    status = 'active',
+    stripeSubscriptionId = null,
+    stripeCustomerId = null,
+    currentPeriodStart = null,
+    currentPeriodEnd = null,
+    stripeEventId,
+  } = options;
+
+  const client = getSupabaseClient();
+
+  // Check for idempotency if Stripe event ID is provided
+  if (stripeEventId) {
+    const { data: existingEvent } = await (client as any)
+      .from('webhook_events')
+      .select('id')
+      .eq('stripe_event_id', stripeEventId)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`ℹ️ Stripe event ${stripeEventId} already processed, skipping plan update`);
+      return; // Idempotent - already processed
+    }
+  }
+
+  // Build update payload
+  const updatePayload: Record<string, any> = {
+    plan_type: planType,
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (stripeSubscriptionId !== undefined) {
+    updatePayload.stripe_subscription_id = stripeSubscriptionId;
+  }
+  if (stripeCustomerId !== undefined) {
+    updatePayload.stripe_customer_id = stripeCustomerId;
+  }
+  if (currentPeriodStart !== undefined) {
+    updatePayload.current_period_start = currentPeriodStart;
+  }
+  if (currentPeriodEnd !== undefined) {
+    updatePayload.current_period_end = currentPeriodEnd;
+  }
+
+  // Update plan
+  const { error } = await (client as any)
+    .from('plans')
+    .update(updatePayload)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error(`❌ Failed to set plan for user ${userId}:`, error);
+    throw new Error(`Failed to update plan: ${error.message}`);
+  }
+
+  // If Stripe event ID provided, record it for idempotency
+  if (stripeEventId) {
+    try {
+      await (client as any)
+        .from('webhook_events')
+        .insert({
+          stripe_event_id: stripeEventId,
+          event_type: 'plan_update',
+          handled: true,
+          request_id: `setPlan_${userId}_${Date.now()}`,
+          processed_at: new Date().toISOString(),
+        });
+    } catch (eventError) {
+      // Log but don't fail - this is just for idempotency tracking
+      console.warn(`⚠️ Failed to record Stripe event ID ${stripeEventId}:`, eventError);
+    }
+  }
+
+  console.log(`✅ Plan set for user ${userId}: ${planType} (${status})`);
 }

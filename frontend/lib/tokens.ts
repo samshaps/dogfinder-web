@@ -39,4 +39,81 @@ export function verifyUnsubToken(token: string, secret = process.env.EMAIL_TOKEN
   return payload;
 }
 
+/**
+ * Check if a token jti (JWT ID) has already been consumed
+ * This prevents token reuse attacks
+ */
+export async function consumeTokenJti(jti: string): Promise<{ alreadyUsed: boolean; success: boolean }> {
+  if (!jti) {
+    return { alreadyUsed: false, success: false };
+  }
+
+  try {
+    const { getSupabaseClient } = await import('@/lib/supabase-auth');
+    const client = getSupabaseClient();
+
+    // Check if this jti has already been used
+    const { data: existingEvent, error: checkError } = await (client as any)
+      .from('email_events')
+      .select('id')
+      .eq('message_id', jti)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 = no rows found, which is fine
+      console.error('❌ Error checking token jti:', checkError);
+      return { alreadyUsed: false, success: false };
+    }
+
+    if (existingEvent) {
+      console.log(`⚠️ Token jti ${jti} has already been used`);
+      return { alreadyUsed: true, success: true };
+    }
+
+    // Mark as consumed by creating an event record
+    // The actual event details will be filled in by the caller
+    return { alreadyUsed: false, success: true };
+  } catch (error) {
+    console.error('❌ Error consuming token jti:', error);
+    return { alreadyUsed: false, success: false };
+  }
+}
+
+/**
+ * Record a token jti as consumed in the email_events table
+ * This should be called after successfully processing a token
+ */
+export async function recordTokenJtiConsumed(
+  jti: string,
+  userId: string,
+  eventType: string = 'token_consumed'
+): Promise<void> {
+  if (!jti) return;
+
+  try {
+    const { getSupabaseClient } = await import('@/lib/supabase-auth');
+    const client = getSupabaseClient();
+
+    // Insert event record to mark jti as consumed
+    const { error } = await (client as any)
+      .from('email_events')
+      .insert({
+        user_id: userId,
+        event_type: eventType,
+        email_provider: 'internal',
+        message_id: jti,
+        metadata: { consumed_at: new Date().toISOString() },
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('❌ Failed to record token jti consumption:', error);
+      // Don't throw - this is best-effort idempotency tracking
+    }
+  } catch (error) {
+    console.error('❌ Error recording token jti:', error);
+    // Don't throw - this is best-effort
+  }
+}
+
 

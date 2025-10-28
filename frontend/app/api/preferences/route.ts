@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { getSupabaseClient, getUserPreferences, saveUserPreferences } from '@/lib/supabase-auth';
+import { requireSession, okJson, errJson, ApiErrors } from '@/lib/api/helpers';
 import { z } from 'zod';
 
 // Validation schema for user preferences (updated to match form data)
@@ -28,13 +29,12 @@ const PreferencesSchema = z.object({
 // GET /api/preferences - Get user preferences
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+    const { session, response } = await requireSession(request);
+    if (response) return response;
+
+    const userEmail = session.user?.email;
+    if (!userEmail) {
+      return errJson(ApiErrors.unauthorized('User email not found in session'), request);
     }
 
     // Get user ID from email using Supabase
@@ -42,14 +42,11 @@ export async function GET(request: NextRequest) {
     const { data: userData, error: userError } = await client
       .from('users' as any)
       .select('id')
-      .eq('email', session.user.email)
+      .eq('email', userEmail)
       .single();
 
     if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return errJson(ApiErrors.notFound('User'), request);
     }
 
     const userId = (userData as any).id;
@@ -58,13 +55,13 @@ export async function GET(request: NextRequest) {
     const preferences = await getUserPreferences(userId);
 
     if (!preferences) {
-      return NextResponse.json({
+      return okJson({
         preferences: null,
         message: 'No preferences found'
-      });
+      }, request);
     }
     
-    return NextResponse.json({
+    return okJson({
       preferences: {
         id: preferences.id,
         zip_codes: preferences.zip_codes || [],
@@ -79,14 +76,11 @@ export async function GET(request: NextRequest) {
         created_at: preferences.created_at,
         updated_at: preferences.updated_at,
       }
-    });
+    }, request);
 
   } catch (error) {
     console.error('Error fetching preferences:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch preferences' },
-      { status: 500 }
-    );
+    return errJson(ApiErrors.internalError('Failed to fetch preferences'), request);
   }
 }
 
@@ -95,17 +89,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 POST /api/preferences started');
     
-    const session = await getServerSession();
-    console.log('🔍 Session:', session ? 'Found' : 'Not found');
-    console.log('🔍 Session details:', session ? { email: session.user?.email, name: session.user?.name } : 'No session');
-    
-    if (!session?.user?.email) {
-      console.log('❌ No session or email found');
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const { session, response } = await requireSession(request);
+    if (response) return response;
 
     const body = await request.json();
     console.log('🔍 Request body:', body);
@@ -118,19 +103,21 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Getting Supabase client...');
     const client = getSupabaseClient();
     
-    console.log('🔍 Looking up user by email:', session.user.email);
+    const userEmail = session.user?.email;
+    if (!userEmail) {
+      return errJson(ApiErrors.unauthorized('User email not found in session'), request);
+    }
+    
+    console.log('🔍 Looking up user by email:', userEmail);
     const { data: userData, error: userError } = await client
       .from('users' as any)
       .select('id')
-      .eq('email', session.user.email)
+      .eq('email', userEmail)
       .single();
 
     if (userError || !userData) {
       console.error('❌ User lookup failed:', userError);
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return errJson(ApiErrors.notFound('User'), request);
     }
 
     const userId = (userData as any).id;
@@ -155,65 +142,46 @@ export async function POST(request: NextRequest) {
     const result = await saveUserPreferences(userId, preferencesData);
     console.log('✅ Preferences saved successfully:', result);
 
-    return NextResponse.json({
+    return okJson({
       message: 'Preferences saved successfully',
       preferences: result
-    });
+    }, request);
 
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.errors);
-      return NextResponse.json(
-        { error: 'Invalid preferences data', details: error.errors },
-        { status: 400 }
+      return errJson(
+        ApiErrors.validationError('Invalid preferences data', { validationErrors: error.errors }),
+        request
       );
     }
 
     console.error('Error saving preferences:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined,
-      code: (error as any)?.code,
-      details: (error as any)?.details,
-      hint: (error as any)?.hint
-    });
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to save preferences',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return errJson(ApiErrors.internalError('Failed to save preferences'), request);
   }
 }
 
 // DELETE /api/preferences - Delete user preferences
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const { session, response } = await requireSession(request);
+    if (response) return response;
 
     // Get user ID from email using Supabase
+    const userEmail = session.user?.email;
+    if (!userEmail) {
+      return errJson(ApiErrors.unauthorized('User email not found in session'), request);
+    }
+    
     const client = getSupabaseClient();
     const { data: userData, error: userError } = await client
       .from('users' as any)
       .select('id')
-      .eq('email', session.user.email)
+      .eq('email', userEmail)
       .single();
 
     if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return errJson(ApiErrors.notFound('User'), request);
     }
 
     const userId = (userData as any).id;
@@ -224,32 +192,23 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .eq('user_id', userId)
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error('Error deleting preferences:', error);
-      return NextResponse.json(
-        { error: 'Failed to delete preferences' },
-        { status: 500 }
-      );
+      return errJson(ApiErrors.internalError('Failed to delete preferences'), request);
     }
 
     if (!data) {
-      return NextResponse.json(
-        { error: 'No preferences found to delete' },
-        { status: 404 }
-      );
+      return errJson(ApiErrors.notFound('Preferences'), request);
     }
 
-    return NextResponse.json({
+    return okJson({
       message: 'Preferences deleted successfully'
-    });
+    }, request);
 
   } catch (error) {
     console.error('Error deleting preferences:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete preferences' },
-      { status: 500 }
-    );
+    return errJson(ApiErrors.internalError('Failed to delete preferences'), request);
   }
 }

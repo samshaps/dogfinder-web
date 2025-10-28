@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStripeServer } from '@/lib/stripe/config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { appConfig } from '@/lib/config';
+import { setPlan } from '@/lib/stripe/plan-sync';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
@@ -83,20 +84,20 @@ export async function POST(request: NextRequest) {
             subscription: session.subscription,
             metadata: session.metadata,
           });
-          await handleCheckoutCompleted(session, requestId);
+          await handleCheckoutCompleted(session, requestId, event.id);
           eventHandled = true;
           break;
         }
           
         case 'customer.subscription.created':
           console.log(`🔔 [${requestId}] Processing customer.subscription.created`);
-          await handleSubscriptionCreated(event.data.object as Stripe.Subscription, requestId);
+          await handleSubscriptionCreated(event.data.object as Stripe.Subscription, requestId, event.id);
           eventHandled = true;
           break;
           
       case 'customer.subscription.updated':
         console.log(`🔔 [${requestId}] Processing customer.subscription.updated`);
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, requestId);
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, requestId, event.id);
         eventHandled = true;
         break;
         
@@ -108,19 +109,19 @@ export async function POST(request: NextRequest) {
           
         case 'customer.subscription.deleted':
           console.log(`🔔 [${requestId}] Processing customer.subscription.deleted`);
-          await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, requestId);
+          await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, requestId, event.id);
           eventHandled = true;
           break;
           
         case 'invoice.payment_succeeded':
           console.log(`🔔 [${requestId}] Processing invoice.payment_succeeded`);
-          await handlePaymentSucceeded(event.data.object as Stripe.Invoice, requestId);
+          await handlePaymentSucceeded(event.data.object as Stripe.Invoice, requestId, event.id);
           eventHandled = true;
           break;
           
         case 'invoice.payment_failed':
           console.log(`🔔 [${requestId}] Processing invoice.payment_failed`);
-          await handlePaymentFailed(event.data.object as Stripe.Invoice, requestId);
+          await handlePaymentFailed(event.data.object as Stripe.Invoice, requestId, event.id);
           eventHandled = true;
           break;
           
@@ -232,7 +233,8 @@ async function recordWebhookEvent(
 }
 
 /**
- * Helper: update plan columns
+ * Helper: update plan columns (DEPRECATED - use setPlan instead)
+ * @deprecated Use setPlan() from '@/lib/stripe/plan-sync' instead
  */
 async function updateUserPlan(userId: string, fields: Record<string, any>) {
   const client = getSupabaseClient();
@@ -290,7 +292,7 @@ function mapStripeStatusToPlanStatus(stripeStatus: string): string {
 /**
  * Handle successful checkout session completion
  */
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session, requestId: string) {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling checkout completed:`, session.id);
   
   const userId = session.metadata?.user_id;
@@ -308,12 +310,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, request
   console.log(`✅ [${requestId}] Upgrading user to Pro:`, userId);
   
   try {
-    // Update user plan in database
-    await updateUserPlan(userId, {
-      plan_type: planType,
-      stripe_subscription_id: session.subscription as string,
+    await setPlan({
+      userId,
+      planType: planType as 'free' | 'pro',
       status: 'active',
-      updated_at: new Date().toISOString(),
+      stripeSubscriptionId: session.subscription as string,
+      stripeEventId: eventId,
     });
     
     console.log(`✅ [${requestId}] User plan updated successfully`);
@@ -326,7 +328,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, request
 /**
  * Handle subscription creation
  */
-async function handleSubscriptionCreated(subscription: Stripe.Subscription, requestId: string) {
+async function handleSubscriptionCreated(subscription: Stripe.Subscription, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling subscription created:`, subscription.id);
   
   const userId = subscription.metadata?.user_id;
@@ -340,31 +342,21 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
   }
   
   try {
-    // Update plan with subscription details
     const startIso = toIsoOrNull((subscription as any).current_period_start);
     const endIso = toIsoOrNull((subscription as any).current_period_end);
-    const trialEndIso = toIsoOrNull((subscription as any).trial_end);
     
-    const update: Record<string, any> = {
-      status: mapStripeStatusToPlanStatus(subscription.status),
-      stripe_subscription_id: subscription.id,
-      updated_at: new Date().toISOString(),
-    };
-    
-    if (startIso) update.current_period_start = startIso;
-    if (endIso) update.current_period_end = endIso;
-    if (trialEndIso) update.trial_end = trialEndIso;
-    
-    // Handle trial status
-    if (subscription.status === 'trialing') {
-      update.plan_type = 'pro'; // Ensure user gets Pro features during trial
-    }
-    
-    await updateUserPlan(userId, update);
+    await setPlan({
+      userId,
+      planType: subscription.status === 'trialing' ? 'pro' : 'pro', // Ensure Pro during trial
+      status: mapStripeStatusToPlanStatus(subscription.status) as any,
+      stripeSubscriptionId: subscription.id,
+      currentPeriodStart: startIso,
+      currentPeriodEnd: endIso,
+      stripeEventId: eventId,
+    });
     
     console.log(`✅ [${requestId}] Subscription created:`, {
       status: subscription.status,
-      trialEnd: trialEndIso,
       periodEnd: endIso,
     });
   } catch (error) {
@@ -376,7 +368,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
 /**
  * Handle subscription updates
  */
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requestId: string) {
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling subscription updated:`, subscription.id);
   
   const userId = subscription.metadata?.user_id;
@@ -390,38 +382,27 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
   }
   
   try {
-    // Update plan status with enhanced lifecycle handling
     const startIso = toIsoOrNull((subscription as any).current_period_start);
     const endIso = toIsoOrNull((subscription as any).current_period_end);
-    const trialEndIso = toIsoOrNull((subscription as any).trial_end);
-    
-    const update: Record<string, any> = {
-      status: mapStripeStatusToPlanStatus(subscription.status),
-      updated_at: new Date().toISOString(),
-    };
-    
-    if (startIso) update.current_period_start = startIso;
-    if (endIso) update.current_period_end = endIso;
-    if (trialEndIso) update.trial_end = trialEndIso;
     
     // Handle specific lifecycle events
-    if (subscription.status === 'active' && subscription.trial_end) {
-      // Trial ended, subscription is now active
-      console.log(`🔄 [${requestId}] Trial ended, subscription now active`);
-    } else if (subscription.status === 'past_due') {
-      // Payment failed, subscription is past due
-      console.log(`⚠️ [${requestId}] Subscription past due - payment failed`);
-    } else if (subscription.status === 'canceled') {
-      // Subscription cancelled
-      console.log(`❌ [${requestId}] Subscription cancelled`);
-      update.plan_type = 'free'; // Downgrade to free
+    let planType: 'free' | 'pro' = 'pro';
+    if (subscription.status === 'canceled' || subscription.status === 'cancelled') {
+      planType = 'free'; // Downgrade to free on cancellation
+      console.log(`❌ [${requestId}] Subscription cancelled, downgrading to free`);
     }
     
-    await updateUserPlan(userId, update);
+    await setPlan({
+      userId,
+      planType,
+      status: mapStripeStatusToPlanStatus(subscription.status) as any,
+      currentPeriodStart: startIso,
+      currentPeriodEnd: endIso,
+      stripeEventId: eventId,
+    });
     
     console.log(`✅ [${requestId}] Subscription updated:`, {
       status: subscription.status,
-      trialEnd: trialEndIso,
       periodEnd: endIso,
     });
   } catch (error) {
@@ -477,7 +458,7 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription, requestId: 
 /**
  * Handle subscription cancellation
  */
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription, requestId: string) {
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling subscription deleted:`, subscription.id);
   
   const userId = subscription.metadata?.user_id;
@@ -491,12 +472,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, requ
   }
   
   try {
-    // Downgrade user to free plan
-    await updateUserPlan(userId, {
-      plan_type: 'free',
+    await setPlan({
+      userId,
+      planType: 'free',
       status: 'cancelled',
-      stripe_subscription_id: null,
-      updated_at: new Date().toISOString(),
+      stripeSubscriptionId: null,
+      stripeEventId: eventId,
     });
     
     console.log(`✅ [${requestId}] User downgraded to free plan`);
@@ -509,7 +490,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, requ
 /**
  * Handle successful payment
  */
-async function handlePaymentSucceeded(invoice: Stripe.Invoice, requestId: string) {
+async function handlePaymentSucceeded(invoice: Stripe.Invoice, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling payment succeeded:`, invoice.id);
   
   const subscriptionId = (invoice as any).subscription as string;
@@ -520,27 +501,24 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, requestId: string
   }
   
   try {
-    // Update plan status to active
+    // Find user by subscription ID
     const client = getSupabaseClient();
     const { data: rows, error: selErr } = await (client as any)
       .from('plans')
       .select('user_id')
       .eq('stripe_subscription_id', subscriptionId)
-      .limit(1)
-      .maybeSingle?.() ?? await (client as any)
-        .from('plans')
-        .select('user_id')
-        .eq('stripe_subscription_id', subscriptionId)
-        .single();
+      .maybeSingle();
 
     if (selErr || !rows) {
       console.error(`❌ [${requestId}] Could not resolve user by subscription id:`, selErr);
       throw new Error(`Could not resolve user by subscription id: ${selErr?.message || 'No data'}`);
     }
 
-    await updateUserPlan((rows as any).user_id, {
+    await setPlan({
+      userId: (rows as any).user_id,
+      planType: 'pro',
       status: 'active',
-      updated_at: new Date().toISOString(),
+      stripeEventId: eventId,
     });
     
     console.log(`✅ [${requestId}] Plan status updated to active`);
@@ -553,7 +531,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, requestId: string
 /**
  * Handle failed payment
  */
-async function handlePaymentFailed(invoice: Stripe.Invoice, requestId: string) {
+async function handlePaymentFailed(invoice: Stripe.Invoice, requestId: string, eventId: string) {
   console.log(`🔍 [${requestId}] Handling payment failed:`, invoice.id);
   
   const subscriptionId = (invoice as any).subscription as string;
@@ -564,20 +542,25 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, requestId: string) {
   }
   
   try {
-    // Update plan status to past_due
+    // Find user by subscription ID
     const client = getSupabaseClient();
-    const { error } = await (client as any)
+    const { data: rows, error: selErr } = await (client as any)
       .from('plans')
-      .update({ 
-        status: 'past_due',
-        updated_at: new Date().toISOString()
-      })
-      .eq('stripe_subscription_id', subscriptionId);
-      
-    if (error) {
-      console.error(`❌ [${requestId}] Failed to update plan status:`, error);
-      throw error;
+      .select('user_id')
+      .eq('stripe_subscription_id', subscriptionId)
+      .maybeSingle();
+
+    if (selErr || !rows) {
+      console.error(`❌ [${requestId}] Could not resolve user by subscription id:`, selErr);
+      throw new Error(`Could not resolve user by subscription id: ${selErr?.message || 'No data'}`);
     }
+
+    await setPlan({
+      userId: (rows as any).user_id,
+      planType: 'pro', // Keep as pro, just mark as past_due
+      status: 'past_due',
+      stripeEventId: eventId,
+    });
     
     console.log(`✅ [${requestId}] Plan status updated to past_due`);
   } catch (error) {
