@@ -519,15 +519,19 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
         throw new Error(`Failed to create plan: ${insertError.message}`);
       }
       console.log(`✅ Created new plan for user ${userId}`);
+      // Continue to record webhook event below
       return;
     }
     
     console.log(`✅ Plan updated successfully for user ${userId} (without period dates):`, retryResult);
+    // Update the variable for consistency with rest of function
+    updateResult = retryResult;
   } else if (error) {
     console.error(`❌ Failed to set plan for user ${userId}:`, error);
     throw new Error(`Failed to update plan: ${error.message}`);
   }
 
+  // Handle case where update returned no rows (should not happen after retry above)
   if (!updateResult || updateResult.length === 0) {
     console.warn(`⚠️ Plan update returned no rows for user ${userId} - plan may not exist`);
     // Plan might not exist - try creating it
