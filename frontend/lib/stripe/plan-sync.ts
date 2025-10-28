@@ -459,10 +459,12 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
   if (stripeCustomerId !== undefined) {
     updatePayload.stripe_customer_id = stripeCustomerId;
   }
-  if (currentPeriodStart !== undefined) {
+  // Only include period dates if they're provided and not null
+  // Note: These columns may not exist in all database instances
+  if (currentPeriodStart) {
     updatePayload.current_period_start = currentPeriodStart;
   }
-  if (currentPeriodEnd !== undefined) {
+  if (currentPeriodEnd) {
     updatePayload.current_period_end = currentPeriodEnd;
   }
 
@@ -474,11 +476,42 @@ export async function setPlan(options: SetPlanOptions): Promise<void> {
     updatePayload,
   });
 
-  const { data: updateResult, error } = await (client as any)
-    .from('plans')
-    .update(updatePayload)
-    .eq('user_id', userId)
-    .select();
+  let updateResult: any;
+  let error: any;
+  
+  try {
+    const result = await (client as any)
+      .from('plans')
+      .update(updatePayload)
+      .eq('user_id', userId)
+      .select();
+    
+    updateResult = result.data;
+    error = result.error;
+  } catch (updateError: any) {
+    // Handle column not found errors - retry without period date columns
+    if (updateError?.message?.includes('current_period_start') || 
+        updateError?.message?.includes('current_period_end') ||
+        updateError?.message?.includes('schema cache')) {
+      console.warn(`⚠️ Column error detected, retrying without period date columns for user ${userId}`);
+      
+      // Remove period date columns and retry
+      const safePayload = { ...updatePayload };
+      delete safePayload.current_period_start;
+      delete safePayload.current_period_end;
+      
+      const retryResult = await (client as any)
+        .from('plans')
+        .update(safePayload)
+        .eq('user_id', userId)
+        .select();
+      
+      updateResult = retryResult.data;
+      error = retryResult.error;
+    } else {
+      throw updateError;
+    }
+  }
 
   if (error) {
     console.error(`❌ Failed to set plan for user ${userId}:`, error);

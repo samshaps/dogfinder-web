@@ -352,15 +352,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, request
     // Map subscription status to our plan status
     const planStatus = mapStripeStatusToPlanStatus(subscriptionStatus) as any;
     
-    await setPlan({
+    // Build setPlan options, only including period dates if we have them
+    const setPlanOptions: any = {
       userId,
       planType: planType as 'free' | 'pro',
       status: planStatus,
-      stripeSubscriptionId: subscriptionId,
-      currentPeriodStart,
-      currentPeriodEnd,
+      stripeSubscriptionId: subscriptionId || null,
       stripeEventId: eventId,
-    });
+    };
+    
+    // Only include period dates if we successfully retrieved them
+    if (currentPeriodStart) {
+      setPlanOptions.currentPeriodStart = currentPeriodStart;
+    }
+    if (currentPeriodEnd) {
+      setPlanOptions.currentPeriodEnd = currentPeriodEnd;
+    }
+    
+    await setPlan(setPlanOptions);
     
     console.log(`✅ [${requestId}] User plan updated successfully:`, {
       userId,
