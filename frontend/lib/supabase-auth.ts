@@ -176,14 +176,21 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
   // Code uses: zip_codes, age_preferences, size_preferences, energy_level, include_breeds, exclude_breeds, temperament_traits, living_situation
   const dbData: any = {
     user_id: userId,
+    // Location is required (NOT NULL), use first zip code or a default
     location: preferencesData.zip_codes && preferencesData.zip_codes.length > 0 
       ? preferencesData.zip_codes[0] 
-      : null,
+      : 'Unknown',
     radius: 50, // Default radius
-    // Map breeds - combine include and exclude into notes for now, or store in lifestyle JSONB
-    breed: preferencesData.include_breeds || null,
-    size: preferencesData.size_preferences || null,
-    age: preferencesData.age_preferences || null,
+    // Map breeds - store include breeds in breed column
+    breed: preferencesData.include_breeds && preferencesData.include_breeds.length > 0 
+      ? preferencesData.include_breeds 
+      : null,
+    size: preferencesData.size_preferences && preferencesData.size_preferences.length > 0
+      ? preferencesData.size_preferences
+      : null,
+    age: preferencesData.age_preferences && preferencesData.age_preferences.length > 0
+      ? preferencesData.age_preferences
+      : null,
     // Store additional data in lifestyle JSONB field
     lifestyle: {
       zip_codes: preferencesData.zip_codes || [],
