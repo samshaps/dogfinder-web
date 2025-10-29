@@ -18,6 +18,15 @@ interface PlanInfo {
   features: string[];
 }
 
+interface BillingInfo {
+  planType: string;
+  hasActiveSubscription: boolean;
+  isScheduledForCancellation: boolean;
+  nextBillingDate: string | null;
+  finalBillingDate?: string | null;
+  wasDowngradedFromPro: boolean;
+}
+
 function ProfilePageContent() {
   const { user, signOut } = useUser();
   const router = useRouter();
@@ -32,6 +41,7 @@ function ProfilePageContent() {
   const [showDowngradeModal, setShowDowngradeModal] = useState(false);
   const [downgrading, setDowngrading] = useState(false);
   const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
 
   useEffect(() => {
     trackEvent("profile_viewed", {
@@ -81,23 +91,23 @@ function ProfilePageContent() {
         setUpgradeSuccess(false); // Clear success message once upgrade is confirmed
       }
 
-      // Check if subscription is scheduled for cancellation
-      if (plan?.isPro) {
-        try {
-          const statusResponse = await fetch('/api/stripe/downgrade-status');
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            if (statusData.isScheduledForCancellation && statusData.periodEnd) {
-              setDowngradeSuccess({ periodEnd: statusData.periodEnd });
-            }
+      // Load billing information
+      try {
+        const billingResponse = await fetch('/api/stripe/billing-info');
+        if (billingResponse.ok) {
+          const billingData = await billingResponse.json();
+          setBillingInfo(billingData);
+          
+          // If subscription is scheduled for cancellation, set downgrade success state
+          if (billingData.isScheduledForCancellation && billingData.finalBillingDate) {
+            setDowngradeSuccess({ periodEnd: billingData.finalBillingDate });
+          } else {
+            setDowngradeSuccess(null);
           }
-        } catch (error) {
-          console.error('Error checking downgrade status:', error);
-          // Don't fail the whole page load if this fails
         }
-      } else {
-        // Clear downgrade success if not Pro
-        setDowngradeSuccess(null);
+      } catch (error) {
+        console.error('Error loading billing info:', error);
+        // Don't fail the whole page load if this fails
       }
     } catch (error) {
       console.error('Error loading plan info:', error);
@@ -314,6 +324,33 @@ function ProfilePageContent() {
                           : 'Enjoy the free plan with basic search. Upgrade to Pro to receive email alerts when new dogs match your preferences and unlock unlimited searches.'
                         }
                       </p>
+                      
+                      {/* Billing Information */}
+                      {billingInfo && (
+                        <div className="mb-3 pt-3 border-t border-gray-200">
+                          {planInfo.isPro && billingInfo.nextBillingDate && !billingInfo.isScheduledForCancellation && (
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Next billing date:</span>{' '}
+                              {new Date(billingInfo.nextBillingDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          )}
+                          {!planInfo.isPro && billingInfo.wasDowngradedFromPro && billingInfo.finalBillingDate && (
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Upcoming final billing date:</span>{' '}
+                              {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {planInfo.features.slice(0, 3).map((feature, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -329,7 +366,7 @@ function ProfilePageContent() {
                       )}
                     </div>
                     
-                    {!planInfo.isPro && (
+                    {!planInfo.isPro && !billingInfo?.wasDowngradedFromPro && (
                       <div className="space-y-3">
                         <button
                           onClick={() => {
@@ -349,6 +386,27 @@ function ProfilePageContent() {
                         </button>
                         <p id="upgrade-description" className="text-xs text-gray-600 text-center">
                           Unlock email alerts, unlimited searches, and all premium features for $9.99/month
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Free user who downgraded from Pro */}
+                    {!planInfo.isPro && billingInfo?.wasDowngradedFromPro && (
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => {
+                            trackEvent('profile_manage_subscription_clicked', {
+                              user_id: user?.id,
+                              source: 'profile_page_downgraded_user'
+                            });
+                            router.push('/pricing');
+                          }}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          Manage Subscription
+                        </button>
+                        <p className="text-xs text-gray-600 text-center">
+                          Re-subscribe to Pro before your plan expires to restore Pro features.
                         </p>
                       </div>
                     )}
@@ -392,24 +450,23 @@ function ProfilePageContent() {
                           </div>
                         )}
                         {!downgradeSuccess?.periodEnd && (
-                          <button
-                            onClick={() => {
-                              trackEvent('profile_downgrade_button_clicked', {
-                                user_id: user?.id,
-                                source: 'profile_page'
-                              });
-                              setShowDowngradeModal(true);
-                            }}
-                            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                            aria-describedby="downgrade-description"
-                          >
-                            Downgrade to Free Plan
-                          </button>
-                        )}
-                        {!downgradeSuccess?.periodEnd && (
-                          <p id="downgrade-description" className="text-xs text-gray-600 text-center">
-                            Cancel your Pro subscription. You'll keep access until the end of your billing period.
-                          </p>
+                          <>
+                            <button
+                              onClick={() => {
+                                trackEvent('profile_manage_subscription_clicked', {
+                                  user_id: user?.id,
+                                  source: 'profile_page_pro_user'
+                                });
+                                router.push('/pricing');
+                              }}
+                              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            >
+                              Manage Subscription
+                            </button>
+                            <p className="text-xs text-gray-600 text-center">
+                              Manage your subscription or downgrade to Free Plan
+                            </p>
+                          </>
                         )}
                       </div>
                     )}

@@ -14,11 +14,22 @@ interface PlanInfo {
   features: string[];
 }
 
+interface BillingInfo {
+  planType: string;
+  hasActiveSubscription: boolean;
+  isScheduledForCancellation: boolean;
+  nextBillingDate: string | null;
+  finalBillingDate?: string | null;
+  wasDowngradedFromPro: boolean;
+}
+
 export default function PricingPage() {
   const { user } = useUser();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
 
   useEffect(() => {
     // Track page view
@@ -39,6 +50,17 @@ export default function PricingPage() {
       setLoading(true);
       const plan = await getUserPlan(user.id);
       setPlanInfo(plan);
+
+      // Load billing information
+      try {
+        const billingResponse = await fetch('/api/stripe/billing-info');
+        if (billingResponse.ok) {
+          const billingData = await billingResponse.json();
+          setBillingInfo(billingData);
+        }
+      } catch (error) {
+        console.error('Error loading billing info:', error);
+      }
     } catch (error) {
       console.error('Error loading plan info:', error);
     } finally {
@@ -61,7 +83,8 @@ export default function PricingPage() {
       setUpgrading(true);
       trackEvent('pricing_cta_pro', {
         authenticated: true,
-        current_plan: planInfo?.planType || 'free'
+        current_plan: planInfo?.planType || 'free',
+        action: billingInfo?.isScheduledForCancellation ? 'resubscribe' : 'upgrade'
       });
 
       const response = await fetch('/api/stripe/create-checkout-session', {
@@ -83,6 +106,39 @@ export default function PricingPage() {
       alert('Failed to start upgrade process. Please try again.');
     } finally {
       setUpgrading(false);
+    }
+  };
+
+  const handleDowngrade = async () => {
+    if (!user) return;
+
+    try {
+      setDowngrading(true);
+      trackEvent('pricing_downgrade_initiated', {
+        user_id: user.id,
+        source: 'pricing_page'
+      });
+
+      const response = await fetch('/api/stripe/downgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to downgrade plan');
+      }
+
+      // Reload plan info to reflect changes
+      await loadPlanInfo();
+      
+      // Redirect to profile to see the downgrade confirmation
+      window.location.href = '/profile';
+    } catch (error: any) {
+      console.error('Error downgrading:', error);
+      alert(error.message || 'Failed to downgrade plan. Please try again or contact support.');
+    } finally {
+      setDowngrading(false);
     }
   };
 
@@ -143,19 +199,15 @@ export default function PricingPage() {
               </ul>
 
               <button
-                onClick={() => {
-                  trackEvent('pricing_cta_free', {
-                    authenticated: !!user,
-                    current_plan: planInfo?.planType || 'free'
-                  });
-                  if (!user) {
-                    window.location.href = '/auth/signin';
-                  }
-                }}
-                className="w-full bg-gray-100 text-gray-800 font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors cursor-not-allowed"
-                disabled
+                onClick={isPro ? handleDowngrade : undefined}
+                disabled={!isPro || downgrading}
+                className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                  isPro 
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-gray-100 text-gray-800 cursor-not-allowed'
+                } ${downgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isPro ? 'Downgrade Available' : 'Current Plan'}
+                {downgrading ? 'Processing...' : isPro ? 'Downgrade to Free' : 'Current Plan'}
               </button>
             </div>
 
@@ -193,17 +245,36 @@ export default function PricingPage() {
 
               <button
                 onClick={handleUpgrade}
-                disabled={upgrading || isPro}
+                disabled={upgrading || (isPro && !billingInfo?.isScheduledForCancellation)}
                 className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                  isPro 
+                  isPro && !billingInfo?.isScheduledForCancellation
                     ? 'bg-green-500 text-white cursor-not-allowed' 
                     : upgrading 
                       ? 'bg-gray-400 text-white cursor-not-allowed'
                       : 'bg-white text-blue-600 hover:bg-gray-100'
                 }`}
               >
-                {upgrading ? 'Processing...' : isPro ? 'Active Plan' : 'Upgrade to Pro'}
+                {upgrading 
+                  ? 'Processing...' 
+                  : isPro && !billingInfo?.isScheduledForCancellation
+                    ? 'Active Plan' 
+                    : billingInfo?.isScheduledForCancellation
+                      ? 'Re-subscribe to Pro'
+                      : billingInfo?.wasDowngradedFromPro
+                        ? 'Re-subscribe to Pro'
+                        : 'Upgrade to Pro'
+                }
               </button>
+              
+              {billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate && (
+                <p className="text-xs text-white/80 mt-2">
+                  Plan expires on {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              )}
             </div>
           </div>
 

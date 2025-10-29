@@ -19,7 +19,8 @@ export type AuthEvent =
 export type PricingEvent =
   | 'pricing_page_viewed'
   | 'pricing_cta_free'
-  | 'pricing_cta_pro';
+  | 'pricing_cta_pro'
+  | 'pricing_downgrade_initiated';
 
 // Intake flow events
 export type IntakeEvent =
