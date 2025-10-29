@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProviders } from "@/components/AuthProviders";
+import Navigation from "@/components/Navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,6 +49,7 @@ export default function RootLayout({
       >
         <AuthProviders>
           <ErrorBoundary>
+            <Navigation />
             {children}
           </ErrorBoundary>
         </AuthProviders>

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search } from 'lucide-react';
-import Navigation from './Navigation';
 
 export default function HomePageClient() {
   const smoothScrollTo = (targetId: string) => {
@@ -36,7 +35,6 @@ export default function HomePageClient() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navigation />
 
       {/* Hero Section */}
       <div className="bg-white">

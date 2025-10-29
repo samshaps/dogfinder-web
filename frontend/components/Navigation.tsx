@@ -26,7 +26,11 @@ export default function Navigation() {
             <div className="flex items-center">
               <Link href="/" className="flex-shrink-0 flex items-center">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">🐾</span>
+                  {/* Two light gray paw prints */}
+                  <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C9.24 2 7 4.24 7 7c0 4.5 5 11 5 11s5-6.5 5-11c0-2.76-2.24-5-5-5zm-1.5 8c-.83 0-1.5-.67-1.5-1.5S9.67 7.5 10.5 7.5 12 8.17 12 9s-.67 1.5-1.5 1.5zm3 0c-.83 0-1.5-.67-1.5-1.5S12.67 7.5 13.5 7.5 15 8.17 15 9s-.67 1.5-1.5 1.5zM12 8.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+                    <path d="M8 11.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm8 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" opacity="0.7"/>
+                  </svg>
                 </div>
                 <span className="ml-2 text-xl font-bold text-gray-900">DogYenta</span>
               </Link>
