@@ -20,7 +20,10 @@ export type PricingEvent =
   | 'pricing_page_viewed'
   | 'pricing_cta_free'
   | 'pricing_cta_pro'
-  | 'pricing_downgrade_initiated';
+  | 'pricing_downgrade_initiated'
+  | 'pricing_downgrade_success'
+  | 'pricing_downgrade_failed'
+  | 'pricing_manage_subscription_clicked';
 
 // Intake flow events
 export type IntakeEvent =

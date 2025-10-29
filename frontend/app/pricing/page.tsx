@@ -30,6 +30,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [downgrading, setDowngrading] = useState(false);
+  const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
 
   useEffect(() => {
     // Track page view
@@ -110,7 +111,15 @@ export default function PricingPage() {
   };
 
   const handleDowngrade = async () => {
-    if (!user) return;
+    if (!user) {
+      // Redirect to sign in if not authenticated
+      trackEvent('pricing_downgrade_initiated', {
+        authenticated: false,
+        source: 'pricing_page'
+      });
+      window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent('/pricing');
+      return;
+    }
 
     try {
       setDowngrading(true);
@@ -121,7 +130,10 @@ export default function PricingPage() {
 
       const response = await fetch('/api/stripe/downgrade', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Ensure cookies are sent
       });
 
       if (!response.ok) {
@@ -129,14 +141,36 @@ export default function PricingPage() {
         throw new Error(error.error || 'Failed to downgrade plan');
       }
 
+      const data = await response.json();
+      
+      trackEvent('pricing_downgrade_success', {
+        user_id: user.id,
+        periodEnd: data.periodEnd,
+      });
+
+      // Show success message with expiration date
+      setDowngradeSuccess({ periodEnd: data.periodEnd });
+
       // Reload plan info to reflect changes
       await loadPlanInfo();
       
-      // Redirect to profile to see the downgrade confirmation
-      window.location.href = '/profile';
+      // Scroll to top to show success message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {
       console.error('Error downgrading:', error);
-      alert(error.message || 'Failed to downgrade plan. Please try again or contact support.');
+      
+      // Check if it's an authentication error
+      if (error.message?.includes('Authentication') || error.message?.includes('401')) {
+        alert('Your session may have expired. Please sign in again.');
+        window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent('/pricing');
+      } else {
+        alert(error.message || 'Failed to downgrade plan. Please try again or contact support.');
+      }
+      
+      trackEvent('pricing_downgrade_failed', {
+        user_id: user?.id,
+        error: error.message,
+      });
     } finally {
       setDowngrading(false);
     }
@@ -164,6 +198,41 @@ export default function PricingPage() {
                   {PLANS[currentPlan as keyof typeof PLANS]?.name || 'Free'}
                 </span>
               </p>
+            </div>
+          )}
+
+          {/* Downgrade Success Message */}
+          {downgradeSuccess?.periodEnd && (
+            <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl shadow-lg max-w-2xl mx-auto">
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold text-amber-900">
+                  Downgrade Successful
+                </h2>
+                <p className="text-amber-900 font-medium">
+                  Your Pro plan will end on {new Date(downgradeSuccess.periodEnd).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}.
+                </p>
+                <p className="text-sm text-amber-800">
+                  Email alerts have been disabled. You'll keep access to Pro features until your plan expires. 
+                  You can re-subscribe anytime before then to restore Pro features.
+                </p>
+                <button
+                  onClick={() => {
+                    trackEvent('pricing_manage_subscription_clicked', {
+                      user_id: user?.id,
+                      source: 'downgrade_success_message'
+                    });
+                    // Scroll to Pro plan card
+                    document.getElementById('pro-plan-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                >
+                  Manage Subscription
+                </button>
+              </div>
             </div>
           )}
 
@@ -212,7 +281,7 @@ export default function PricingPage() {
             </div>
 
             {/* Pro Plan */}
-            <div className={`bg-blue-600 text-white rounded-2xl shadow-xl p-8 border-2 border-blue-700 relative ${isPro ? 'border-green-500' : ''}`}>
+            <div id="pro-plan-card" className={`bg-blue-600 text-white rounded-2xl shadow-xl p-8 border-2 border-blue-700 relative ${isPro ? 'border-green-500' : ''}`}>
               {!isPro && (
                 <div className="absolute top-0 right-8 -mt-4 bg-yellow-400 text-blue-900 px-4 py-1 rounded-full text-sm font-bold">
                   POPULAR
