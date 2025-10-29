@@ -264,13 +264,26 @@ export default function PricingPage() {
                   Downgrade Successful
                 </h2>
                 <p className="text-amber-900 font-medium">
-                  Your Pro plan will end on {new Date(
-                    downgradeSuccess?.periodEnd || billingInfo?.finalBillingDate || ''
-                  ).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}.
+                  Your Pro plan will end on {(() => {
+                    const dateStr = downgradeSuccess?.periodEnd || billingInfo?.finalBillingDate;
+                    if (!dateStr) return 'the end of your billing period';
+                    
+                    try {
+                      const date = new Date(dateStr);
+                      if (isNaN(date.getTime())) {
+                        console.error('Invalid date string:', dateStr);
+                        return 'the end of your billing period';
+                      }
+                      return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      });
+                    } catch (error) {
+                      console.error('Error formatting date:', error, dateStr);
+                      return 'the end of your billing period';
+                    }
+                  })()}.
                 </p>
                 <p className="text-sm text-amber-800">
                   Email alerts have been disabled. You'll keep access to Pro features until your plan expires. 
