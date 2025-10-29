@@ -44,6 +44,16 @@ export default function PricingPage() {
     }
   }, [user]);
 
+  // Check if downgrade is scheduled on mount (persist success message on page reload)
+  useEffect(() => {
+    if (user && billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate) {
+      setDowngradeSuccess({ periodEnd: billingInfo.finalBillingDate });
+    } else if (!billingInfo?.isScheduledForCancellation) {
+      // Clear success message if not scheduled
+      setDowngradeSuccess(null);
+    }
+  }, [billingInfo, user]);
+
   const loadPlanInfo = async () => {
     if (!user?.id) return;
     
@@ -148,14 +158,36 @@ export default function PricingPage() {
         periodEnd: data.periodEnd,
       });
 
-      // Show success message with expiration date
-      setDowngradeSuccess({ periodEnd: data.periodEnd });
+      // Show success message with expiration date immediately
+      if (data.periodEnd) {
+        setDowngradeSuccess({ periodEnd: data.periodEnd });
+      }
+
+      // Force reload billing info first to get updated cancellation status
+      try {
+        const billingResponse = await fetch('/api/stripe/billing-info', {
+          credentials: 'include',
+        });
+        if (billingResponse.ok) {
+          const billingData = await billingResponse.json();
+          setBillingInfo(billingData);
+          
+          // Also set success message from billing data if needed
+          if (billingData.isScheduledForCancellation && billingData.finalBillingDate) {
+            setDowngradeSuccess({ periodEnd: billingData.finalBillingDate });
+          }
+        }
+      } catch (error) {
+        console.error('Error reloading billing info:', error);
+      }
 
       // Reload plan info to reflect changes
       await loadPlanInfo();
       
       // Scroll to top to show success message
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     } catch (error: any) {
       console.error('Error downgrading:', error);
       
@@ -202,14 +234,16 @@ export default function PricingPage() {
           )}
 
           {/* Downgrade Success Message */}
-          {downgradeSuccess?.periodEnd && (
+          {(downgradeSuccess?.periodEnd || billingInfo?.isScheduledForCancellation) && (
             <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl shadow-lg max-w-2xl mx-auto">
               <div className="space-y-3">
                 <h2 className="text-2xl font-bold text-amber-900">
                   Downgrade Successful
                 </h2>
                 <p className="text-amber-900 font-medium">
-                  Your Pro plan will end on {new Date(downgradeSuccess.periodEnd).toLocaleDateString('en-US', { 
+                  Your Pro plan will end on {new Date(
+                    downgradeSuccess?.periodEnd || billingInfo?.finalBillingDate || ''
+                  ).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
@@ -230,7 +264,7 @@ export default function PricingPage() {
                   }}
                   className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
                 >
-                  Manage Subscription
+                  Re-subscribe to Pro
                 </button>
               </div>
             </div>
@@ -268,15 +302,21 @@ export default function PricingPage() {
               </ul>
 
               <button
-                onClick={isPro ? handleDowngrade : undefined}
-                disabled={!isPro || downgrading}
+                onClick={isPro && !billingInfo?.isScheduledForCancellation ? handleDowngrade : undefined}
+                disabled={!isPro || downgrading || billingInfo?.isScheduledForCancellation}
                 className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                  isPro 
+                  isPro && !billingInfo?.isScheduledForCancellation
                     ? 'bg-red-600 hover:bg-red-700 text-white'
                     : 'bg-gray-100 text-gray-800 cursor-not-allowed'
                 } ${downgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {downgrading ? 'Processing...' : isPro ? 'Downgrade to Free' : 'Current Plan'}
+                {downgrading 
+                  ? 'Processing...' 
+                  : isPro && billingInfo?.isScheduledForCancellation
+                    ? 'Downgrade Scheduled' 
+                    : isPro 
+                      ? 'Downgrade to Free' 
+                      : 'Current Plan'}
               </button>
             </div>
 
