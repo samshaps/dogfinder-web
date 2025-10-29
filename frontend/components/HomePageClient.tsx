@@ -39,7 +39,7 @@ export default function HomePageClient() {
       {/* Hero Section */}
       <div className="bg-surface page-section">
         <div className="container mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-4 lg:gap-6">
             {/* Left: Copy */}
             <div className="text-center lg:text-left">
               <div>
