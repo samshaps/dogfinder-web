@@ -434,8 +434,8 @@ export default function FindPage() {
         <div className="container mx-auto max-w-4xl">
           <div className="card card-padding">
             <div className="text-center mb-8">
-              <h1 className="mb-4">Let's make you a match</h1>
-              <p className="mt-2 text-slate-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
+              <h1>Let's make you a match</h1>
+              <p className="mt-2 lead text-measure mx-auto">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
             </div>
 
           {/* Preferences Saved Indicator */}

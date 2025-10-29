@@ -219,7 +219,7 @@ function ProfilePageContent() {
             <div className="space-y-6">
               {/* Account Information */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                <h2 className="mb-4">
                   Account Information
                 </h2>
                 <div className="space-y-3">
@@ -240,7 +240,7 @@ function ProfilePageContent() {
 
               {/* Plan Information */}
               <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2" id="plan-section">
+                <h2 className="mb-4 flex items-center gap-2" id="plan-section">
                   {planInfo?.isPro ? (
                     <Crown className="w-5 h-5 text-yellow-500" aria-hidden="true" />
                   ) : (
@@ -486,7 +486,7 @@ function ProfilePageContent() {
 
               {/* Edit Preferences Button */}
               <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Search Preferences</h3>
+                <h3 className="mb-3">Search Preferences</h3>
                 <button
                   onClick={() => {
                     trackEvent("preferences_viewed", {
@@ -513,7 +513,7 @@ function ProfilePageContent() {
 
               {/* Search History Section */}
               <div className="border-t pt-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4" id="search-history-section">
+                <h2 className="mb-4" id="search-history-section">
                   Search History
                 </h2>
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 text-center">
@@ -522,8 +522,8 @@ function ProfilePageContent() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Search History Coming Soon</h3>
-                  <p className="text-gray-600 text-sm mb-4">
+                  <h3 className="mb-2">Search History Coming Soon</h3>
+                  <p className="body-text text-sm mb-4">
                     We're working on a feature to track your past searches so you can easily revisit dogs you've found.
                   </p>
                   <div className="flex items-center justify-center gap-2 text-xs text-blue-600">
@@ -565,7 +565,7 @@ function ProfilePageContent() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 id="downgrade-modal-title" className="text-2xl font-bold text-gray-900">
+              <h2 id="downgrade-modal-title" className="text-gray-900">
                 Downgrade to Free?
               </h2>
               <button

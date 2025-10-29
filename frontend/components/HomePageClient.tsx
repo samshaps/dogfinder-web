@@ -48,7 +48,7 @@ export default function HomePageClient() {
                   <br className="hidden lg:block" />
                   {" "}<span className="text-blue-600">rescue dog.</span>
                 </h1>
-                <p className="mt-2 text-slate-600 text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                <p className="mt-2 lead text-measure mx-auto lg:mx-0">
                   Personalized rescue-dog matches for your lifestyle.
                   <br />
                   Because finding your best friend shouldn&apos;t feel like a full-time job.
@@ -69,7 +69,7 @@ export default function HomePageClient() {
                       See how it works
                     </button>
                   </div>
-                  <p className="mt-3 text-xs text-slate-500 text-center lg:text-left">Powered by Petfinder • Updated daily</p>
+                  <p className="mt-3 caption text-center lg:text-left">Powered by Petfinder • Updated daily</p>
                 </div>
               </div>
             </div>
@@ -106,10 +106,10 @@ export default function HomePageClient() {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3>
                 Talk to the yenta
               </h3>
-              <p className="text-slate-600">
+              <p className="body-text">
                 Tell DogYenta about your lifestyle and what you&apos;re looking for—location, breed preferences, size, temperament, and must-haves.
               </p>
             </div>
@@ -119,10 +119,10 @@ export default function HomePageClient() {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">2</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3>
                 AI analysis
               </h3>
-              <p className="text-slate-600">
+              <p className="body-text">
                 Our AI reviews each new Petfinder listing—tags, foster descriptions, and photos—to understand the dog&apos;s personality and fit.
               </p>
             </div>
@@ -132,10 +132,10 @@ export default function HomePageClient() {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">3</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3>
                 Your matches, delivered
               </h3>
-              <p className="text-slate-600">
+              <p className="body-text">
                 We combine your preferences with the AI&apos;s analysis to highlight the dogs most likely to be your perfect match.
               </p>
             </div>
@@ -147,10 +147,10 @@ export default function HomePageClient() {
       <div className="bg-blue-600 page-section">
         <div className="container mx-auto">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
+            <h2 className="text-white mb-4">
               Ready to find your perfect match?
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="lead text-blue-100 mb-8 text-measure mx-auto">
               Start your search today and discover dogs that fit your lifestyle.
             </p>
             <Link
@@ -166,7 +166,7 @@ export default function HomePageClient() {
 
       {/* Footer */}
       <footer className="bg-white border-t">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="container mx-auto py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center mb-4">

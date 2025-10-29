@@ -238,10 +238,10 @@ export default function PricingPage() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="page-section">
         <div className="container mx-auto max-w-4xl text-center">
-          <h1 className="mb-6">
+          <h1>
             Never Miss Your Perfect Pup Again!
           </h1>
-          <p className="mt-2 text-xl text-slate-600 mb-12">
+          <p className="mt-2 lead text-measure-wide mx-auto mb-12">
             Get instant email alerts when new dogs matching your exact preferences are available.
             Your furry best friend is just an email away.
           </p>
@@ -260,7 +260,7 @@ export default function PricingPage() {
           {(downgradeSuccess?.periodEnd || billingInfo?.isScheduledForCancellation) && (
             <div className="mb-8 p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl shadow-lg max-w-2xl mx-auto">
               <div className="space-y-3">
-                <h2 className="text-2xl font-bold text-amber-900">
+                <h2 className="text-amber-900">
                   Downgrade Successful
                 </h2>
                 <p className="text-amber-900 font-medium">
@@ -317,11 +317,11 @@ export default function PricingPage() {
               )}
               
               <div className="mb-6">
-                <h3 className="text-2xl font-bold mb-2">Free Plan</h3>
+                <h3 className="mb-2">Free Plan</h3>
                 <div className="text-4xl font-extrabold mb-4">
                   $0<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="text-slate-600">Perfect for getting started and finding your ideal dog</p>
+                <p className="body-text">Perfect for getting started and finding your ideal dog</p>
               </div>
               
               <ul className="space-y-3 mb-8 text-left">
@@ -330,7 +330,7 @@ export default function PricingPage() {
                     <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-slate-600">{feature}</span>
+                    <span className="body-text">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -367,11 +367,11 @@ export default function PricingPage() {
               )}
               
               <div className="mb-6">
-                <h3 className="text-2xl font-bold mb-2">Pro Plan</h3>
+                <h3 className="mb-2">Pro Plan</h3>
                 <div className="text-4xl font-extrabold mb-4">
                   $9.99<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="text-slate-600">Unlock advanced features for a truly personalized experience</p>
+                <p className="body-text">Unlock advanced features for a truly personalized experience</p>
               </div>
               
               <ul className="space-y-3 mb-8 text-left">
@@ -380,7 +380,7 @@ export default function PricingPage() {
                     <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-slate-600">{feature}</span>
+                    <span className="body-text">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -410,7 +410,7 @@ export default function PricingPage() {
               )}
               
               {billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate && (
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="caption mt-2">
                   Plan expires on {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -427,22 +427,22 @@ export default function PricingPage() {
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="text-4xl mb-4">🎯</div>
-                <h3 className="text-xl font-semibold mb-2">Perfect Matches</h3>
-                <p className="text-slate-600">
+                <h3 className="mb-2">Perfect Matches</h3>
+                <p className="body-text">
                   Our advanced algorithm connects you with dogs that meet your exact criteria
                 </p>
               </div>
               <div className="text-center">
                 <div className="text-4xl mb-4">⚡</div>
-                <h3 className="text-xl font-semibold mb-2">Instant Alerts</h3>
-                <p className="text-slate-600">
+                <h3 className="mb-2">Instant Alerts</h3>
+                <p className="body-text">
                   Be the first to know about new dogs that match your preferences
                 </p>
               </div>
               <div className="text-center">
                 <div className="text-4xl mb-4">🔒</div>
-                <h3 className="text-xl font-semibold mb-2">Secure & Private</h3>
-                <p className="text-slate-600">
+                <h3 className="mb-2">Secure & Private</h3>
+                <p className="body-text">
                   Your preferences and data are safe with us, always
                 </p>
               </div>
