@@ -104,10 +104,26 @@ export async function POST(request: NextRequest) {
         : null;
 
       // Immediately disable email alerts (Pro feature)
-      await (client as any)
+      // Use upsert to ensure a row exists, then disable
+      const { error: alertError } = await (client as any)
         .from('alert_settings')
-        .update({ enabled: false })
-        .eq('user_id', userId);
+        .upsert(
+          {
+            user_id: userId,
+            enabled: false,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: 'user_id',
+          }
+        );
+
+      if (alertError) {
+        console.error(`⚠️ Failed to disable email alerts for user ${userId}:`, alertError);
+        // Continue anyway - subscription cancellation is more important
+      } else {
+        console.log(`✅ Email alerts disabled for user ${userId}`);
+      }
 
       // Update plan status to reflect cancellation is scheduled
       // Keep plan_type as 'pro' until period end, but mark status appropriately
@@ -124,7 +140,8 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Downgrade scheduled for user ${userId}:`, {
         subscriptionId: updatedSubscription.id,
         periodEnd,
-        emailAlertsDisabled: true,
+        emailAlertsDisabled: !alertError,
+        alertError: alertError?.message,
       });
 
       return okJson({
