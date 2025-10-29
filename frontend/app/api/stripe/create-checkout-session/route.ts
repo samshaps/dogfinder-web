@@ -44,21 +44,44 @@ export async function POST(request: NextRequest) {
     const userId = (userData as any).id;
     console.log('✅ User found:', userId);
 
-    // Check current plan
+    // Check current plan and subscription status
     const { data: planData } = await (client as any)
       .from('plans')
-      .select('plan_type')
+      .select('plan_type, stripe_subscription_id')
       .eq('user_id', userId)
       .single();
 
     const currentPlan = planData?.plan_type || 'free';
+    const subscriptionId = planData?.stripe_subscription_id;
     
-    if (currentPlan === 'pro') {
-      console.log('❌ User already has Pro plan');
-      return NextResponse.json(
-        { error: 'User already has Pro plan' },
-        { status: 400 }
-      );
+    // If user has a Pro plan with an active subscription, check if it's scheduled for cancellation
+    if (currentPlan === 'pro' && subscriptionId) {
+      try {
+        const stripe = getStripeServer();
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Only block if they have an active subscription that's NOT scheduled for cancellation
+        // If it's scheduled for cancellation (cancel_at_period_end = true), allow resubscription
+        if (subscription.status === 'active' || subscription.status === 'trialing') {
+          if (!subscription.cancel_at_period_end) {
+            console.log('❌ User already has active Pro plan that is not scheduled for cancellation');
+            return NextResponse.json(
+              { error: 'You already have an active Pro plan. If you want to manage your subscription, please use the profile page.' },
+              { status: 400 }
+            );
+          } else {
+            console.log('✅ User has Pro plan scheduled for cancellation, allowing resubscription');
+          }
+        }
+      } catch (stripeError: any) {
+        // If subscription doesn't exist in Stripe but exists in our DB, allow resubscription
+        if (stripeError.code === 'resource_missing') {
+          console.log('⚠️ Subscription not found in Stripe but exists in DB, allowing resubscription');
+        } else {
+          console.error('Error checking subscription:', stripeError);
+          // On error, continue with checkout creation
+        }
+      }
     }
 
     // Create Stripe checkout session
