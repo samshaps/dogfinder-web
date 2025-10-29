@@ -34,10 +34,10 @@ export default function HomePageClient() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-surface">
 
       {/* Hero Section */}
-      <div className="bg-white page-section">
+      <div className="bg-surface page-section">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
             {/* Left: Copy */}
@@ -92,9 +92,9 @@ export default function HomePageClient() {
       </div>
 
       {/* How It Works Section */}
-      <div id="how-it-works" className="page-section bg-white">
+      <div id="how-it-works" className="page-section bg-surface">
         <div className="container mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-16">
             <h2 className="mb-4">
               How DogYenta works
             </h2>
@@ -165,7 +165,7 @@ export default function HomePageClient() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t">
+      <footer className="bg-surface border-t">
         <div className="container mx-auto py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">

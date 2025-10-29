@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function AboutPage() {
   return (
-    <main className="relative overflow-hidden">
+    <main className="relative overflow-hidden min-h-screen bg-surface">
       <section className="page-section">
         <div className="container mx-auto">
           <div className="text-center mb-12">

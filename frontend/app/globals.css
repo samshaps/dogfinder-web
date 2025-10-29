@@ -39,41 +39,43 @@ body {
 .hero-copy { font-size: clamp(1rem, 0.7vw + 0.9rem, 1.25rem); }
 
 /* Global Design System */
-/* Container */
+/* Container - Unified max-width across all pages */
 .container {
-  @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
+  @apply mx-auto max-w-4xl px-4 sm:px-6 lg:px-8;
 }
 
-/* Page Section */
+/* Page Section - Consistent vertical rhythm */
 .page-section {
   @apply py-12 sm:py-16 lg:py-20;
 }
 
 /* Typography - Unified Scale */
-
+/* All H1s should be consistent across pages */
 h1 {
-  @apply text-4xl sm:text-5xl font-extrabold tracking-tight;
+  @apply text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900;
   @apply mb-6;
 }
 
+/* Consistent H2 styling */
 h2 {
-  @apply text-xl sm:text-2xl font-semibold;
+  @apply text-xl sm:text-2xl font-semibold text-gray-900;
   @apply mb-4;
 }
 
+/* Consistent H3 styling */
 h3 {
-  @apply text-lg font-semibold;
+  @apply text-lg font-semibold text-gray-900;
   @apply mb-3;
 }
 
-/* Lead text - used for subheadings and introductory paragraphs */
+/* Lead text - unified subheading style */
 .lead {
   @apply text-lg text-slate-600 leading-relaxed;
 }
 
-/* Body text */
+/* Body text - consistent base size */
 .body-text {
-  @apply text-base text-slate-600;
+  @apply text-base text-slate-600 leading-7;
 }
 
 /* Caption/Small text */
@@ -81,13 +83,43 @@ h3 {
   @apply text-sm text-slate-500;
 }
 
+/* Semantic Color Tokens */
+.bg-surface {
+  @apply bg-white;
+}
+
+.bg-surface-tinted {
+  @apply bg-slate-50;
+}
+
+.bg-surface-gradient {
+  @apply bg-gradient-to-b from-blue-50 to-white;
+}
+
+.text-primary {
+  @apply text-blue-600;
+}
+
+.text-primary-hover {
+  @apply hover:text-blue-700;
+}
+
 /* Section spacing - consistent rhythm */
 .section-gap {
-  @apply space-y-6;
+  @apply space-y-8;
 }
 
 .section-gap-lg {
-  @apply space-y-10;
+  @apply space-y-12;
+}
+
+/* Consistent spacing between major sections */
+.hero-to-content {
+  @apply mb-16;
+}
+
+.content-to-content {
+  @apply mb-12;
 }
 
 /* Line length constraints for readability */
@@ -116,13 +148,22 @@ h3 {
   @apply inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
 }
 
-/* Cards */
+/* Cards - Unified styling */
 .card {
   @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
 }
 
 .card-padding {
   @apply p-6 sm:p-8;
+}
+
+/* Card variants for different contexts */
+.card-elevated {
+  @apply card shadow-lg;
+}
+
+.card-interactive {
+  @apply card hover:shadow-md transition-shadow;
 }
 
 /* Badges */
@@ -143,7 +184,15 @@ h3 {
   @apply text-blue-600 hover:text-blue-700 underline underline-offset-2;
 }
 
-/* Form Inputs */
+/* Form Inputs - Unified styling */
 .form-input {
-  @apply rounded-xl border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100;
+  @apply rounded-xl border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition-colors;
+}
+
+.form-input-lg {
+  @apply form-input px-4 py-3 text-base;
+}
+
+.form-input-sm {
+  @apply form-input px-3 py-2 text-sm;
 }

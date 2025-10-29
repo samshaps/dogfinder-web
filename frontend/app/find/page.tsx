@@ -428,10 +428,10 @@ export default function FindPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-tinted">
       {/* Main Content */}
       <div className="page-section">
-        <div className="container mx-auto max-w-4xl">
+        <div className="container mx-auto">
           <div className="card card-padding">
             <div className="text-center mb-8">
               <h1>Let's make you a match</h1>
@@ -462,7 +462,7 @@ export default function FindPage() {
                 value={newZipCode}
                 onChange={(e) => setNewZipCode(e.target.value)}
                 onKeyDown={handleAddZipCode}
-                className="form-input w-full px-4 py-3 border"
+                className="form-input-lg w-full border"
               />
               {formData.zipCodes.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -494,7 +494,7 @@ export default function FindPage() {
                 value={newIncludeBreed}
                 onChange={(e) => setNewIncludeBreed(e.target.value)}
                 onKeyDown={handleAddIncludeBreed}
-                className="form-input w-full px-4 py-3 border"
+                className="form-input-lg w-full border"
               />
               {formData.includeBreeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -526,7 +526,7 @@ export default function FindPage() {
                 value={newExcludeBreed}
                 onChange={(e) => setNewExcludeBreed(e.target.value)}
                 onKeyDown={handleAddExcludeBreed}
-                className="form-input w-full px-4 py-3 border"
+                className="form-input-lg w-full border"
               />
               {formData.excludeBreeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -634,7 +634,7 @@ export default function FindPage() {
                 value={formData.guidance}
                 onChange={(e) => handleInputChange('guidance', e.target.value)}
                 rows={4}
-                className="form-input w-full px-4 py-3 border"
+                className="form-input-lg w-full border"
               />
             </div>
 

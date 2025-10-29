@@ -235,9 +235,9 @@ export default function PricingPage() {
   const isPro = planInfo?.isPro || false;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-surface-gradient">
       <div className="page-section">
-        <div className="container mx-auto max-w-4xl text-center">
+        <div className="container mx-auto text-center">
           <h1>
             Never Miss Your Perfect Pup Again!
           </h1>
