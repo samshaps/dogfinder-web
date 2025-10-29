@@ -236,12 +236,12 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-6">
+      <div className="page-section">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h1 className="mb-6">
             Never Miss Your Perfect Pup Again!
           </h1>
-          <p className="text-xl text-gray-600 mb-12">
+          <p className="mt-2 text-xl text-slate-600 mb-12">
             Get instant email alerts when new dogs matching your exact preferences are available.
             Your furry best friend is just an email away.
           </p>
@@ -298,7 +298,7 @@ export default function PricingPage() {
                     // Scroll to Pro plan card
                     document.getElementById('pro-plan-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                  className="mt-4 btn-primary-sm"
                 >
                   Re-subscribe to Pro
                 </button>
@@ -309,110 +309,108 @@ export default function PricingPage() {
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 gap-8 mt-12">
             {/* Free Plan */}
-            <div className={`bg-white rounded-2xl shadow-lg p-8 border-2 ${isPro ? 'border-gray-200' : 'border-green-500'} relative`}>
+            <div className={`card card-padding relative ${isPro ? '' : 'ring-2 ring-blue-600 shadow-md'}`}>
               {!isPro && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Current Plan
-                  </span>
+                <div className="absolute top-6 left-6">
+                  <span className="badge-success">Current Plan</span>
                 </div>
               )}
               
               <div className="mb-6">
                 <h3 className="text-2xl font-bold mb-2">Free Plan</h3>
-                <div className="text-4xl font-bold mb-4">
-                  $0<span className="text-lg text-gray-500">/month</span>
+                <div className="text-4xl font-extrabold mb-4">
+                  $0<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="text-gray-600">Perfect for getting started and finding your ideal dog</p>
+                <p className="text-slate-600">Perfect for getting started and finding your ideal dog</p>
               </div>
               
-              <ul className="space-y-4 mb-8 text-left">
+              <ul className="space-y-3 mb-8 text-left">
                 {PLANS.FREE.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
-                    <svg className="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>{feature}</span>
+                    <span className="text-slate-600">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              <button
-                onClick={isPro && !billingInfo?.isScheduledForCancellation ? handleDowngrade : undefined}
-                disabled={!isPro || downgrading || billingInfo?.isScheduledForCancellation}
-                className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                  isPro && !billingInfo?.isScheduledForCancellation
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-gray-100 text-gray-800 cursor-not-allowed'
-                } ${downgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {downgrading 
-                  ? 'Processing...' 
-                  : isPro && billingInfo?.isScheduledForCancellation
-                    ? 'Downgrade Scheduled' 
-                    : isPro 
-                      ? 'Downgrade to Free' 
-                      : 'Current Plan'}
-              </button>
+              {isPro && !billingInfo?.isScheduledForCancellation ? (
+                <button
+                  onClick={handleDowngrade}
+                  disabled={downgrading}
+                  className={`w-full btn-primary ${downgrading ? 'opacity-50 cursor-not-allowed' : ''} bg-red-600 hover:bg-red-700 focus-visible:ring-red-600`}
+                >
+                  {downgrading ? 'Processing...' : 'Downgrade to Free'}
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                >
+                  {isPro && billingInfo?.isScheduledForCancellation ? 'Downgrade Scheduled' : 'Current Plan'}
+                </button>
+              )}
             </div>
 
             {/* Pro Plan */}
-            <div id="pro-plan-card" className={`bg-blue-600 text-white rounded-2xl shadow-xl p-8 border-2 border-blue-700 relative ${isPro ? 'border-green-500' : ''}`}>
+            <div id="pro-plan-card" className={`card card-padding relative ${isPro ? 'ring-2 ring-blue-600 shadow-md' : ''}`}>
               {!isPro && (
-                <div className="absolute top-0 right-8 -mt-4 bg-yellow-400 text-blue-900 px-4 py-1 rounded-full text-sm font-bold">
-                  POPULAR
+                <div className="absolute top-6 left-6">
+                  <span className="badge-warning">Popular</span>
                 </div>
               )}
               {isPro && (
-                <div className="absolute top-0 right-8 -mt-4 bg-green-500 text-white px-4 py-1 rounded-full text-sm font-bold">
-                  ACTIVE
+                <div className="absolute top-6 left-6">
+                  <span className="badge-success">Current Plan</span>
                 </div>
               )}
               
               <div className="mb-6">
                 <h3 className="text-2xl font-bold mb-2">Pro Plan</h3>
-                <div className="text-4xl font-bold mb-4">
-                  $9.99<span className="text-lg opacity-80">/month</span>
+                <div className="text-4xl font-extrabold mb-4">
+                  $9.99<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="opacity-90">Unlock advanced features for a truly personalized experience</p>
+                <p className="text-slate-600">Unlock advanced features for a truly personalized experience</p>
               </div>
               
-              <ul className="space-y-4 mb-8 text-left">
+              <ul className="space-y-3 mb-8 text-left">
                 {PLANS.PRO.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
-                    <svg className="w-6 h-6 text-yellow-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span>{feature}</span>
+                    <span className="text-slate-600">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              <button
-                onClick={handleUpgrade}
-                disabled={upgrading || (isPro && !billingInfo?.isScheduledForCancellation)}
-                className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                  isPro && !billingInfo?.isScheduledForCancellation
-                    ? 'bg-green-500 text-white cursor-not-allowed' 
-                    : upgrading 
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-white text-blue-600 hover:bg-gray-100'
-                }`}
-              >
-                {upgrading 
-                  ? 'Processing...' 
-                  : isPro && !billingInfo?.isScheduledForCancellation
-                    ? 'Active Plan' 
+              {isPro && !billingInfo?.isScheduledForCancellation ? (
+                <button
+                  disabled
+                  className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                >
+                  Active Plan
+                </button>
+              ) : (
+                <button
+                  onClick={handleUpgrade}
+                  disabled={upgrading}
+                  className={`w-full btn-primary ${upgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {upgrading 
+                    ? 'Processing...' 
                     : billingInfo?.isScheduledForCancellation
                       ? 'Re-subscribe to Pro'
                       : billingInfo?.wasDowngradedFromPro
                         ? 'Re-subscribe to Pro'
                         : 'Upgrade to Pro'
-                }
-              </button>
+                  }
+                </button>
+              )}
               
               {billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate && (
-                <p className="text-xs text-white/80 mt-2">
+                <p className="text-xs text-slate-500 mt-2">
                   Plan expires on {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -425,26 +423,26 @@ export default function PricingPage() {
 
           {/* Why DogYenta Email Alerts Section */}
           <div className="mt-20">
-            <h2 className="text-3xl font-bold mb-12">Why DogYenta Email Alerts?</h2>
+            <h2 className="mb-12 text-center">Why DogYenta Email Alerts?</h2>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="text-4xl mb-4">🎯</div>
-                <h3 className="text-xl font-bold mb-2">Perfect Matches</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold mb-2">Perfect Matches</h3>
+                <p className="text-slate-600">
                   Our advanced algorithm connects you with dogs that meet your exact criteria
                 </p>
               </div>
               <div className="text-center">
                 <div className="text-4xl mb-4">⚡</div>
-                <h3 className="text-xl font-bold mb-2">Instant Alerts</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold mb-2">Instant Alerts</h3>
+                <p className="text-slate-600">
                   Be the first to know about new dogs that match your preferences
                 </p>
               </div>
               <div className="text-center">
                 <div className="text-4xl mb-4">🔒</div>
-                <h3 className="text-xl font-bold mb-2">Secure & Private</h3>
-                <p className="text-gray-600">
+                <h3 className="text-xl font-semibold mb-2">Secure & Private</h3>
+                <p className="text-slate-600">
                   Your preferences and data are safe with us, always
                 </p>
               </div>

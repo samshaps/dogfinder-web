@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useUser } from "@/lib/auth/user-context";
 import { trackEvent } from "@/lib/analytics/tracking";
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
   const { user, isAuthenticated, signOut } = useUser();
 
   const handleSignOut = () => {
@@ -41,19 +43,31 @@ export default function Navigation() {
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link 
                   href="/find" 
-                  className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                    pathname === '/find'
+                      ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
                 >
                   Find a Dog
                 </Link>
                 <Link 
                   href="/about" 
-                  className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                    pathname === '/about'
+                      ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
                 >
                   About
                 </Link>
                 <Link 
                   href="/pricing" 
-                  className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                    pathname === '/pricing'
+                      ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
                 >
                   Pricing
                 </Link>
@@ -63,13 +77,17 @@ export default function Navigation() {
                   <div className="flex items-center space-x-4">
                     <Link 
                       href="/profile" 
-                      className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                        pathname === '/profile'
+                          ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
                     >
                       Profile
                     </Link>
                     <button
                       onClick={handleSignOut}
-                      className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                      className="btn-ghost-sm"
                     >
                       Sign Out
                     </button>
@@ -77,7 +95,7 @@ export default function Navigation() {
                 ) : (
                   <Link 
                     href="/auth/signin" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                    className="btn-primary-sm"
                   >
                     Sign In
                   </Link>
@@ -112,21 +130,33 @@ export default function Navigation() {
           <div className="px-2 pt-2 pb-3 space-y-1">
             <Link
               href="/find"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
+                pathname === '/find'
+                  ? 'text-slate-900 font-semibold'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Find a Dog
             </Link>
             <Link
               href="/about"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
+                pathname === '/about'
+                  ? 'text-slate-900 font-semibold'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               About
             </Link>
             <Link
               href="/pricing"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
+                pathname === '/pricing'
+                  ? 'text-slate-900 font-semibold'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Pricing
@@ -137,7 +167,11 @@ export default function Navigation() {
               <>
                 <Link
                   href="/profile"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
+                    pathname === '/profile'
+                      ? 'text-slate-900 font-semibold'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Profile

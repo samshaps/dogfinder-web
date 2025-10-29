@@ -199,21 +199,21 @@ function ProfilePageContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-            <div className="text-center mb-8">
+      <div className="page-section">
+        <div className="container mx-auto max-w-2xl">
+          <div className="card card-padding">
+            <div className="text-center items-center space-y-2 mb-8">
               {user?.image && (
                 <img
                   src={user.image}
                   alt={user.name}
-                  className="w-24 h-24 rounded-full mx-auto mb-4"
+                  className="h-24 w-24 rounded-full ring-2 ring-slate-200 mx-auto"
                 />
               )}
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="mb-2">
                 Welcome, {user?.name}!
               </h1>
-              <p className="text-gray-600">{user?.email}</p>
+              <p className="text-slate-600">{user?.email}</p>
             </div>
 
             <div className="space-y-6">
@@ -293,19 +293,19 @@ function ProfilePageContent() {
                           {PLANS[planInfo.planType as keyof typeof PLANS]?.name || 'Free'} Plan
                         </span>
                         {planInfo.isPro && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
-                            PREMIUM
+                          <span className="badge-warning">
+                            Premium
                           </span>
                         )}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      <span className={`badge ${
                         planInfo.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' 
                           : planInfo.status === 'trialing'
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-blue-50 text-blue-700 ring-blue-200'
                           : planInfo.status === 'past_due'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                          : 'bg-slate-50 text-slate-700 ring-slate-200'
                       }`} aria-label={`Plan status: ${planInfo.status === 'active' ? 'Active' : 
                          planInfo.status === 'trialing' ? 'Free Trial' :
                          planInfo.status === 'past_due' ? 'Payment Required' :
@@ -352,11 +352,11 @@ function ProfilePageContent() {
                       )}
 
                       {planInfo.features.slice(0, 3).map((feature, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <div key={index} className="flex items-start">
+                          <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          <span className="text-sm text-gray-700">{feature}</span>
+                          <span className="text-sm text-slate-600">{feature}</span>
                         </div>
                       ))}
                       {planInfo.features.length > 3 && (
@@ -376,7 +376,7 @@ function ProfilePageContent() {
                             });
                             router.push('/pricing');
                           }}
-                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          className="w-full btn-primary"
                           aria-describedby="upgrade-description"
                         >
                           <span className="flex items-center justify-center gap-2">
@@ -401,7 +401,7 @@ function ProfilePageContent() {
                             });
                             router.push('/pricing');
                           }}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          className="w-full btn-primary"
                         >
                           Manage Subscription
                         </button>
@@ -442,7 +442,7 @@ function ProfilePageContent() {
                                   });
                                   router.push('/pricing');
                                 }}
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm"
+                                className="w-full btn-primary-sm"
                               >
                                 Manage Subscription
                               </button>
@@ -459,7 +459,7 @@ function ProfilePageContent() {
                                 });
                                 router.push('/pricing');
                               }}
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              className="w-full btn-primary-sm"
                             >
                               Manage Subscription
                             </button>
@@ -495,7 +495,7 @@ function ProfilePageContent() {
                     });
                     router.push('/find');
                   }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
+                  className="w-full btn-primary flex items-center justify-center gap-2"
                   aria-describedby="preferences-description"
                 >
                   <Edit className="w-5 h-5" aria-hidden="true" />
@@ -537,7 +537,7 @@ function ProfilePageContent() {
               <div className="border-t pt-6">
                 <button
                   onClick={signOut}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  className="w-full btn-primary bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
                   aria-describedby="signout-description"
                 >
                   Sign Out

@@ -35,3 +35,72 @@ body {
 /* Fluid type for hero */
 .hero-title { font-size: clamp(2rem, 3.5vw + 1rem, 4.25rem); }
 .hero-copy { font-size: clamp(1rem, 0.7vw + 0.9rem, 1.25rem); }
+
+/* Global Design System */
+/* Container */
+.container {
+  @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+
+/* Page Section */
+.page-section {
+  @apply py-12 sm:py-16 lg:py-20;
+}
+
+/* Typography */
+h1 {
+  @apply text-5xl sm:text-6xl font-extrabold tracking-tight;
+}
+
+h2 {
+  @apply text-2xl sm:text-3xl font-semibold;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply inline-flex items-center rounded-xl bg-blue-600 px-5 py-3 text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-primary-sm {
+  @apply inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-sm text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center rounded-xl border border-slate-300 px-5 py-3 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-ghost-sm {
+  @apply inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+/* Cards */
+.card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+.card-padding {
+  @apply p-6 sm:p-8;
+}
+
+/* Badges */
+.badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
+}
+
+.badge-success {
+  @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200;
+}
+
+.badge-warning {
+  @apply badge bg-amber-50 text-amber-700 ring-1 ring-amber-200;
+}
+
+/* Links */
+.link {
+  @apply text-blue-600 hover:text-blue-700 underline underline-offset-2;
+}
+
+/* Form Inputs */
+.form-input {
+  @apply rounded-xl border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100;
+}

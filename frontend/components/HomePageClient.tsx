@@ -37,107 +37,105 @@ export default function HomePageClient() {
     <div className="min-h-screen bg-white">
 
       {/* Hero Section */}
-      <div className="bg-white">
-        <div className="max-w-7xl mx-auto px-6 pt-8 sm:pt-10 lg:pt-12 pb-12 sm:pb-16 lg:pb-20 lg:min-h-[calc(100vh-64px)] lg:flex lg:flex-col lg:justify-center">
-          <div className="grid items-center gap-10 lg:grid-cols-12">
+      <div className="bg-white page-section">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
             {/* Left: Copy */}
-            <div className="lg:col-span-7 text-center sm:text-left flex flex-col justify-center mx-auto sm:mx-0 max-w-[640px]">
+            <div className="text-center lg:text-left">
               <div>
-                <h1 className="hero-title font-extrabold tracking-tight leading-tight text-balance text-3xl sm:text-5xl lg:text-7xl max-w-[20ch] sm:max-w-[20ch] lg:max-w-[16ch] mb-6 text-gray-900 mx-auto sm:mx-0">
+                <h1 className="text-balance mb-6 max-w-2xl mx-auto lg:mx-0">
                   The smarter way to find your
                   <br className="hidden lg:block" />
                   {" "}<span className="text-blue-600">rescue dog.</span>
                 </h1>
-                <p className="hero-copy mt-5 text-slate-600 text-base sm:text-lg lg:text-xl leading-relaxed max-w-[55ch] mx-auto sm:mx-0">
+                <p className="mt-2 text-slate-600 text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
                   Personalized rescue-dog matches for your lifestyle.
                   <br />
                   Because finding your best friend shouldn&apos;t feel like a full-time job.
                 </p>
                 {/* CTA block nested under copy */}
-                <div className="mt-8 mx-auto sm:mx-0 w-full">
-                  <div className="flex flex-wrap items-center gap-4 justify-center sm:justify-start">
+                <div className="mt-8">
+                  <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start">
                     <Link
                       href="/find"
-                      className="rounded-3xl bg-blue-600 px-6 py-4 sm:px-7 sm:py-4 lg:px-8 lg:py-5 text-white text-base lg:text-lg font-semibold shadow-sm hover:bg-blue-700 active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 w-full sm:w-auto"
+                      className="btn-primary w-full sm:w-auto"
                     >
                       Find My Top Matches
                     </Link>
                     <button
                       onClick={() => smoothScrollTo('how-it-works')}
-                      className="rounded-3xl bg-white px-6 py-4 sm:px-7 sm:py-4 lg:px-8 lg:py-5 text-slate-900 text-base lg:text-lg font-semibold ring-1 ring-slate-200 hover:bg-slate-50 w-full sm:w-auto"
+                      className="btn-ghost w-full sm:w-auto"
                     >
                       See how it works
                     </button>
                   </div>
-                  <p className="mt-3 text-xs text-slate-500 text-center sm:text-left">Powered by Petfinder • Updated daily</p>
+                  <p className="mt-3 text-xs text-slate-500 text-center lg:text-left">Powered by Petfinder • Updated daily</p>
                 </div>
               </div>
-            
             </div>
             {/* Right: Illustration */}
-            <div className="lg:col-span-5">
-              <div className="relative mx-auto w-full max-w-[600px] lg:max-w-[640px]">
-              <Image
+            <div>
+              <div className="relative mx-auto w-full max-w-[560px] aspect-[4/3]">
+                <Image
                   src="/hero-dogyenta.png"
                   alt="Matchmaker surrounded by happy rescue dogs"
                   width={1240}
                   height={1240}
                   priority
-                  sizes="(max-width: 1024px) 90vw, 640px"
-                  className="w-full h-auto max-h-[500px] lg:max-h-[560px]"
+                  sizes="(max-width: 1024px) 90vw, 560px"
+                  className="w-full h-full object-contain"
                 />
               </div>
             </div>
           </div>
-          
         </div>
       </div>
 
       {/* How It Works Section */}
-      <div id="how-it-works" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+      <div id="how-it-works" className="page-section bg-white">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="mb-4">
               How DogYenta works
             </h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Step 1 */}
-            <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="card card-padding">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">1</span>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 Talk to the yenta
               </h3>
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 Tell DogYenta about your lifestyle and what you&apos;re looking for—location, breed preferences, size, temperament, and must-haves.
               </p>
             </div>
 
             {/* Step 2 */}
-            <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="card card-padding">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">2</span>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 AI analysis
               </h3>
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 Our AI reviews each new Petfinder listing—tags, foster descriptions, and photos—to understand the dog&apos;s personality and fit.
               </p>
             </div>
 
             {/* Step 3 */}
-            <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="card card-padding">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <span className="text-2xl font-bold text-blue-600">3</span>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 Your matches, delivered
               </h3>
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 We combine your preferences with the AI&apos;s analysis to highlight the dogs most likely to be your perfect match.
               </p>
             </div>
@@ -146,8 +144,8 @@ export default function HomePageClient() {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="bg-blue-600 page-section">
+        <div className="container mx-auto">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to find your perfect match?
@@ -157,7 +155,7 @@ export default function HomePageClient() {
             </p>
             <Link
               href="/find"
-              className="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center"
+              className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
             >
               <Search className="w-5 h-5 mr-2" />
               Find My Top Matches

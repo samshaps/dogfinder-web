@@ -430,12 +430,13 @@ export default function FindPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Let's make you a match</h1>
-            <p className="text-gray-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
-          </div>
+      <div className="page-section">
+        <div className="container mx-auto max-w-4xl">
+          <div className="card card-padding">
+            <div className="text-center mb-8">
+              <h1 className="mb-4">Let's make you a match</h1>
+              <p className="mt-2 text-slate-600">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
+            </div>
 
           {/* Preferences Saved Indicator */}
           {user && preferencesSaved && (
@@ -448,20 +449,20 @@ export default function FindPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-10">
             {/* Location */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <h2 className="mb-4">
                 <MapPin className="w-4 h-4 inline mr-2" />
                 Zip Codes (50 mile radius)
-              </label>
+              </h2>
               <input
                 type="text"
                 placeholder="Enter 5-digit zip code and press Enter"
                 value={newZipCode}
                 onChange={(e) => setNewZipCode(e.target.value)}
                 onKeyDown={handleAddZipCode}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="form-input w-full px-4 py-3 border"
               />
               {formData.zipCodes.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -484,16 +485,16 @@ export default function FindPage() {
 
             {/* Breeds to Include */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <h2 className="mb-4">
                 Breeds to Include/Consider
-              </label>
+              </h2>
               <input
                 type="text"
                 placeholder="Enter breed (e.g., 'Lab mix', 'Golden Retriever', 'Pit Bull') and press Enter"
                 value={newIncludeBreed}
                 onChange={(e) => setNewIncludeBreed(e.target.value)}
                 onKeyDown={handleAddIncludeBreed}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="form-input w-full px-4 py-3 border"
               />
               {formData.includeBreeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -516,16 +517,16 @@ export default function FindPage() {
 
             {/* Breeds to Exclude */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <h2 className="mb-4">
                 Breeds to Exclude
-              </label>
+              </h2>
               <input
                 type="text"
                 placeholder="Enter breed to avoid and press Enter"
                 value={newExcludeBreed}
                 onChange={(e) => setNewExcludeBreed(e.target.value)}
                 onKeyDown={handleAddExcludeBreed}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="form-input w-full px-4 py-3 border"
               />
               {formData.excludeBreeds.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -548,7 +549,7 @@ export default function FindPage() {
 
             {/* Age */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Age</label>
+              <h2 className="mb-4">Age</h2>
               <PillControl
                 options={ageOptions}
                 selectedValues={formData.age}
@@ -561,7 +562,7 @@ export default function FindPage() {
 
             {/* Size */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Size</label>
+              <h2 className="mb-4">Size</h2>
               <PillControl
                 options={sizeOptions}
                 selectedValues={formData.size}
@@ -574,7 +575,7 @@ export default function FindPage() {
 
             {/* Energy */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Energy</label>
+              <h2 className="mb-4">Energy</h2>
               <PillControl
                 options={energyOptions}
                 selectedValues={formData.energy ? [formData.energy] : []}
@@ -587,7 +588,7 @@ export default function FindPage() {
 
             {/* Temperament */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Temperament</label>
+              <h2 className="mb-4">Temperament</h2>
               <PillControl
                 options={temperamentOptions}
                 selectedValues={formData.temperament}
@@ -633,7 +634,7 @@ export default function FindPage() {
                 value={formData.guidance}
                 onChange={(e) => handleInputChange('guidance', e.target.value)}
                 rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="form-input w-full px-4 py-3 border"
               />
             </div>
 
@@ -641,13 +642,14 @@ export default function FindPage() {
             <div className="pt-6">
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
+                className="btn-primary w-full text-lg py-4"
               >
                 <Search className="w-5 h-5 mr-2" />
                 See my matches
               </button>
             </div>
           </form>
+          </div>
         </div>
       </div>
     </div>
