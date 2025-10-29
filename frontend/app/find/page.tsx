@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { trackEvent } from '@/lib/analytics/tracking';
-import Navigation from '@/components/Navigation';
 import { validateFormData, getExpectedApiPayload, logValidationResults } from '@/lib/validation/preferences-mapping';
 // Removed breed selector - using free text fields instead
 
@@ -430,9 +429,6 @@ export default function FindPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <Navigation />
-
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-lg p-8">
