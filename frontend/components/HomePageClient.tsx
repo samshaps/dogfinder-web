@@ -39,50 +39,50 @@ export default function HomePageClient() {
       {/* Hero Section */}
       <div className="bg-surface min-h-[calc(100vh-4rem)] flex items-center">
         <div className="container mx-auto py-6 sm:py-8 lg:py-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
             {/* Left: Copy */}
             <div className="text-center lg:text-left">
               <div>
-                <h1 className="text-balance mb-6 max-w-2xl mx-auto lg:mx-0">
+                <h1 className="text-balance text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 mb-8 max-w-2xl mx-auto lg:mx-0">
                   The smarter way to find your
                   <br className="hidden lg:block" />
                   {" "}<span className="text-blue-600">rescue dog.</span>
                 </h1>
-                <p className="mt-2 lead text-measure mx-auto lg:mx-0">
+                <p className="mt-4 text-xl sm:text-2xl text-slate-600 leading-relaxed text-measure mx-auto lg:mx-0">
                   Personalized rescue-dog matches for your lifestyle.
                   <br />
                   Because finding your best friend shouldn&apos;t feel like a full-time job.
                 </p>
                 {/* CTA block nested under copy */}
-                <div className="mt-8">
-                  <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start">
+                <div className="mt-12">
+                  <div className="flex flex-wrap items-center gap-4 justify-center lg:justify-start">
                     <Link
                       href="/find"
-                      className="btn-primary w-full sm:w-auto"
+                      className="inline-flex items-center rounded-xl bg-blue-600 px-8 py-4 text-lg text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors w-full sm:w-auto"
                     >
                       Find My Top Matches
                     </Link>
                     <button
                       onClick={() => smoothScrollTo('how-it-works')}
-                      className="btn-ghost w-full sm:w-auto"
+                      className="inline-flex items-center rounded-xl border border-slate-300 px-8 py-4 text-lg text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors w-full sm:w-auto"
                     >
                       See how it works
                     </button>
                   </div>
-                  <p className="mt-3 caption text-center lg:text-left">Powered by Petfinder • Updated daily</p>
+                  <p className="mt-4 text-base text-slate-500 text-center lg:text-left">Powered by Petfinder • Updated daily</p>
                 </div>
               </div>
             </div>
             {/* Right: Illustration */}
             <div>
-              <div className="relative mx-auto w-full max-w-[560px] aspect-[4/3]">
+              <div className="relative mx-auto w-full max-w-[700px] lg:max-w-[800px] aspect-[4/3]">
                 <Image
                   src="/hero-dogyenta.png"
                   alt="Matchmaker surrounded by happy rescue dogs"
                   width={1240}
                   height={1240}
                   priority
-                  sizes="(max-width: 1024px) 90vw, 560px"
+                  sizes="(max-width: 1024px) 90vw, 800px"
                   className="w-full h-full object-contain"
                 />
               </div>
