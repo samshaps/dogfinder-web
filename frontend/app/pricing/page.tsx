@@ -147,20 +147,35 @@ export default function PricingPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to downgrade plan');
+        const errorData = await response.json();
+        // Handle wrapped error response
+        const errorMessage = errorData.error?.message || errorData.error || 'Failed to downgrade plan';
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      
+      // Extract data from wrapped response: { success: true, data: { periodEnd, message }, meta: {...} }
+      const data = responseData.data || responseData;
+      const periodEnd = data.periodEnd;
+      
+      console.log('📥 Downgrade API response:', { responseData, data, periodEnd });
+      
+      if (!periodEnd) {
+        console.warn('⚠️ No periodEnd in response:', data);
+      }
       
       trackEvent('pricing_downgrade_success', {
         user_id: user.id,
-        periodEnd: data.periodEnd,
+        periodEnd,
       });
 
       // Show success message with expiration date immediately
-      if (data.periodEnd) {
-        setDowngradeSuccess({ periodEnd: data.periodEnd });
+      if (periodEnd) {
+        console.log('✅ Setting downgradeSuccess state with periodEnd:', periodEnd);
+        setDowngradeSuccess({ periodEnd });
+      } else {
+        console.error('❌ No periodEnd in API response, cannot show success message');
       }
 
       // Force reload billing info first to get updated cancellation status
@@ -169,11 +184,15 @@ export default function PricingPage() {
           credentials: 'include',
         });
         if (billingResponse.ok) {
-          const billingData = await billingResponse.json();
+          const billingResponseData = await billingResponse.json();
+          // Extract data from wrapped response
+          const billingData = billingResponseData.data || billingResponseData;
+          console.log('📥 Billing info response:', { billingResponseData, billingData });
           setBillingInfo(billingData);
           
-          // Also set success message from billing data if needed
-          if (billingData.isScheduledForCancellation && billingData.finalBillingDate) {
+          // Also set success message from billing data if needed (fallback)
+          if (billingData.isScheduledForCancellation && billingData.finalBillingDate && !periodEnd) {
+            console.log('✅ Using billingData.finalBillingDate as fallback:', billingData.finalBillingDate);
             setDowngradeSuccess({ periodEnd: billingData.finalBillingDate });
           }
         }
