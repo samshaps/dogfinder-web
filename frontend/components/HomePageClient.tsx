@@ -37,8 +37,8 @@ export default function HomePageClient() {
     <div className="min-h-screen bg-surface">
 
       {/* Hero Section */}
-      <div className="bg-surface page-section">
-        <div className="container mx-auto">
+      <div className="bg-surface min-h-[calc(100vh-4rem)] flex items-center">
+        <div className="container mx-auto py-6 sm:py-8 lg:py-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-4 lg:gap-6">
             {/* Left: Copy */}
             <div className="text-center lg:text-left">
