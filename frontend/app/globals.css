@@ -52,23 +52,23 @@ body {
 /* Typography - Unified Scale */
 
 h1 {
-  @apply text-5xl sm:text-6xl font-extrabold tracking-tight;
+  @apply text-4xl sm:text-5xl font-extrabold tracking-tight;
   @apply mb-6;
 }
 
 h2 {
-  @apply text-2xl sm:text-3xl font-semibold;
+  @apply text-xl sm:text-2xl font-semibold;
   @apply mb-4;
 }
 
 h3 {
-  @apply text-xl font-semibold;
+  @apply text-lg font-semibold;
   @apply mb-3;
 }
 
 /* Lead text - used for subheadings and introductory paragraphs */
 .lead {
-  @apply text-base text-slate-600 leading-relaxed;
+  @apply text-lg text-slate-600 leading-relaxed;
 }
 
 /* Body text */
