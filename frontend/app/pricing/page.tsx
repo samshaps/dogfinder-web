@@ -64,9 +64,13 @@ export default function PricingPage() {
 
       // Load billing information
       try {
-        const billingResponse = await fetch('/api/stripe/billing-info');
+        const billingResponse = await fetch('/api/stripe/billing-info', {
+          credentials: 'include',
+        });
         if (billingResponse.ok) {
-          const billingData = await billingResponse.json();
+          const billingResponseData = await billingResponse.json();
+          // Extract data from wrapped response
+          const billingData = billingResponseData.data || billingResponseData;
           setBillingInfo(billingData);
         }
       } catch (error) {
