@@ -307,9 +307,9 @@ export default function PricingPage() {
           )}
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mt-12 justify-items-center">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-5 mt-12 max-w-5xl mx-auto">
             {/* Free Plan */}
-            <div className={`card card-padding relative w-[340px] ${isPro ? '' : 'ring-2 ring-blue-600 shadow-md'}`}>
+            <div className={`card card-padding relative flex flex-col ${isPro ? '' : 'ring-2 ring-blue-600 shadow-md'}`}>
               {!isPro && (
                 <div className="absolute top-6 left-6">
                   <span className="badge-success">Current Plan</span>
@@ -324,7 +324,7 @@ export default function PricingPage() {
                 <p className="body-text">Perfect for getting started and finding your ideal dog</p>
               </div>
               
-              <ul className="space-y-3 mb-8 text-left">
+              <ul className="space-y-3 mb-8 text-left flex-1">
                 {PLANS.FREE.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,26 +335,28 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              {isPro && !billingInfo?.isScheduledForCancellation ? (
-                <button
-                  onClick={handleDowngrade}
-                  disabled={downgrading}
-                  className={`w-full btn-primary ${downgrading ? 'opacity-50 cursor-not-allowed' : ''} bg-red-600 hover:bg-red-700 focus-visible:ring-red-600`}
-                >
-                  {downgrading ? 'Processing...' : 'Downgrade to Free'}
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="w-full btn-ghost opacity-50 cursor-not-allowed"
-                >
-                  {isPro && billingInfo?.isScheduledForCancellation ? 'Downgrade Scheduled' : 'Current Plan'}
-                </button>
-              )}
+              <div className="mt-auto">
+                {isPro && !billingInfo?.isScheduledForCancellation ? (
+                  <button
+                    onClick={handleDowngrade}
+                    disabled={downgrading}
+                    className={`w-full btn-primary ${downgrading ? 'opacity-50 cursor-not-allowed' : ''} bg-red-600 hover:bg-red-700 focus-visible:ring-red-600`}
+                  >
+                    {downgrading ? 'Processing...' : 'Downgrade to Free'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                  >
+                    {isPro && billingInfo?.isScheduledForCancellation ? 'Downgrade Scheduled' : 'Current Plan'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Pro Plan */}
-            <div id="pro-plan-card" className={`card card-padding relative w-[340px] ${isPro ? 'ring-2 ring-blue-600 shadow-md' : ''}`}>
+            <div id="pro-plan-card" className={`card card-padding relative flex flex-col ${isPro ? 'ring-2 ring-blue-600 shadow-md' : ''}`}>
               {!isPro && (
                 <div className="absolute top-6 left-6">
                   <span className="badge-warning">Popular</span>
@@ -374,7 +376,7 @@ export default function PricingPage() {
                 <p className="body-text">Unlock advanced features for a truly personalized experience</p>
               </div>
               
-              <ul className="space-y-3 mb-8 text-left">
+              <ul className="space-y-3 mb-8 text-left flex-1">
                 {PLANS.PRO.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,39 +387,41 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              {isPro && !billingInfo?.isScheduledForCancellation ? (
-                <button
-                  disabled
-                  className="w-full btn-ghost opacity-50 cursor-not-allowed"
-                >
-                  Active Plan
-                </button>
-              ) : (
-                <button
-                  onClick={handleUpgrade}
-                  disabled={upgrading}
-                  className={`w-full btn-primary ${upgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {upgrading 
-                    ? 'Processing...' 
-                    : billingInfo?.isScheduledForCancellation
-                      ? 'Re-subscribe to Pro'
-                      : billingInfo?.wasDowngradedFromPro
+              <div className="mt-auto">
+                {isPro && !billingInfo?.isScheduledForCancellation ? (
+                  <button
+                    disabled
+                    className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                  >
+                    Active Plan
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={upgrading}
+                    className={`w-full btn-primary ${upgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {upgrading 
+                      ? 'Processing...' 
+                      : billingInfo?.isScheduledForCancellation
                         ? 'Re-subscribe to Pro'
-                        : 'Upgrade to Pro'
-                  }
-                </button>
-              )}
-              
-              {billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate && (
-                <p className="caption mt-2">
-                  Plan expires on {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </p>
-              )}
+                        : billingInfo?.wasDowngradedFromPro
+                          ? 'Re-subscribe to Pro'
+                          : 'Upgrade to Pro'
+                    }
+                  </button>
+                )}
+                
+                {billingInfo?.isScheduledForCancellation && billingInfo.finalBillingDate && (
+                  <p className="caption mt-2 text-center">
+                    Plan expires on {new Date(billingInfo.finalBillingDate).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
