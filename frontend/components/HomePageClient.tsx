@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Search } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics/tracking';
+import { Logo } from '@/components/Logo';
 
 export default function HomePageClient() {
   const smoothScrollTo = (targetId: string) => {
@@ -175,11 +176,8 @@ export default function HomePageClient() {
         <div className="container mx-auto py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">🐾</span>
-                </div>
-                <span className="ml-2 text-xl font-bold text-gray-900">DogYenta</span>
+              <div className="mb-4">
+                <Logo size="md" />
               </div>
               <p className="text-gray-600 mb-4">
                 We respect your privacy. We don&apos;t store your data or share it with third parties.
