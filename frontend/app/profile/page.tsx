@@ -200,7 +200,7 @@ function ProfilePageContent() {
   return (
     <div className="min-h-screen bg-surface-gradient">
       <div className="page-section">
-        <div className="container mx-auto">
+        <div className="mx-auto max-w-[800px] px-4 sm:px-6 lg:px-8">
           <div className="card card-padding">
             <div className="text-center items-center space-y-2 mb-8">
               {user?.image && (
