@@ -432,7 +432,7 @@ export default function FindPage() {
       {/* Main Content */}
       <div className="page-section">
         <div className="container mx-auto">
-          <div className="card card-padding">
+          <div className="card card-padding max-w-[800px] mx-auto">
             <div className="text-center mb-8">
               <h1>Let's make you a match</h1>
               <p className="mt-2 body-text text-measure mx-auto text-[#555555]">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
@@ -639,10 +639,10 @@ export default function FindPage() {
             </div>
 
             {/* Submit Button */}
-            <div className="pt-6">
+            <div className="pt-6 flex justify-center">
               <button
                 type="submit"
-                className="btn-primary w-full text-lg py-4 rounded-lg"
+                className="btn-primary w-full sm:w-auto text-lg py-4 rounded-lg"
               >
                 <Search className="w-5 h-5 mr-2" />
                 See my matches
