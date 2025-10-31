@@ -53,14 +53,13 @@ function PricingPageContent() {
     const action = searchParams.get('action') || 
                    (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('action') : null);
     
-    // Wait for user to be authenticated, user loading to complete, page loading to complete, 
-    // and not already upgrading. We don't need to wait for plan info to load for checkout.
+    // Wait for user to be authenticated and user loading to complete.
+    // We don't need to wait for plan info to load - checkout works independently.
     // Also check that we haven't already triggered the upgrade
     const canProceed = action === 'upgrade' && 
                        user && 
                        !userLoading && 
                        !upgrading && 
-                       !loading && 
                        !upgradeTriggeredRef.current;
     
     if (canProceed) {
@@ -69,7 +68,7 @@ function PricingPageContent() {
         hasUser: !!user,
         userLoading,
         upgrading,
-        loading,
+        loading: loading, // Just for logging
         alreadyTriggered: upgradeTriggeredRef.current
       });
       
@@ -78,11 +77,20 @@ function PricingPageContent() {
       
       // Delay to ensure everything is ready, especially after auth redirect
       const timer = setTimeout(async () => {
+        console.log('⏱️ Timer callback executing after delay...', {
+          upgrading,
+          loading,
+          userLoading,
+          hasUser: !!user,
+          timestamp: new Date().toISOString()
+        });
+        
         // Double-check we're still in a valid state before proceeding
-        if (upgrading || loading || userLoading || !user) {
+        // Note: We don't check loading here - plan info loading doesn't block checkout
+        if (upgrading || userLoading || !user) {
           console.log('⚠️ Upgrade trigger cancelled - state changed', {
             upgrading,
-            loading,
+            loading, // Just for logging
             userLoading,
             hasUser: !!user
           });
@@ -90,11 +98,12 @@ function PricingPageContent() {
           return;
         }
         
+        console.log('✅ All checks passed, proceeding with checkout session creation', {
+          planInfo: planInfo?.planType || 'unknown',
+          billingInfo: billingInfo ? 'loaded' : 'not loaded'
+        });
+        
         try {
-          console.log('✅ Proceeding with checkout session creation', {
-            planInfo: planInfo?.planType || 'unknown',
-            billingInfo: billingInfo ? 'loaded' : 'not loaded'
-          });
           setUpgrading(true);
           trackEvent('pricing_cta_pro', {
             authenticated: true,
@@ -154,7 +163,7 @@ function PricingPageContent() {
     if (action !== 'upgrade') {
       upgradeTriggeredRef.current = false;
     }
-  }, [user, userLoading, searchParams, upgrading, loading, planInfo, billingInfo]);
+  }, [user, userLoading, searchParams, upgrading]); // Only depend on essential state - don't cancel timer when planInfo/billingInfo load
 
   // Check if downgrade is scheduled on mount (persist success message on page reload)
   useEffect(() => {
