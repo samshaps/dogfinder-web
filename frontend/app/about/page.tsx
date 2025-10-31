@@ -15,10 +15,10 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Content sections side-by-side on desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Content sections: stack on mobile, side-by-side on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-4">
             {/* How We Help */}
-            <section className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-left flex flex-col">
+            <section className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 md:p-6 text-left flex flex-col w-full">
               <h2 className="text-[18px] sm:text-[20px] font-semibold mb-3">How We Help</h2>
               <div className="text-[15px] text-slate-600 leading-7 flex-1">
                 <p>
@@ -28,7 +28,7 @@ export default function AboutPage() {
             </section>
 
             {/* Why the name */}
-            <section className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 text-left flex flex-col">
+            <section className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 md:p-6 text-left flex flex-col w-full">
               <h2 className="text-[18px] sm:text-[20px] font-semibold mb-3">Why the name 'Yenta'?</h2>
               <div className="text-[15px] text-slate-600 leading-7 space-y-3 flex-1">
                 <p>
