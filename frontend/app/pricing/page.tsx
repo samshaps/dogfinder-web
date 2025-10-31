@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser } from '@/lib/auth/user-context';
 import { getUserPlan } from '@/lib/stripe/plan-utils';
 import { PLANS } from '@/lib/stripe/config';
 import { trackEvent } from '@/lib/analytics/tracking';
+import { useSearchParams } from 'next/navigation';
 
 interface PlanInfo {
   planType: string;
@@ -25,12 +26,14 @@ interface BillingInfo {
 
 export default function PricingPage() {
   const { user } = useUser();
+  const searchParams = useSearchParams();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [downgrading, setDowngrading] = useState(false);
   const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
+  const upgradeTriggeredRef = useRef(false);
 
   useEffect(() => {
     // Track page view
@@ -43,6 +46,67 @@ export default function PricingPage() {
       loadPlanInfo();
     }
   }, [user]);
+
+  // Auto-trigger upgrade flow if user just authenticated and has action=upgrade in URL
+  useEffect(() => {
+    const action = searchParams.get('action');
+    // Wait for user to be authenticated, loading to complete, and not already upgrading
+    // Also check that we haven't already triggered the upgrade
+    if (action === 'upgrade' && user && !upgrading && !loading && !upgradeTriggeredRef.current) {
+      // Mark that we're about to trigger upgrade to prevent duplicate triggers
+      upgradeTriggeredRef.current = true;
+      
+      // Small delay to ensure plan info is loaded and avoid race conditions
+      const timer = setTimeout(async () => {
+        // Double-check we're still in a valid state before proceeding
+        if (upgrading || loading) {
+          upgradeTriggeredRef.current = false;
+          return;
+        }
+        
+        try {
+          setUpgrading(true);
+          trackEvent('pricing_cta_pro', {
+            authenticated: true,
+            current_plan: planInfo?.planType || 'free',
+            action: billingInfo?.isScheduledForCancellation ? 'resubscribe' : 'upgrade'
+          });
+
+          const response = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to create checkout session');
+          }
+
+          const { url } = await response.json();
+          
+          // Clean up URL by removing the action parameter
+          const urlObj = new URL(window.location.href);
+          urlObj.searchParams.delete('action');
+          window.history.replaceState({}, '', urlObj.toString());
+          
+          if (url) {
+            window.location.href = url;
+          }
+        } catch (error) {
+          console.error('Error upgrading:', error);
+          alert('Failed to start upgrade process. Please try again.');
+          setUpgrading(false);
+          // Reset the ref on error so user can try again
+          upgradeTriggeredRef.current = false;
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    
+    // Reset ref if action parameter is removed (e.g., user navigates away and back)
+    if (action !== 'upgrade') {
+      upgradeTriggeredRef.current = false;
+    }
+  }, [user, searchParams, upgrading, loading, planInfo, billingInfo]);
 
   // Check if downgrade is scheduled on mount (persist success message on page reload)
   useEffect(() => {
@@ -89,8 +153,8 @@ export default function PricingPage() {
         authenticated: false,
         current_plan: 'guest',
       });
-      // Redirect to sign in with callback URL to return to pricing
-      window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent('/pricing');
+      // Redirect to sign in with callback URL to return to pricing with upgrade action
+      window.location.href = '/auth/signin?callbackUrl=' + encodeURIComponent('/pricing?action=upgrade');
       return;
     }
 
