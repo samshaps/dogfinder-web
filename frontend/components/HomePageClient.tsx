@@ -155,7 +155,7 @@ export default function HomePageClient() {
             <h2 className="mb-4">
               Ready to find your perfect match?
             </h2>
-            <p className="mb-8 text-measure mx-auto text-white/90">
+            <p className="mb-8 text-measure mx-auto text-white">
               Start your search today and discover dogs that fit your lifestyle.
             </p>
             <Link
