@@ -298,7 +298,7 @@ export default function PricingPage() {
                     // Scroll to Pro plan card
                     document.getElementById('pro-plan-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
-                  className="mt-4 btn-primary-sm"
+                  className="mt-4 btn-primary-sm flex items-center justify-center"
                 >
                   Re-subscribe to Pro
                 </button>
@@ -340,14 +340,14 @@ export default function PricingPage() {
                   <button
                     onClick={handleDowngrade}
                     disabled={downgrading}
-                    className={`w-full btn-primary ${downgrading ? 'opacity-50 cursor-not-allowed' : ''} bg-red-600 hover:bg-red-700 focus-visible:ring-red-600`}
+                    className={`w-full btn-primary ${downgrading ? 'opacity-50 cursor-not-allowed' : ''} bg-red-600 hover:bg-red-700 focus-visible:ring-red-600 flex items-center justify-center`}
                   >
                     {downgrading ? 'Processing...' : 'Downgrade to Free'}
                   </button>
                 ) : (
                   <button
                     disabled
-                    className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                    className="w-full btn-ghost opacity-50 cursor-not-allowed flex items-center justify-center"
                   >
                     {isPro && billingInfo?.isScheduledForCancellation ? 'Downgrade Scheduled' : 'Current Plan'}
                   </button>
@@ -391,7 +391,7 @@ export default function PricingPage() {
                 {isPro && !billingInfo?.isScheduledForCancellation ? (
                   <button
                     disabled
-                    className="w-full btn-ghost opacity-50 cursor-not-allowed"
+                    className="w-full btn-ghost opacity-50 cursor-not-allowed flex items-center justify-center"
                   >
                     Active Plan
                   </button>
@@ -399,7 +399,7 @@ export default function PricingPage() {
                   <button
                     onClick={handleUpgrade}
                     disabled={upgrading}
-                    className={`w-full btn-primary ${upgrading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`w-full btn-primary ${upgrading ? 'opacity-50 cursor-not-allowed' : ''} flex items-center justify-center`}
                   >
                     {upgrading 
                       ? 'Processing...' 
