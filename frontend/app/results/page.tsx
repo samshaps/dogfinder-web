@@ -610,7 +610,7 @@ function ResultsPageContent() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Yenta matched these to your preferences</h2>
               <p className="text-gray-600">Our AI has curated these dogs for you based on your preferences.</p>
             </div>
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
+            <div className="grid gap-8 md:gap-10 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
               {topPicks.map((dog) => {
                 // Find the analysis for this dog from matching results
                 const analysis = matchingResults?.topMatches?.find(match => match.dogId === dog.id);
@@ -632,7 +632,7 @@ function ResultsPageContent() {
         {dogs.length > 0 && (
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
+          <div className="grid gap-8 md:gap-10 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
             {dogs.map((dog) => {
               // Find the analysis for this dog from matching results
               const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
