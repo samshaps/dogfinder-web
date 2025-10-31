@@ -435,7 +435,7 @@ export default function FindPage() {
           <div className="card card-padding">
             <div className="text-center mb-8">
               <h1>Let's make you a match</h1>
-              <p className="mt-2 lead text-measure mx-auto">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
+              <p className="mt-2 body-text text-measure mx-auto text-[#555555]">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
             </div>
 
           {/* Preferences Saved Indicator */}
@@ -452,7 +452,7 @@ export default function FindPage() {
           <form onSubmit={handleSubmit} className="space-y-10">
             {/* Location */}
             <div>
-              <h2 className="mb-4">
+              <h2 className="mb-4 font-semibold text-[16px]">
                 <MapPin className="w-4 h-4 inline mr-2" />
                 Zip Codes (50 mile radius)
               </h2>
@@ -485,7 +485,7 @@ export default function FindPage() {
 
             {/* Breeds to Include */}
             <div>
-              <h2 className="mb-4">
+              <h2 className="mb-4 font-semibold text-[16px]">
                 Breeds to Include/Consider
               </h2>
               <input
@@ -517,7 +517,7 @@ export default function FindPage() {
 
             {/* Breeds to Exclude */}
             <div>
-              <h2 className="mb-4">
+              <h2 className="mb-4 font-semibold text-[16px]">
                 Breeds to Exclude
               </h2>
               <input
@@ -549,7 +549,7 @@ export default function FindPage() {
 
             {/* Age */}
             <div>
-              <h2 className="mb-4">Age</h2>
+              <h2 className="mb-4 font-semibold text-[16px]">Age</h2>
               <PillControl
                 options={ageOptions}
                 selectedValues={formData.age}
@@ -562,7 +562,7 @@ export default function FindPage() {
 
             {/* Size */}
             <div>
-              <h2 className="mb-4">Size</h2>
+              <h2 className="mb-4 font-semibold text-[16px]">Size</h2>
               <PillControl
                 options={sizeOptions}
                 selectedValues={formData.size}
@@ -575,7 +575,7 @@ export default function FindPage() {
 
             {/* Energy */}
             <div>
-              <h2 className="mb-4">Energy</h2>
+              <h2 className="mb-4 font-semibold text-[16px]">Energy</h2>
               <PillControl
                 options={energyOptions}
                 selectedValues={formData.energy ? [formData.energy] : []}
@@ -588,7 +588,7 @@ export default function FindPage() {
 
             {/* Temperament */}
             <div>
-              <h2 className="mb-4">Temperament</h2>
+              <h2 className="mb-4 font-semibold text-[16px]">Temperament</h2>
               <PillControl
                 options={temperamentOptions}
                 selectedValues={formData.temperament}
@@ -602,7 +602,7 @@ export default function FindPage() {
             {/* Guidance */}
             <div>
               <div className="flex items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-[16px] font-semibold text-gray-700">
                   Tell us about your lifestyle
                 </label>
                 <div className="relative ml-2">
@@ -642,7 +642,7 @@ export default function FindPage() {
             <div className="pt-6">
               <button
                 type="submit"
-                className="btn-primary w-full text-lg py-4"
+                className="btn-primary w-full text-lg py-4 rounded-lg"
               >
                 <Search className="w-5 h-5 mr-2" />
                 See my matches

@@ -15,9 +15,9 @@ export default function AboutPage() {
           </div>
 
           {/* Two equal-height cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 justify-items-center">
             {/* Left: How We Help */}
-            <div className="card card-padding h-full">
+            <div className="card card-padding h-full w-[340px]">
               <h2 className="mb-4">How We Help</h2>
               <div className="body-text leading-7 space-y-4">
                 <p>
@@ -27,7 +27,7 @@ export default function AboutPage() {
             </div>
 
             {/* Right: Why the name */}
-            <div className="card card-padding h-full">
+            <div className="card card-padding h-full w-[340px]">
               <h2 className="mb-4">Why the name 'Yenta'?</h2>
               <div className="body-text leading-7 space-y-4">
                 <p>
@@ -42,10 +42,10 @@ export default function AboutPage() {
 
           {/* CTA */}
           <div className="text-center">
-            <p className="lead text-slate-800 mb-4">Need more help? Have feedback?</p>
+            <p className="body-text text-slate-800 mb-4">Need more help? Have feedback?</p>
             <Link
               href="/find"
-              className="btn-primary-sm"
+              className="btn-primary"
             >
               Contact Us
             </Link>

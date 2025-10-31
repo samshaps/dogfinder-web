@@ -307,9 +307,9 @@ export default function PricingPage() {
           )}
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mt-12">
+          <div className="grid md:grid-cols-2 gap-8 mt-12 justify-items-center">
             {/* Free Plan */}
-            <div className={`card card-padding relative ${isPro ? '' : 'ring-2 ring-blue-600 shadow-md'}`}>
+            <div className={`card card-padding relative w-[340px] ${isPro ? '' : 'ring-2 ring-blue-600 shadow-md'}`}>
               {!isPro && (
                 <div className="absolute top-6 left-6">
                   <span className="badge-success">Current Plan</span>
@@ -354,7 +354,7 @@ export default function PricingPage() {
             </div>
 
             {/* Pro Plan */}
-            <div id="pro-plan-card" className={`card card-padding relative ${isPro ? 'ring-2 ring-blue-600 shadow-md' : ''}`}>
+            <div id="pro-plan-card" className={`card card-padding relative w-[340px] ${isPro ? 'ring-2 ring-blue-600 shadow-md' : ''}`}>
               {!isPro && (
                 <div className="absolute top-6 left-6">
                   <span className="badge-warning">Popular</span>

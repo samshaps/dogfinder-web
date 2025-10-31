@@ -81,7 +81,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="card overflow-hidden w-[320px]">
       <div className="relative">
         <div className="aspect-square relative">
           {photos.length > 0 ? (
@@ -90,17 +90,17 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
               dogName={dog.name}
             />
           ) : (
-            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-none">
               <MapPin className="w-8 h-8 text-gray-400" />
             </div>
           )}
         </div>
       </div>
       
-      <div className="p-6">
+      <div className="card-padding">
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900">{dog.name}</h3>
-          <p className="text-sm text-gray-600">{dog.breeds.join(', ')}</p>
+          <h3 className="text-[20px] font-bold text-gray-900">{dog.name}</h3>
+          <p className="text-[14px] text-gray-600">{dog.breeds.join(', ')}</p>
         </div>
         
         {/* (Removed) Matches chips: we now fold key matches into the blue reasoning card */}
@@ -114,21 +114,21 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
               <Home className="w-3 h-3 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-900 mb-1">Why this dog is perfect for you:</p>
-              <p className="text-sm text-blue-800">{aiReasoning ? aiReasoning.primary : fallbackPrimary}</p>
+              <p className="text-[14px] font-medium text-blue-900 mb-1">Why this dog is perfect for you:</p>
+              <p className="text-[14px] text-blue-800">{aiReasoning ? aiReasoning.primary : fallbackPrimary}</p>
             </div>
           </div>
         </div>
         
         {/* Location */}
-        <div className="flex items-center gap-2 mt-4 text-sm text-gray-600">
-          <MapPin className="w-4 h-4" />
+        <div className="flex items-center gap-2 mt-4 text-[14px] text-gray-600">
+          <MapPin className="w-4 h-4 text-gray-500" />
           <span>{dog.location.city}, {dog.location.state}</span>
         </div>
         
         {/* Location and Distance */}
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
-          <ExternalLink className="w-4 h-4" />
+        <div className="flex items-center gap-2 mb-4 text-[14px] text-gray-600">
+          <ExternalLink className="w-4 h-4 text-gray-500" />
           <span>{dog.shelter.name}</span>
         </div>
         
@@ -138,13 +138,13 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             href={dog.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-center hover:bg-blue-700 transition-colors font-medium"
+            className="flex-1 btn-primary"
           >
             View on Petfinder
           </a>
           <button
             onClick={handleShare}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+            className="btn-ghost flex items-center gap-2"
           >
             <Share2 className="w-4 h-4" />
             {showCopied ? 'Copied!' : 'Share'}
@@ -176,7 +176,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="card overflow-hidden hover:shadow-lg transition-shadow w-[320px]">
       <div className="aspect-square relative">
         {photos.length > 0 ? (
           <PhotoCarousel
@@ -190,14 +190,14 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
         )}
       </div>
       
-      <div className="p-4">
+      <div className="card-padding">
         <div className="mb-3">
-          <h3 className="font-semibold text-gray-900 text-lg">{dog.name}</h3>
-          <p className="text-sm text-gray-600">{dog.breeds.join(', ')}</p>
+          <h3 className="font-semibold text-gray-900 text-[18px]">{dog.name}</h3>
+          <p className="text-[14px] text-gray-600">{dog.breeds.join(', ')}</p>
         </div>
         
         <div className="space-y-2 mb-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-[14px] text-gray-600">
             {dog.age} • {dog.size}
           </div>
           
@@ -209,16 +209,16 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
         </div>
         
         <div className="flex items-center gap-1 mb-3">
-          <MapPin className="w-3 h-3 text-gray-500" />
-          <span className="text-xs text-gray-600">
+          <MapPin className="w-4 h-4 text-gray-500" />
+          <span className="text-[12px] text-gray-600">
             {dog.location.city}, {dog.location.state}
           </span>
-          <span className="text-xs text-gray-400">({Math.round(dog.location.distanceMi)} miles)</span>
+          <span className="text-[12px] text-gray-400">({Math.round(dog.location.distanceMi)} miles)</span>
         </div>
         
         <div className="flex items-center gap-1">
-          <ExternalLink className="w-3 h-3" />
-          <span className="text-xs text-gray-600">{dog.shelter.name}</span>
+          <ExternalLink className="w-4 h-4 text-gray-500" />
+          <span className="text-[12px] text-gray-600">{dog.shelter.name}</span>
         </div>
         
         {/* AI Note removed for All Matches */}
@@ -228,13 +228,13 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             href={dog.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-center hover:bg-blue-700 transition-colors font-medium text-sm"
+            className="flex-1 btn-primary text-sm"
           >
             View on Petfinder
           </a>
           <button
             onClick={handleShare}
-            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+            className="btn-ghost text-sm"
           >
             <Share2 className="w-4 h-4" />
           </button>
@@ -610,7 +610,7 @@ function ResultsPageContent() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Yenta matched these to your preferences</h2>
               <p className="text-gray-600">Our AI has curated these dogs for you based on your preferences.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
               {topPicks.map((dog) => {
                 // Find the analysis for this dog from matching results
                 const analysis = matchingResults?.topMatches?.find(match => match.dogId === dog.id);
@@ -632,7 +632,7 @@ function ResultsPageContent() {
         {dogs.length > 0 && (
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
             {dogs.map((dog) => {
               // Find the analysis for this dog from matching results
               const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
