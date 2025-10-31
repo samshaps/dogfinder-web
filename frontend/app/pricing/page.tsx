@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useUser } from '@/lib/auth/user-context';
 import { getUserPlan } from '@/lib/stripe/plan-utils';
 import { PLANS } from '@/lib/stripe/config';
@@ -24,7 +24,7 @@ interface BillingInfo {
   wasDowngradedFromPro: boolean;
 }
 
-export default function PricingPage() {
+function PricingPageContent() {
   const { user } = useUser();
   const searchParams = useSearchParams();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
@@ -525,6 +525,25 @@ export default function PricingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-surface-gradient">
+        <div className="page-section">
+          <div className="container mx-auto text-center">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/2 mx-auto mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-12"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <PricingPageContent />
+    </Suspense>
   );
 }
 
