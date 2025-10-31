@@ -15,8 +15,8 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Stacked content sections */}
-          <div className="space-y-5">
+          {/* Content sections side-by-side on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* How We Help */}
             <section className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 text-left">
               <h2 className="text-[18px] sm:text-[20px] font-semibold mb-2">How We Help</h2>
