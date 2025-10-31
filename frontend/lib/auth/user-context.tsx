@@ -24,8 +24,15 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
+  const [isProcessingUser, setIsProcessingUser] = useState(true);
 
   useEffect(() => {
+    // Only process if session status is not loading
+    if (status === "loading") {
+      setIsProcessingUser(true);
+      return;
+    }
+
     if (session?.user) {
       const userData: User = {
         id: session.user.email || "",
@@ -35,6 +42,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         provider: "google",
       };
       setUser(userData);
+      setIsProcessingUser(false);
       
       // Track successful login
       trackEvent("auth_login_success", {
@@ -43,8 +51,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
     } else {
       setUser(null);
+      setIsProcessingUser(false);
     }
-  }, [session]);
+  }, [session, status]);
 
   const handleSignOut = async () => {
     trackEvent("auth_logout", {
@@ -56,7 +65,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const value: UserContextType = {
     user,
-    isLoading: status === "loading",
+    isLoading: status === "loading" || isProcessingUser,
     isAuthenticated: !!user,
     signOut: handleSignOut,
   };
