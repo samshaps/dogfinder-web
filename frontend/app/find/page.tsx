@@ -432,7 +432,7 @@ export default function FindPage() {
       {/* Main Content */}
       <div className="page-section">
         <div className="container mx-auto">
-          <div className="card card-padding">
+          <div className="card card-padding max-w-[800px] mx-auto">
             <div className="text-center mb-8">
               <h1>Let's make you a match</h1>
               <p className="mt-2 lead text-measure mx-auto">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
