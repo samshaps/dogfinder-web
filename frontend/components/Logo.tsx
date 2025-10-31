@@ -7,16 +7,10 @@ type LogoProps = {
 };
 
 export function Logo({ size = 'md', showText = true, className = '' }: LogoProps) {
-  const boxSizes = { 
-    sm: 'w-8 h-8 md:w-9 md:h-9', 
-    md: 'w-10 h-10 md:w-11 md:h-11', 
-    lg: 'w-12 h-12 md:w-14 md:h-14' 
-  }[size];
-  
   const imageSizes = {
-    sm: { width: 24, height: 24 },
-    md: { width: 32, height: 32 },
-    lg: { width: 40, height: 40 }
+    sm: { width: 32, height: 32, className: 'w-8 h-8 md:w-9 md:h-9' },
+    md: { width: 40, height: 40, className: 'w-10 h-10 md:w-11 md:h-11' },
+    lg: { width: 48, height: 48, className: 'w-12 h-12 md:w-14 md:h-14' }
   }[size];
   
   const textSizes = {
@@ -27,17 +21,15 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
 
   return (
     <div className={`flex items-center ${className}`}>
-      <div className={`${boxSizes} bg-blue-600 rounded-xl flex items-center justify-center overflow-hidden`}>
-        <Image
-          src="/logo.png"
-          alt="DogYenta logo"
-          width={imageSizes.width}
-          height={imageSizes.height}
-          className="object-contain"
-          priority
-          aria-hidden="true"
-        />
-      </div>
+      <Image
+        src="/logo.png"
+        alt="DogYenta logo"
+        width={imageSizes.width}
+        height={imageSizes.height}
+        className={imageSizes.className}
+        priority
+        aria-hidden="true"
+      />
       {showText && (
         <span className={`ml-2 ${textSizes} font-bold text-gray-900`}>DogYenta</span>
       )}
