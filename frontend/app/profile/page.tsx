@@ -376,7 +376,7 @@ function ProfilePageContent() {
                             });
                             router.push('/pricing');
                           }}
-                          className="w-full btn-primary"
+                          className="w-full btn-primary flex items-center justify-center"
                           aria-describedby="upgrade-description"
                         >
                           <span className="flex items-center justify-center gap-2">
@@ -401,7 +401,7 @@ function ProfilePageContent() {
                             });
                             router.push('/pricing');
                           }}
-                          className="w-full btn-primary"
+                          className="w-full btn-primary flex items-center justify-center"
                         >
                           Manage Subscription
                         </button>
@@ -442,7 +442,7 @@ function ProfilePageContent() {
                                   });
                                   router.push('/pricing');
                                 }}
-                                className="w-full btn-primary-sm"
+                                className="w-full btn-primary-sm flex items-center justify-center"
                               >
                                 Manage Subscription
                               </button>
@@ -459,7 +459,7 @@ function ProfilePageContent() {
                                 });
                                 router.push('/pricing');
                               }}
-                              className="w-full btn-primary-sm"
+                              className="w-full btn-primary-sm flex items-center justify-center"
                             >
                               Manage Subscription
                             </button>
@@ -537,7 +537,7 @@ function ProfilePageContent() {
               <div className="border-t pt-6">
                 <button
                   onClick={signOut}
-                  className="w-full btn-primary bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
+                  className="w-full btn-primary bg-red-600 hover:bg-red-700 focus-visible:ring-red-600 flex items-center justify-center"
                   aria-describedby="signout-description"
                 >
                   Sign Out
