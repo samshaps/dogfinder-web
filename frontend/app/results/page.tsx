@@ -133,21 +133,22 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
         </div>
         
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
           <a
             href={dog.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 btn-primary"
+            className="btn-primary-sm whitespace-nowrap"
           >
             View on Petfinder
           </a>
           <button
             onClick={handleShare}
-            className="btn-ghost flex items-center gap-2"
+            aria-label={showCopied ? 'Link copied' : 'Share dog link'}
+            title={showCopied ? 'Link copied' : 'Share'}
+            className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center"
           >
             <Share2 className="w-4 h-4" />
-            {showCopied ? 'Copied!' : 'Share'}
           </button>
         </div>
       </div>
