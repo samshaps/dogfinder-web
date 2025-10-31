@@ -642,7 +642,7 @@ export default function FindPage() {
             <div className="pt-6 flex justify-center">
               <button
                 type="submit"
-                className="btn-primary w-full sm:w-auto text-lg py-4 rounded-lg"
+                className="btn-primary w-full sm:w-auto text-lg py-4 rounded-lg justify-center"
               >
                 <Search className="w-5 h-5 mr-2" />
                 See my matches
