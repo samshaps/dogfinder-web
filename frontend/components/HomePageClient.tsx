@@ -80,15 +80,15 @@ export default function HomePageClient() {
             </div>
             {/* Right: Illustration */}
             <div>
-              <div className="relative mx-auto w-full max-w-[700px] lg:max-w-[800px] aspect-[4/3]">
+              <div className="relative mx-auto w-full md:max-w-[720px] lg:max-w-[820px] xl:max-w-[900px]">
                 <Image
                   src="/hero-dogyenta.png"
                   alt="Matchmaker surrounded by happy rescue dogs"
                   width={1240}
                   height={1240}
                   priority
-                  sizes="(max-width: 1024px) 90vw, 800px"
-                  className="w-full h-full object-contain"
+                  sizes="(max-width: 1024px) 90vw, 900px"
+                  className="w-full h-auto object-contain"
                 />
               </div>
             </div>
@@ -151,11 +151,11 @@ export default function HomePageClient() {
       {/* CTA Section */}
       <div className="bg-blue-600 page-section">
         <div className="container mx-auto">
-          <div className="text-center">
-            <h2 className="text-white mb-4">
+          <div className="text-center text-white">
+            <h2 className="mb-4">
               Ready to find your perfect match?
             </h2>
-            <p className="lead text-blue-100 mb-8 text-measure mx-auto">
+            <p className="mb-8 text-measure mx-auto text-white/90">
               Start your search today and discover dogs that fit your lifestyle.
             </p>
             <Link
