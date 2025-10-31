@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   try {
     // Get the search params from the request
     const { searchParams } = new URL(request.url);
+    const zipParam = searchParams.get('zip') || '';
+    const coarseZip = zipParam.split(',')[0]?.slice(0, 3) || '';
     
     // Log request details
     const hasGuidance = searchParams.has('guidance');
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
       hasGuidance,
       guidanceLength,
       params: Object.fromEntries(searchParams.entries()),
+      zipCoarse: coarseZip,
       timestamp: new Date().toISOString()
     });
     
@@ -72,13 +75,19 @@ export async function GET(request: NextRequest) {
             const errorData = JSON.parse(errorText);
             if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
               console.log(`[${requestId}] 🚫 Rate limit detected, returning 429`);
+              const errorHeaders = new Headers();
+              const totalDuration429 = Date.now() - startTime;
+              errorHeaders.set('X-Request-ID', requestId);
+              errorHeaders.set('X-Backend-Duration', `${backendDuration}`);
+              errorHeaders.set('X-Total-Duration', `${totalDuration429}`);
+              errorHeaders.set('X-Route', '/api/dogs');
               return NextResponse.json(
                 { 
                   error: 'RATE_LIMIT_EXCEEDED',
                   message: 'We\'ve been hugged to death! Please try again in a few minutes.',
                   redirectTo: '/rate-limit'
                 },
-                { status: 429 }
+                { status: 429, headers: errorHeaders }
               );
             }
           }
@@ -89,10 +98,14 @@ export async function GET(request: NextRequest) {
       
       const totalDuration = Date.now() - startTime;
       console.log(`[${requestId}] ⏱️ /api/dogs total duration: ${totalDuration}ms (backend: ${backendDuration}ms)`);
-      
+      const errorHeaders = new Headers();
+      errorHeaders.set('X-Request-ID', requestId);
+      errorHeaders.set('X-Backend-Duration', `${backendDuration}`);
+      errorHeaders.set('X-Total-Duration', `${totalDuration}`);
+      errorHeaders.set('X-Route', '/api/dogs');
       return NextResponse.json(
         { error: 'Backend API error', status: response.status },
-        { status: response.status }
+        { status: response.status, headers: errorHeaders }
       );
     }
 
@@ -106,7 +119,8 @@ export async function GET(request: NextRequest) {
       backendDuration: `${backendDuration}ms`,
       parseDuration: `${parseDuration}ms`,
       dogCount: data.items?.length || 0,
-      hasGuidance
+      hasGuidance,
+      zipCoarse: coarseZip
     });
     
     // Add performance headers
@@ -114,6 +128,8 @@ export async function GET(request: NextRequest) {
     responseHeaders.set('X-Request-ID', requestId);
     responseHeaders.set('X-Backend-Duration', `${backendDuration}`);
     responseHeaders.set('X-Total-Duration', `${totalDuration}`);
+    responseHeaders.set('X-Parse-Duration', `${parseDuration}`);
+    responseHeaders.set('X-Route', '/api/dogs');
     
     return NextResponse.json(data, { headers: responseHeaders });
   } catch (error) {
@@ -123,19 +139,29 @@ export async function GET(request: NextRequest) {
     // Handle timeout/abort specifically
     if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       console.error(`[${requestId}] ⏱️ TIMEOUT - Request exceeded 15s limit (actual: ${totalDuration}ms)`);
+      const timeoutHeaders = new Headers();
+      timeoutHeaders.set('X-Request-ID', requestId);
+      timeoutHeaders.set('X-Backend-Duration', '0');
+      timeoutHeaders.set('X-Total-Duration', `${totalDuration}`);
+      timeoutHeaders.set('X-Route', '/api/dogs');
       return NextResponse.json(
         { 
           error: 'Backend timeout', 
           message: 'The backend API is taking too long to respond. Please try again later.',
           details: `Backend API timeout after ${totalDuration}ms`
         },
-        { status: 504 }
+        { status: 504, headers: timeoutHeaders }
       );
     }
     
+    const errorHeaders = new Headers();
+    errorHeaders.set('X-Request-ID', requestId);
+    errorHeaders.set('X-Backend-Duration', '0');
+    errorHeaders.set('X-Total-Duration', `${totalDuration}`);
+    errorHeaders.set('X-Route', '/api/dogs');
     return NextResponse.json(
       { error: 'Failed to fetch dogs from backend', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      { status: 500, headers: errorHeaders }
     );
   }
 }
