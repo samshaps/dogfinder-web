@@ -53,7 +53,8 @@ function PricingPageContent() {
     const action = searchParams.get('action') || 
                    (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('action') : null);
     
-    // Wait for user to be authenticated, user loading to complete, page loading to complete, and not already upgrading
+    // Wait for user to be authenticated, user loading to complete, page loading to complete, 
+    // and not already upgrading. We don't need to wait for plan info to load for checkout.
     // Also check that we haven't already triggered the upgrade
     const canProceed = action === 'upgrade' && 
                        user && 
@@ -90,7 +91,10 @@ function PricingPageContent() {
         }
         
         try {
-          console.log('✅ Proceeding with checkout session creation');
+          console.log('✅ Proceeding with checkout session creation', {
+            planInfo: planInfo?.planType || 'unknown',
+            billingInfo: billingInfo ? 'loaded' : 'not loaded'
+          });
           setUpgrading(true);
           trackEvent('pricing_cta_pro', {
             authenticated: true,
@@ -99,16 +103,29 @@ function PricingPageContent() {
             source: 'auto_redirect_after_auth'
           });
 
+          console.log('📡 Making API call to create checkout session...');
           const response = await fetch('/api/stripe/create-checkout-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           });
 
+          console.log('📥 API response status:', response.status, response.statusText);
+          
           if (!response.ok) {
-            throw new Error('Failed to create checkout session');
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('❌ API error response:', errorData);
+            throw new Error(errorData.error || `Failed to create checkout session (${response.status})`);
           }
 
-          const { url } = await response.json();
+          const responseData = await response.json();
+          console.log('📦 API response data:', responseData);
+          const { url } = responseData;
+          
+          if (!url) {
+            console.error('❌ No URL in response:', responseData);
+            throw new Error('No checkout URL returned from API');
+          }
           
           if (url) {
             console.log('✅ Redirecting to Stripe checkout');
