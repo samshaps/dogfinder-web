@@ -40,7 +40,7 @@ export default function Navigation() {
             
             {/* Desktop Navigation */}
             <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
+              <div className="ml-10 flex items-baseline space-x-6">
                 <Link 
                   href="/find" 
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
@@ -95,7 +95,7 @@ export default function Navigation() {
                 ) : (
                   <Link 
                     href="/auth/signin" 
-                    className="btn-primary-sm"
+                    className="btn-ghost-sm"
                   >
                     Sign In
                   </Link>

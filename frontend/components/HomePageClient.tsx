@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics/tracking';
 
 export default function HomePageClient() {
   const smoothScrollTo = (targetId: string) => {
@@ -39,16 +40,16 @@ export default function HomePageClient() {
       {/* Hero Section */}
       <div className="bg-surface min-h-[calc(100vh-4rem)] flex items-center">
         <div className="container mx-auto py-6 sm:py-8 lg:py-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center hero-grid">
             {/* Left: Copy */}
             <div className="text-center lg:text-left">
               <div>
-                <h1 className="text-balance text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 mb-8 max-w-2xl mx-auto lg:mx-0">
+                <h1 className="display text-balance mb-8 max-w-2xl mx-auto lg:mx-0">
                   The smarter way to find your
                   <br className="hidden lg:block" />
                   {" "}<span className="text-blue-600">rescue dog.</span>
                 </h1>
-                <p className="mt-4 text-xl sm:text-2xl text-slate-600 leading-relaxed text-measure mx-auto lg:mx-0">
+                <p className="mt-4 subhead text-measure mx-auto lg:mx-0">
                   Personalized rescue-dog matches for your lifestyle.
                   <br />
                   Because finding your best friend shouldn&apos;t feel like a full-time job.
@@ -58,18 +59,22 @@ export default function HomePageClient() {
                   <div className="flex flex-wrap items-center gap-4 justify-center lg:justify-start">
                     <Link
                       href="/find"
-                      className="inline-flex items-center rounded-xl bg-blue-600 px-8 py-4 text-lg text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors w-full sm:w-auto"
+                      onClick={() => trackEvent('homepage_find_top_matches_clicked' as unknown as any)}
+                      className="btn-primary btn-lg w-full sm:w-auto"
                     >
                       Find My Top Matches
                     </Link>
                     <button
-                      onClick={() => smoothScrollTo('how-it-works')}
-                      className="inline-flex items-center rounded-xl border border-slate-300 px-8 py-4 text-lg text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors w-full sm:w-auto"
+                      onClick={() => {
+                        trackEvent('homepage_see_how_it_works_clicked' as unknown as any);
+                        smoothScrollTo('how-it-works');
+                      }}
+                      className="btn-ghost btn-lg w-full sm:w-auto"
                     >
                       See how it works
                     </button>
                   </div>
-                  <p className="mt-4 text-base text-slate-500 text-center lg:text-left">Powered by Petfinder • Updated daily</p>
+                  <p className="mt-4 caption text-center lg:text-left">Powered by Petfinder • Updated daily</p>
                 </div>
               </div>
             </div>
@@ -103,8 +108,8 @@ export default function HomePageClient() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <div className="card card-padding">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-2xl font-bold text-blue-600">1</span>
+              <div className="number-badge">
+                <span className="number-badge__text">1</span>
               </div>
               <h3>
                 Talk to the yenta
@@ -116,8 +121,8 @@ export default function HomePageClient() {
 
             {/* Step 2 */}
             <div className="card card-padding">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-2xl font-bold text-blue-600">2</span>
+              <div className="number-badge">
+                <span className="number-badge__text">2</span>
               </div>
               <h3>
                 AI analysis
@@ -129,8 +134,8 @@ export default function HomePageClient() {
 
             {/* Step 3 */}
             <div className="card card-padding">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-2xl font-bold text-blue-600">3</span>
+              <div className="number-badge">
+                <span className="number-badge__text">3</span>
               </div>
               <h3>
                 Your matches, delivered
@@ -155,6 +160,7 @@ export default function HomePageClient() {
             </p>
             <Link
               href="/find"
+              onClick={() => trackEvent('homepage_cta_band_clicked' as unknown as any)}
               className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
             >
               <Search className="w-5 h-5 mr-2" />

@@ -73,6 +73,12 @@ export type ProfileEvent =
   | 'pricing_cta_pro'
   | 'pricing_page_viewed';
 
+// Homepage events
+export type HomepageEvent =
+  | 'homepage_find_top_matches_clicked'
+  | 'homepage_see_how_it_works_clicked'
+  | 'homepage_cta_band_clicked';
+
 // All event types
 export type AnalyticsEvent =
   | AuthEvent
@@ -81,7 +87,8 @@ export type AnalyticsEvent =
   | ResultsEvent
   | AlertEvent
   | PaymentEvent
-  | ProfileEvent;
+  | ProfileEvent
+  | HomepageEvent;
 
 // Event properties (no PII allowed!)
 export interface EventProperties {
