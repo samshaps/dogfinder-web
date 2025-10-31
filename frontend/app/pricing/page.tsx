@@ -25,7 +25,7 @@ interface BillingInfo {
 }
 
 function PricingPageContent() {
-  const { user } = useUser();
+  const { user, isLoading: userLoading } = useUser();
   const searchParams = useSearchParams();
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
@@ -49,27 +49,54 @@ function PricingPageContent() {
 
   // Auto-trigger upgrade flow if user just authenticated and has action=upgrade in URL
   useEffect(() => {
-    const action = searchParams.get('action');
-    // Wait for user to be authenticated, loading to complete, and not already upgrading
+    // Check both searchParams and window.location as fallback
+    const action = searchParams.get('action') || 
+                   (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('action') : null);
+    
+    // Wait for user to be authenticated, user loading to complete, page loading to complete, and not already upgrading
     // Also check that we haven't already triggered the upgrade
-    if (action === 'upgrade' && user && !upgrading && !loading && !upgradeTriggeredRef.current) {
+    const canProceed = action === 'upgrade' && 
+                       user && 
+                       !userLoading && 
+                       !upgrading && 
+                       !loading && 
+                       !upgradeTriggeredRef.current;
+    
+    if (canProceed) {
+      console.log('🚀 Auto-triggering upgrade flow after authentication', {
+        action,
+        hasUser: !!user,
+        userLoading,
+        upgrading,
+        loading,
+        alreadyTriggered: upgradeTriggeredRef.current
+      });
+      
       // Mark that we're about to trigger upgrade to prevent duplicate triggers
       upgradeTriggeredRef.current = true;
       
-      // Small delay to ensure plan info is loaded and avoid race conditions
+      // Delay to ensure everything is ready, especially after auth redirect
       const timer = setTimeout(async () => {
         // Double-check we're still in a valid state before proceeding
-        if (upgrading || loading) {
+        if (upgrading || loading || userLoading || !user) {
+          console.log('⚠️ Upgrade trigger cancelled - state changed', {
+            upgrading,
+            loading,
+            userLoading,
+            hasUser: !!user
+          });
           upgradeTriggeredRef.current = false;
           return;
         }
         
         try {
+          console.log('✅ Proceeding with checkout session creation');
           setUpgrading(true);
           trackEvent('pricing_cta_pro', {
             authenticated: true,
             current_plan: planInfo?.planType || 'free',
-            action: billingInfo?.isScheduledForCancellation ? 'resubscribe' : 'upgrade'
+            action: billingInfo?.isScheduledForCancellation ? 'resubscribe' : 'upgrade',
+            source: 'auto_redirect_after_auth'
           });
 
           const response = await fetch('/api/stripe/create-checkout-session', {
@@ -83,22 +110,26 @@ function PricingPageContent() {
 
           const { url } = await response.json();
           
-          // Clean up URL by removing the action parameter
-          const urlObj = new URL(window.location.href);
-          urlObj.searchParams.delete('action');
-          window.history.replaceState({}, '', urlObj.toString());
-          
           if (url) {
+            console.log('✅ Redirecting to Stripe checkout');
+            // Clean up URL by removing the action parameter before redirect
+            const urlObj = new URL(window.location.href);
+            urlObj.searchParams.delete('action');
+            window.history.replaceState({}, '', urlObj.toString());
+            
+            // Redirect to Stripe checkout
             window.location.href = url;
+          } else {
+            throw new Error('No checkout URL returned');
           }
         } catch (error) {
-          console.error('Error upgrading:', error);
+          console.error('❌ Error upgrading:', error);
           alert('Failed to start upgrade process. Please try again.');
           setUpgrading(false);
           // Reset the ref on error so user can try again
           upgradeTriggeredRef.current = false;
         }
-      }, 500);
+      }, 1000); // Increased delay to ensure auth state is fully resolved
       return () => clearTimeout(timer);
     }
     
@@ -106,7 +137,7 @@ function PricingPageContent() {
     if (action !== 'upgrade') {
       upgradeTriggeredRef.current = false;
     }
-  }, [user, searchParams, upgrading, loading, planInfo, billingInfo]);
+  }, [user, userLoading, searchParams, upgrading, loading, planInfo, billingInfo]);
 
   // Check if downgrade is scheduled on mount (persist success message on page reload)
   useEffect(() => {
