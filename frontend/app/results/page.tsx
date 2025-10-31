@@ -610,7 +610,7 @@ function ResultsPageContent() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Yenta matched these to your preferences</h2>
               <p className="text-gray-600">Our AI has curated these dogs for you based on your preferences.</p>
             </div>
-            <div className="grid gap-y-10 gap-x-12 md:gap-x-16 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center px-2 md:px-4">
+            <div className="grid gap-y-12 gap-x-12 lg:gap-x-16 xl:gap-x-20 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center px-3 md:px-6">
               {topPicks.map((dog) => {
                 // Find the analysis for this dog from matching results
                 const analysis = matchingResults?.topMatches?.find(match => match.dogId === dog.id);
