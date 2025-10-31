@@ -146,9 +146,9 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             onClick={handleShare}
             aria-label={showCopied ? 'Link copied' : 'Share dog link'}
             title={showCopied ? 'Link copied' : 'Share'}
-            className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center"
+            className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-4 h-4 text-gray-700" />
           </button>
         </div>
       </div>
