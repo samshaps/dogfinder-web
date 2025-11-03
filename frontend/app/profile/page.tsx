@@ -498,9 +498,6 @@ function ProfilePageContent() {
                   <p className="text-xs text-gray-500 mt-2">
                     Get notified when new dogs match your preferences. {settings?.enabled ? 'Email alerts are enabled.' : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'}
                   </p>
-                  <div className="mt-3">
-                    <a href="#email-settings" className="text-sm text-blue-600 hover:text-blue-800 font-medium">Manage Email Settings →</a>
-                  </div>
                 </div>
               </div>
 
