@@ -53,15 +53,14 @@ export async function POST(request: NextRequest) {
 
     const currentPlan = planData?.plan_type || 'free';
     const subscriptionId = planData?.stripe_subscription_id;
+    const stripe = getStripeServer();
     
     // If user has a Pro plan with an active subscription, check if it's scheduled for cancellation
     if (currentPlan === 'pro' && subscriptionId) {
       try {
-        const stripe = getStripeServer();
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         
         // Only block if they have an active subscription that's NOT scheduled for cancellation
-        // If it's scheduled for cancellation (cancel_at_period_end = true), allow resubscription
         if (subscription.status === 'active' || subscription.status === 'trialing') {
           if (!subscription.cancel_at_period_end) {
             console.log('❌ User already has active Pro plan that is not scheduled for cancellation');
@@ -70,7 +69,52 @@ export async function POST(request: NextRequest) {
               { status: 400 }
             );
           } else {
-            console.log('✅ User has Pro plan scheduled for cancellation, allowing resubscription');
+            // User has subscription scheduled for cancellation - reactivate it instead of creating new checkout
+            // This prevents immediate charging and preserves the original billing period
+            console.log('✅ User has Pro plan scheduled for cancellation, reactivating existing subscription');
+            
+            try {
+              // Reactivate the subscription by removing cancel_at_period_end
+              const reactivatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+                cancel_at_period_end: false,
+              });
+              
+              console.log('✅ Subscription reactivated:', {
+                subscriptionId: reactivatedSubscription.id,
+                cancel_at_period_end: reactivatedSubscription.cancel_at_period_end,
+                current_period_end: new Date(reactivatedSubscription.current_period_end * 1000).toISOString(),
+              });
+              
+              // Update database to reflect reactivation
+              const { error: updateError } = await (client as any)
+                .from('plans')
+                .update({
+                  status: 'active',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', userId);
+              
+              if (updateError) {
+                console.error('⚠️ Failed to update plan status in database:', updateError);
+                // Continue anyway - Stripe subscription is reactivated
+              }
+              
+              // Return success response - no checkout URL needed since we reactivated
+              return NextResponse.json({
+                reactivated: true,
+                message: 'Subscription reactivated successfully',
+                subscriptionId: reactivatedSubscription.id,
+                currentPeriodEnd: new Date(reactivatedSubscription.current_period_end * 1000).toISOString(),
+                // Return profile URL instead of checkout URL since no payment needed
+                url: `${request.nextUrl.origin}/profile?upgrade=success&reactivated=true`,
+              });
+              
+            } catch (reactivateError: any) {
+              console.error('❌ Failed to reactivate subscription:', reactivateError);
+              // Fall through to create new checkout session as fallback
+              // This shouldn't happen, but if it does, we'll create a new subscription
+              console.log('⚠️ Falling back to creating new checkout session');
+            }
           }
         }
       } catch (stripeError: any) {
@@ -84,8 +128,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create Stripe checkout session
-    const stripe = getStripeServer();
+    // Create Stripe checkout session for new subscriptions
     const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
     if (!proPriceId) {
       console.error('❌ Missing STRIPE_PRO_PRICE_ID');

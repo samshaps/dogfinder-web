@@ -8,7 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Edit, Crown, Star, AlertCircle, X } from "lucide-react";
 import { getUserPlan } from "@/lib/stripe/plan-utils";
 import { PLANS } from "@/lib/stripe/config";
-import EmailAlertSettings from "@/components/EmailAlertSettings";
+import { usePreferences } from "@/lib/hooks/use-preferences";
+import { useEmailAlerts } from "@/lib/hooks/use-email-alerts";
 
 interface PlanInfo {
   planType: string;
@@ -42,6 +43,8 @@ function ProfilePageContent() {
   const [downgrading, setDowngrading] = useState(false);
   const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
+  const { preferences } = usePreferences();
+  const { settings, toggleAlerts, loading: emailLoading } = useEmailAlerts();
 
   useEffect(() => {
     trackEvent("profile_viewed", {
@@ -200,9 +203,9 @@ function ProfilePageContent() {
   return (
     <div className="min-h-screen bg-surface-gradient">
       <div className="page-section">
-        <div className="mx-auto max-w-[800px] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[640px] px-4 sm:px-6 lg:px-8">
           <div className="card card-padding">
-            <div className="text-center items-center space-y-2 mb-8">
+            <div className="text-center items-center space-y-1 mb-6">
               {user?.image && (
                 <img
                   src={user.image}
@@ -210,36 +213,14 @@ function ProfilePageContent() {
                   className="h-24 w-24 rounded-full ring-2 ring-slate-200 mx-auto"
                 />
               )}
-              <h1 className="mb-2">
-                Welcome, {user?.name}!
-              </h1>
-              <p className="text-slate-600">{user?.email}</p>
+              <p className="text-xl font-semibold text-gray-900">{user?.name}</p>
+              <p className="text-slate-600 text-sm">{user?.email}</p>
             </div>
 
             <div className="space-y-6">
-              {/* Account Information */}
-              <div>
-                <h2 className="mb-4">
-                  Account Information
-                </h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Name:</span>
-                    <span className="font-medium">{user?.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Email:</span>
-                    <span className="font-medium">{user?.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Provider:</span>
-                    <span className="font-medium capitalize">{user?.provider}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Plan Information */}
-              <div className="border-t pt-6">
+              {/* Current Plan */}
+              <div>
                 <h2 className="mb-4 flex items-center gap-2" id="plan-section">
                   {planInfo?.isPro ? (
                     <Crown className="w-5 h-5 text-yellow-500" aria-hidden="true" />
@@ -317,14 +298,13 @@ function ProfilePageContent() {
                       </span>
                     </div>
                     
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm text-gray-700 mb-3" role="status">
+                    <div className="space-y-2 mb-2">
+                      <p className="text-sm text-gray-700" role="status">
                         {planInfo.isPro 
-                          ? 'You have full access to all Pro features, including email alerts for new dog matches and unlimited searches.'
-                          : 'Enjoy the free plan with basic search. Upgrade to Pro to receive email alerts when new dogs match your preferences and unlock unlimited searches.'
+                          ? 'You have full access to all Pro features.'
+                          : 'Enjoy the free plan with basic search. Upgrade to Pro for full features.'
                         }
                       </p>
-                      
                       {/* Billing Information */}
                       {billingInfo && (
                         <div className="mb-3 pt-3 border-t border-gray-200">
@@ -349,20 +329,6 @@ function ProfilePageContent() {
                             </p>
                           )}
                         </div>
-                      )}
-
-                      {planInfo.features.slice(0, 3).map((feature, index) => (
-                        <div key={index} className="flex items-start">
-                          <svg className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="text-sm text-slate-600">{feature}</span>
-                        </div>
-                      ))}
-                      {planInfo.features.length > 3 && (
-                        <p className="text-sm text-gray-600 ml-6">
-                          +{planInfo.features.length - 3} more feature{planInfo.features.length - 3 !== 1 ? 's' : ''} available
-                        </p>
                       )}
                     </div>
                     
@@ -484,57 +450,64 @@ function ProfilePageContent() {
                 )}
               </div>
 
-              {/* Edit Preferences Button */}
-              <div className="border-t pt-6">
-                <h3 className="mb-3">Search Preferences</h3>
-                <button
-                  onClick={() => {
-                    trackEvent("preferences_viewed", {
-                      user_id: user?.id,
-                      source: "profile_page"
-                    });
-                    router.push('/find');
-                  }}
-                  className="w-full btn-primary flex items-center justify-center gap-2"
-                  aria-describedby="preferences-description"
-                >
-                  <Edit className="w-5 h-5" aria-hidden="true" />
-                  Edit My Search Preferences
-                </button>
-                <p id="preferences-description" className="text-sm text-gray-500 text-center mt-2">
-                  Customize your dog search criteria including breed, size, age, and location
-                </p>
-              </div>
-
-              {/* Email Alerts Section */}
-              <div className="border-t pt-6">
-                <EmailAlertSettings />
-              </div>
-
-              {/* Search History Section */}
-              <div className="border-t pt-6">
-                <h2 className="mb-4" id="search-history-section">
-                  Search History
-                </h2>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 text-center">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                  <h3 className="mb-2">Search History Coming Soon</h3>
-                  <p className="body-text text-sm mb-4">
-                    We're working on a feature to track your past searches so you can easily revisit dogs you've found.
+              {/* Search Preferences */}
+              <div>
+                <h3 className="mb-2">Search Preferences</h3>
+                <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-3">
+                  <p className="text-sm text-gray-700">
+                    {getPreferencesSummary(preferences) || 'No preferences saved yet.'}
                   </p>
-                  <div className="flex items-center justify-center gap-2 text-xs text-blue-600">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                    <span>In development</span>
+                  <button
+                    onClick={() => {
+                      trackEvent("preferences_viewed", {
+                        user_id: user?.id,
+                        source: "profile_page"
+                      });
+                      router.push('/find');
+                    }}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                  >
+                    <Edit className="w-5 h-5" aria-hidden="true" />
+                    Edit Preferences
+                  </button>
+                </div>
+              </div>
+
+              {/* Email Alerts - compact card */}
+              <div>
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900" id="email-toggle-label">Email Notifications</p>
+                    <button
+                      onClick={() => toggleAlerts(!(settings?.enabled ?? false))}
+                      disabled={emailLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
+                        settings?.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                      } ${emailLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+                      role="switch"
+                      aria-checked={settings?.enabled}
+                      aria-labelledby="email-toggle-label"
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                          settings?.enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Get notified when new dogs match your preferences. {settings?.enabled ? 'Email alerts are enabled.' : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'}
+                  </p>
+                  <div className="mt-3">
+                    <a href="#email-settings" className="text-sm text-blue-600 hover:text-blue-800 font-medium">Manage Email Settings →</a>
                   </div>
                 </div>
               </div>
 
+              {/* Search History removed per redesign */}
+
               {/* Sign Out */}
-              <div className="border-t pt-6">
+              <div>
                 <button
                   onClick={signOut}
                   className="w-full btn-primary bg-red-600 hover:bg-red-700 focus-visible:ring-red-600 flex items-center justify-center"
@@ -618,6 +591,28 @@ function ProfilePageContent() {
       )}
     </div>
   );
+}
+
+function getPreferencesSummary(prefs: any | null | undefined) {
+  if (!prefs) return '';
+
+  const parts: string[] = [];
+  if (Array.isArray(prefs.size_preferences) && prefs.size_preferences.length > 0) {
+    parts.push(`dogs that are ${prefs.size_preferences.join(' to ')} sized`);
+  }
+  if (Array.isArray(prefs.include_breeds) && prefs.include_breeds.length > 0) {
+    const breeds = prefs.include_breeds.slice(0, 2).join(' or ');
+    parts.push(`with a preference for ${breeds}`);
+  }
+  if (Array.isArray(prefs.zip_codes) && prefs.zip_codes.length > 0) {
+    parts.push(`near your selected locations`);
+  }
+
+  const sentence = parts.length > 0
+    ? `Your current preferences allow you to find ${parts.join(', ')}.`
+    : '';
+
+  return sentence;
 }
 
 export default function ProfilePage() {

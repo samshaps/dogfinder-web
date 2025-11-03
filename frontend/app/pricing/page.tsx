@@ -129,14 +129,24 @@ function PricingPageContent() {
 
           const responseData = await response.json();
           console.log('📦 API response data:', responseData);
-          const { url } = responseData;
+          const { url, reactivated } = responseData;
           
           if (!url) {
             console.error('❌ No URL in response:', responseData);
-            throw new Error('No checkout URL returned from API');
+            throw new Error('No URL returned from API');
           }
           
-          if (url) {
+          if (reactivated) {
+            // Subscription was reactivated - redirect to profile page
+            console.log('✅ Subscription reactivated, redirecting to profile');
+            // Clean up URL by removing the action parameter before redirect
+            const urlObj = new URL(window.location.href);
+            urlObj.searchParams.delete('action');
+            window.history.replaceState({}, '', urlObj.toString());
+            
+            window.location.href = url;
+          } else if (url) {
+            // New subscription - redirect to Stripe checkout
             console.log('✅ Redirecting to Stripe checkout');
             // Clean up URL by removing the action parameter before redirect
             const urlObj = new URL(window.location.href);
@@ -146,7 +156,7 @@ function PricingPageContent() {
             // Redirect to Stripe checkout
             window.location.href = url;
           } else {
-            throw new Error('No checkout URL returned');
+            throw new Error('No URL returned from API');
           }
         } catch (error) {
           console.error('❌ Error upgrading:', error);
@@ -232,10 +242,18 @@ function PricingPageContent() {
         throw new Error('Failed to create checkout session');
       }
 
-      const { url } = await response.json();
+      const responseData = await response.json();
+      const { url, reactivated } = responseData;
       
-      if (url) {
+      if (reactivated) {
+        // Subscription was reactivated - redirect to profile page
+        console.log('✅ Subscription reactivated, redirecting to profile');
+        window.location.href = url || '/profile?upgrade=success&reactivated=true';
+      } else if (url) {
+        // New subscription - redirect to Stripe checkout
         window.location.href = url;
+      } else {
+        throw new Error('No URL returned from API');
       }
     } catch (error) {
       console.error('Error upgrading:', error);
