@@ -35,7 +35,7 @@ export default function AboutPage() {
                   The name 'Yenta' is inspired by the matchmaker from the musical 'Fiddler on the Roof'. Just like Yenta, our platform is all about making meaningful connections. Unlike Yenta, we won't pair you up with an age-inappropriate butcher.
                 </p>
                 <p>
-                  We believe finding the right dog is a matchmaking process—a heartfelt quest to unite a loving person with their perfect canine companion. We're here to be your friendly, modern-day Yenta for dog adoption.
+                  We believe finding the right dog is a matchmaking process: a heartfelt quest to unite a loving person with their perfect canine companion. We're here to be your friendly, modern-day Yenta for dog adoption.
                 </p>
               </div>
             </section>

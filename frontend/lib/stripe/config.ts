@@ -46,8 +46,7 @@ export const PLANS = {
     features: [
       'Basic dog search',
       'Up to 10 results per search',
-      'Basic preferences saving',
-      'Community support'
+      'Basic preferences saving'
     ],
     limits: {
       searchesPerDay: 10,
@@ -62,12 +61,9 @@ export const PLANS = {
     price: 9.99,
     priceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro_monthly',
     features: [
-      'Unlimited dog searches',
-      'Advanced filtering options',
-      'Email alerts for new matches',
-      'Priority customer support',
-      'Save unlimited favorites',
-      'Export search results'
+      'Always-on monitoring',
+      'Saved preferences',
+      'Email alerts'
     ],
     limits: {
       searchesPerDay: -1, // Unlimited

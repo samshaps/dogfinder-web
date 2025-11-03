@@ -380,10 +380,6 @@ function PricingPageContent() {
           <h1>
             Never Miss Your Perfect Pup Again!
           </h1>
-          <p className="mt-2 lead text-measure-wide mx-auto mb-12">
-            Get instant email alerts when new dogs matching your exact preferences are available.
-            Your furry best friend is just an email away.
-          </p>
           
           {user && (
             <div className="mb-8">
@@ -460,7 +456,7 @@ function PricingPageContent() {
                 <div className="text-4xl font-extrabold mb-4">
                   $0<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="body-text">Perfect for getting started and finding your ideal dog</p>
+                <p className="body-text">Unlimited use of our site to find your perfect pup.</p>
               </div>
               
               <ul className="space-y-3 mb-8 text-left flex-1">
@@ -512,7 +508,7 @@ function PricingPageContent() {
                 <div className="text-4xl font-extrabold mb-4">
                   $9.99<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
-                <p className="body-text">Unlock advanced features for a truly personalized experience</p>
+                <p className="body-text">Always-on monitoring with email notifications.</p>
               </div>
               
               <ul className="space-y-3 mb-8 text-left flex-1">
@@ -564,34 +560,6 @@ function PricingPageContent() {
             </div>
           </div>
 
-          {/* Why DogYenta Email Alerts Section */}
-          <div className="mt-20">
-            <h2 className="mb-12 text-center">Why DogYenta Email Alerts?</h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="text-4xl mb-4">🎯</div>
-                <h3 className="mb-2">Perfect Matches</h3>
-                <p className="body-text">
-                  Our advanced algorithm connects you with dogs that meet your exact criteria
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-4">⚡</div>
-                <h3 className="mb-2">Instant Alerts</h3>
-                <p className="body-text">
-                  Be the first to know about new dogs that match your preferences
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-4">🔒</div>
-                <h3 className="mb-2">Secure & Private</h3>
-                <p className="body-text">
-                  Your preferences and data are safe with us, always
-                </p>
-              </div>
-            </div>
-          </div>
-          
           {loading && (
             <div className="text-center mt-8">
               <p className="text-gray-600">Loading plan information...</p>

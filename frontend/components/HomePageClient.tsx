@@ -75,7 +75,6 @@ export default function HomePageClient() {
                       See how it works
                     </button>
                   </div>
-                  <p className="mt-4 caption text-center lg:text-left">Powered by Petfinder • Updated daily</p>
                 </div>
               </div>
             </div>
@@ -116,7 +115,7 @@ export default function HomePageClient() {
                 Talk to the yenta
               </h3>
               <p className="body-text">
-                Tell DogYenta about your lifestyle and what you&apos;re looking for—location, breed preferences, size, temperament, and must-haves.
+                Tell DogYenta about your lifestyle and what you&apos;re looking for: location, breed preferences, size, temperament, and must-haves.
               </p>
             </div>
 
@@ -129,7 +128,7 @@ export default function HomePageClient() {
                 AI analysis
               </h3>
               <p className="body-text">
-                Our AI reviews each new Petfinder listing—tags, foster descriptions, and photos—to understand the dog&apos;s personality and fit.
+                Our AI reviews each new Petfinder listing: tags, foster descriptions, and photos to understand the dog&apos;s personality and fit.
               </p>
             </div>
 
@@ -179,31 +178,7 @@ export default function HomePageClient() {
               <div className="mb-4">
                 <Logo size="md" />
               </div>
-              <p className="text-gray-600 mb-4">
-                We respect your privacy. We don&apos;t store your data or share it with third parties.
-              </p>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Links</h3>
-              <ul className="space-y-2">
-                <li><Link href="/about" className="text-gray-600 hover:text-gray-900">About</Link></li>
-                <li><Link href="/contact" className="text-gray-600 hover:text-gray-900">Contact</Link></li>
-                <li><Link href="/terms" className="text-gray-600 hover:text-gray-900">Terms of Service</Link></li>
-                <li><Link href="/privacy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Resources</h3>
-              <ul className="space-y-2">
-                <li><Link href="/how-it-works" className="text-gray-600 hover:text-gray-900">How it works</Link></li>
-                <li><Link href="/faq" className="text-gray-600 hover:text-gray-900">FAQ</Link></li>
-                <li><Link href="/help" className="text-gray-600 hover:text-gray-900">Help Center</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-500 text-sm">© 2024 PupMatch. All rights reserved.</p>
-            <p className="text-gray-500 text-sm mt-2 md:mt-0">Powered by Petfinder API</p>
           </div>
         </div>
       </footer>
