@@ -6,6 +6,15 @@ import { getSupabaseClient } from '../supabase-auth';
 import { PLANS, PlanId } from './config';
 
 /**
+ * Check if user can view their saved preferences
+ * Only Pro users can see and use their saved preferences
+ */
+export function canViewPrefs(planInfo: { planType?: string; isPro?: boolean } | null): boolean {
+  if (!planInfo) return false;
+  return planInfo.isPro === true || planInfo.planType === 'PRO' || planInfo.planType?.toLowerCase() === 'pro';
+}
+
+/**
  * Get user's current plan information
  */
 export async function getUserPlan(userIdOrEmail: string): Promise<{

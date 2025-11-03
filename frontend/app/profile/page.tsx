@@ -5,8 +5,8 @@ import { ProtectedRoute } from "@/lib/auth/protected-route";
 import { useEffect, useState, useRef, Suspense } from "react";
 import { trackEvent } from "@/lib/analytics/tracking";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Edit, Crown, Star, AlertCircle, X } from "lucide-react";
-import { getUserPlan } from "@/lib/stripe/plan-utils";
+import { Edit, Crown, Star, AlertCircle, X, CheckCircle } from "lucide-react";
+import { getUserPlan, canViewPrefs } from "@/lib/stripe/plan-utils";
 import { PLANS } from "@/lib/stripe/config";
 import { usePreferences } from "@/lib/hooks/use-preferences";
 import { useEmailAlerts } from "@/lib/hooks/use-email-alerts";
@@ -45,6 +45,9 @@ function ProfilePageContent() {
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const { preferences } = usePreferences();
   const { settings, toggleAlerts, loading: emailLoading } = useEmailAlerts();
+  const previousPlanRef = useRef<{ isPro: boolean } | null>(null);
+  const [showUpgradeToast, setShowUpgradeToast] = useState(false);
+  const upgradeToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     trackEvent("profile_viewed", {
@@ -70,10 +73,13 @@ function ProfilePageContent() {
       loadPlanInfo();
     }
 
-    // Cleanup polling on unmount
+    // Cleanup polling and toast timeout on unmount
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
+      }
+      if (upgradeToastTimeoutRef.current) {
+        clearTimeout(upgradeToastTimeoutRef.current);
       }
     };
   }, [user, searchParams]);
@@ -84,6 +90,25 @@ function ProfilePageContent() {
     try {
       setLoading(true);
       const plan = await getUserPlan(user.id);
+      
+      // Detect upgrade: Free -> Pro
+      if (previousPlanRef.current && !previousPlanRef.current.isPro && plan?.isPro) {
+        console.log('🎉 Detected upgrade from Free to Pro');
+        setShowUpgradeToast(true);
+        // Auto-hide toast after 5 seconds
+        if (upgradeToastTimeoutRef.current) {
+          clearTimeout(upgradeToastTimeoutRef.current);
+        }
+        upgradeToastTimeoutRef.current = setTimeout(() => {
+          setShowUpgradeToast(false);
+        }, 5000);
+      }
+      
+      // Update previous plan reference
+      if (plan) {
+        previousPlanRef.current = { isPro: plan.isPro };
+      }
+      
       setPlanInfo(plan);
       
       // If we're polling and plan is now Pro, stop polling
@@ -453,24 +478,52 @@ function ProfilePageContent() {
               {/* Search Preferences */}
               <div>
                 <h3 className="mb-2">Search Preferences</h3>
-                <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-3">
-                  <p className="text-sm text-gray-700">
-                    {getPreferencesSummary(preferences) || 'No preferences saved yet.'}
-                  </p>
-                  <button
-                    onClick={() => {
-                      trackEvent("preferences_viewed", {
-                        user_id: user?.id,
-                        source: "profile_page"
-                      });
-                      router.push('/find');
-                    }}
-                    className="w-full btn-primary flex items-center justify-center gap-2"
-                  >
-                    <Edit className="w-5 h-5" aria-hidden="true" />
-                    Edit Preferences
-                  </button>
-                </div>
+                {canViewPrefs(planInfo) ? (
+                  <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col gap-3">
+                    <p className="text-sm text-gray-700">
+                      {getPreferencesSummary(preferences) || 'No preferences saved yet.'}
+                    </p>
+                    <button
+                      onClick={() => {
+                        trackEvent("preferences_viewed", {
+                          user_id: user?.id,
+                          source: "profile_page"
+                        });
+                        router.push('/find');
+                      }}
+                      className="w-full btn-primary flex items-center justify-center gap-2"
+                    >
+                      <Edit className="w-5 h-5" aria-hidden="true" />
+                      Edit Preferences
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <Crown className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-900 mb-1">
+                          Pro Feature
+                        </p>
+                        <p className="text-sm text-blue-700 mb-3">
+                          Upgrade to Pro to save and view your search preferences. Your preferences are automatically saved as you search, and will be visible once you upgrade.
+                        </p>
+                        <button
+                          onClick={() => {
+                            trackEvent("pricing_cta_pro", {
+                              source: "profile_page_preferences"
+                            });
+                            router.push('/pricing');
+                          }}
+                          className="w-full btn-primary-sm flex items-center justify-center gap-2"
+                        >
+                          <Crown className="w-4 h-4" aria-hidden="true" />
+                          Upgrade to Pro
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Email Alerts - compact card */}
@@ -520,6 +573,39 @@ function ProfilePageContent() {
           </div>
         </div>
       </div>
+
+      {/* Upgrade Toast Notification */}
+      {showUpgradeToast && (
+        <div 
+          className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-top-5 duration-300"
+          role="alert"
+          aria-live="polite"
+        >
+          <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-900 mb-1">
+                Welcome to Pro! 🎉
+              </p>
+              <p className="text-sm text-green-700">
+                We restored your saved preferences from before you upgraded. Your preferences are now visible on this page and will auto-apply to your searches.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowUpgradeToast(false);
+                if (upgradeToastTimeoutRef.current) {
+                  clearTimeout(upgradeToastTimeoutRef.current);
+                }
+              }}
+              className="text-green-400 hover:text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
+              aria-label="Close notification"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Downgrade Confirmation Modal */}
       {showDowngradeModal && (

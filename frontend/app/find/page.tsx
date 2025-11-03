@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
+import { Search, MapPin, Ruler, X, Info, Save, Check, Crown } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { trackEvent } from '@/lib/analytics/tracking';
 import { validateFormData, getExpectedApiPayload, logValidationResults } from '@/lib/validation/preferences-mapping';
+import { getUserPlan, canViewPrefs } from '@/lib/stripe/plan-utils';
 // Removed breed selector - using free text fields instead
 
 // Helper component for pill controls
@@ -117,15 +118,16 @@ export default function FindPage() {
   const [preferencesSaved, setPreferencesSaved] = useState(false);
   const isLoadingPreferencesRef = useRef(false);
   const lastLoadTimeRef = useRef<number>(0);
+  const [planInfo, setPlanInfo] = useState<{ planType?: string; isPro?: boolean } | null>(null);
 
-  // Load saved preferences when user is authenticated or when navigating to this page
+  // Load plan info and preferences when user is authenticated
   useEffect(() => {
     // Only proceed if we're on the /find page
     if (pathname !== '/find') {
       return;
     }
 
-    const loadPreferences = async () => {
+    const loadPlanAndPreferences = async () => {
       // Don't load if no user
       if (!user) return;
 
@@ -139,58 +141,65 @@ export default function FindPage() {
       isLoadingPreferencesRef.current = true;
       lastLoadTimeRef.current = now;
 
-      console.log('🔍 Starting to load preferences for user:', user.email);
-      console.log('🔍 Current pathname:', pathname);
-      
       try {
-        console.log('🔍 Making request to /api/preferences...');
-        const response = await fetch('/api/preferences');
-        console.log('🔍 Response status:', response.status);
-        
-        if (response.ok) {
-          const responseData = await response.json();
-          console.log('🔍 Response data:', responseData);
+        // Load plan info first
+        const plan = await getUserPlan(user.id);
+        setPlanInfo(plan);
+
+        // Only load and apply preferences if user is Pro
+        if (canViewPrefs(plan)) {
+          console.log('🔍 User is Pro, loading preferences for user:', user.email);
           
-          // Handle wrapped API response format: {success: true, data: {preferences: {...}}}
-          const preferences = responseData.data?.preferences || responseData.preferences;
+          const response = await fetch('/api/preferences');
+          console.log('🔍 Response status:', response.status);
           
-          if (preferences) {
-            console.log('🔍 Raw preferences from API:', preferences);
+          if (response.ok) {
+            const responseData = await response.json();
+            console.log('🔍 Response data:', responseData);
             
-            setFormData({
-              zipCodes: preferences.zip_codes || [],
-              age: preferences.age_preferences || [],
-              size: preferences.size_preferences || [],
-              includeBreeds: preferences.include_breeds || [],
-              excludeBreeds: preferences.exclude_breeds || [],
-              temperament: preferences.temperament_traits || [],
-              energy: preferences.energy_level || '',
-              guidance: preferences.living_situation?.description || '',
-              touched: {
-                age: (preferences.age_preferences?.length || 0) > 0,
-                size: (preferences.size_preferences?.length || 0) > 0,
-                energy: !!preferences.energy_level,
-                temperament: (preferences.temperament_traits?.length || 0) > 0,
-                breedsInclude: (preferences.include_breeds?.length || 0) > 0,
-                breedsExclude: (preferences.exclude_breeds?.length || 0) > 0,
-              }
-            });
-            console.log('✅ Loaded saved preferences and updated form data');
+            // Handle wrapped API response format: {success: true, data: {preferences: {...}}}
+            const preferences = responseData.data?.preferences || responseData.preferences;
+            
+            if (preferences) {
+              console.log('🔍 Raw preferences from API:', preferences);
+              
+              setFormData({
+                zipCodes: preferences.zip_codes || [],
+                age: preferences.age_preferences || [],
+                size: preferences.size_preferences || [],
+                includeBreeds: preferences.include_breeds || [],
+                excludeBreeds: preferences.exclude_breeds || [],
+                temperament: preferences.temperament_traits || [],
+                energy: preferences.energy_level || '',
+                guidance: preferences.living_situation?.description || '',
+                touched: {
+                  age: (preferences.age_preferences?.length || 0) > 0,
+                  size: (preferences.size_preferences?.length || 0) > 0,
+                  energy: !!preferences.energy_level,
+                  temperament: (preferences.temperament_traits?.length || 0) > 0,
+                  breedsInclude: (preferences.include_breeds?.length || 0) > 0,
+                  breedsExclude: (preferences.exclude_breeds?.length || 0) > 0,
+                }
+              });
+              console.log('✅ Loaded saved preferences and updated form data');
+            } else {
+              console.log('ℹ️ No preferences found in response');
+            }
           } else {
-            console.log('ℹ️ No preferences found in response');
+            const errorText = await response.text();
+            console.error('❌ API request failed:', response.status, errorText);
           }
         } else {
-          const errorText = await response.text();
-          console.error('❌ API request failed:', response.status, errorText);
+          console.log('ℹ️ User is Free - preferences will be saved but not auto-applied');
         }
       } catch (error) {
-        console.error('❌ Failed to load preferences:', error);
+        console.error('❌ Failed to load plan or preferences:', error);
       } finally {
         isLoadingPreferencesRef.current = false;
       }
     };
 
-    loadPreferences();
+    loadPlanAndPreferences();
   }, [user, pathname]);
 
   const ageOptions = [
@@ -438,13 +447,47 @@ export default function FindPage() {
               <p className="mt-2 lead text-measure mx-auto">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
             </div>
 
+          {/* Pro Feature Callout for Free Users */}
+          {user && !canViewPrefs(planInfo) && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <div className="flex items-start gap-3">
+                <Crown className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 mb-1">
+                    Pro Feature: Auto-Saved Preferences
+                  </p>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Your preferences are being saved automatically. Upgrade to Pro to have them auto-fill on your next visit and access all premium features.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      trackEvent("pricing_cta_pro", {
+                        source: "find_page_preferences"
+                      });
+                      router.push('/pricing');
+                    }}
+                    className="btn-primary-sm flex items-center justify-center gap-2"
+                  >
+                    <Crown className="w-4 h-4" aria-hidden="true" />
+                    Upgrade to Pro
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Preferences Saved Indicator */}
           {user && preferencesSaved && (
             <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center gap-2 text-green-600">
                 <Check className="w-5 h-5" />
                 <span className="font-medium">Preferences saved!</span>
-                <span className="text-sm">Your search criteria will be remembered for next time.</span>
+                <span className="text-sm">
+                  {canViewPrefs(planInfo)
+                    ? 'Your search criteria will be remembered for next time.'
+                    : 'Your preferences are saved and will be available when you upgrade to Pro.'}
+                </span>
               </div>
             </div>
           )}
