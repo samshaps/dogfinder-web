@@ -621,7 +621,14 @@ function getPreferencesSummary(prefs: any | null | undefined) {
   }
 
   if (Array.isArray(prefs.zip_codes) && prefs.zip_codes.length > 0) {
-    parts.push(`near your selected locations`);
+    const zips = prefs.zip_codes.filter(Boolean);
+    if (zips.length === 1) {
+      parts.push(`located within 50 miles of ${zips[0]}`);
+    } else if (zips.length === 2) {
+      parts.push(`near ${zips[0]} and ${zips[1]}`);
+    } else if (zips.length > 2) {
+      parts.push(`near ${zips[0]}, ${zips[1]} and ${zips.length - 2} more`);
+    }
   }
 
   const hasAny = (
