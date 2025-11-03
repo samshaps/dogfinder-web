@@ -597,22 +597,47 @@ function getPreferencesSummary(prefs: any | null | undefined) {
   if (!prefs) return '';
 
   const parts: string[] = [];
+
   if (Array.isArray(prefs.size_preferences) && prefs.size_preferences.length > 0) {
     parts.push(`dogs that are ${prefs.size_preferences.join(' to ')} sized`);
   }
+
+  if (Array.isArray(prefs.age_preferences) && prefs.age_preferences.length > 0) {
+    parts.push(`in the ${prefs.age_preferences.join(' or ')} age range`);
+  }
+
+  if (typeof prefs.energy_level === 'string' && prefs.energy_level) {
+    parts.push(`${prefs.energy_level} energy`);
+  }
+
+  if (Array.isArray(prefs.temperament_traits) && prefs.temperament_traits.length > 0) {
+    const traits = prefs.temperament_traits.slice(0, 3).join(', ');
+    parts.push(`with temperament: ${traits}`);
+  }
+
   if (Array.isArray(prefs.include_breeds) && prefs.include_breeds.length > 0) {
     const breeds = prefs.include_breeds.slice(0, 2).join(' or ');
     parts.push(`with a preference for ${breeds}`);
   }
+
   if (Array.isArray(prefs.zip_codes) && prefs.zip_codes.length > 0) {
     parts.push(`near your selected locations`);
   }
 
-  const sentence = parts.length > 0
-    ? `Your current preferences allow you to find ${parts.join(', ')}.`
-    : '';
+  const hasAny = (
+    (Array.isArray(prefs.size_preferences) && prefs.size_preferences.length > 0) ||
+    (Array.isArray(prefs.age_preferences) && prefs.age_preferences.length > 0) ||
+    (Array.isArray(prefs.include_breeds) && prefs.include_breeds.length > 0) ||
+    (Array.isArray(prefs.exclude_breeds) && prefs.exclude_breeds.length > 0) ||
+    (Array.isArray(prefs.temperament_traits) && prefs.temperament_traits.length > 0) ||
+    (typeof prefs.energy_level === 'string' && prefs.energy_level) ||
+    (Array.isArray(prefs.zip_codes) && prefs.zip_codes.length > 0)
+  );
 
-  return sentence;
+  if (!hasAny) return '';
+
+  const sentenceCore = parts.length > 0 ? parts.join(', ') : 'your saved criteria';
+  return `Your current preferences allow you to find ${sentenceCore}.`;
 }
 
 export default function ProfilePage() {
