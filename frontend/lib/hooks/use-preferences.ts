@@ -62,10 +62,12 @@ export function usePreferences() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch preferences');
+        throw new Error(data.error?.message || data.error || 'Failed to fetch preferences');
       }
 
-      setPreferences(data.preferences);
+      // Handle API response format: { success: true, data: { preferences: {...} } }
+      const preferences = data.data?.preferences || data.preferences || null;
+      setPreferences(preferences);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       console.error('Error fetching preferences:', err);
@@ -93,11 +95,13 @@ export function usePreferences() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save preferences');
+        throw new Error(data.error?.message || data.error || 'Failed to save preferences');
       }
 
-      setPreferences(data.preferences);
-      return data.preferences;
+      // Handle API response format: { success: true, data: { preferences: {...} } }
+      const preferences = data.data?.preferences || data.preferences || null;
+      setPreferences(preferences);
+      return preferences;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       console.error('Error saving preferences:', err);
