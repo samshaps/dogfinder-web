@@ -78,11 +78,12 @@ export async function POST(request: NextRequest) {
               const reactivatedSubscription = await stripe.subscriptions.update(subscriptionId, {
                 cancel_at_period_end: false,
               });
+              const currentPeriodEndUnix = (reactivatedSubscription as any)?.current_period_end;
               
               console.log('✅ Subscription reactivated:', {
                 subscriptionId: reactivatedSubscription.id,
                 cancel_at_period_end: reactivatedSubscription.cancel_at_period_end,
-                current_period_end: new Date(reactivatedSubscription.current_period_end * 1000).toISOString(),
+                current_period_end: currentPeriodEndUnix ? new Date(currentPeriodEndUnix * 1000).toISOString() : undefined,
               });
               
               // Update database to reflect reactivation
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
                 reactivated: true,
                 message: 'Subscription reactivated successfully',
                 subscriptionId: reactivatedSubscription.id,
-                currentPeriodEnd: new Date(reactivatedSubscription.current_period_end * 1000).toISOString(),
+                currentPeriodEnd: currentPeriodEndUnix ? new Date(currentPeriodEndUnix * 1000).toISOString() : undefined,
                 // Return profile URL instead of checkout URL since no payment needed
                 url: `${request.nextUrl.origin}/profile?upgrade=success&reactivated=true`,
               });
