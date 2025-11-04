@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
     const userId = (userData as any).id;
 
     // Get alert settings
-    const { data: alertSettings, error: alertError } = await client
+    const { data: alertSettings, error: alertError } = await (client as any)
       .from('alert_settings')
       .select('*')
       .eq('user_id', userId)
       .single();
 
     // Get preferences
-    const { data: preferences, error: prefsError } = await client
+    const { data: preferences, error: prefsError } = await (client as any)
       .from('preferences')
       .select('*')
       .eq('user_id', userId)
@@ -73,15 +73,16 @@ export async function GET(request: NextRequest) {
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
     
-    const lastSent = alertSettings?.last_sent_at_utc 
-      ? new Date(alertSettings.last_sent_at_utc)
+    const alertSettingsData = alertSettings as any;
+    const lastSent = alertSettingsData?.last_sent_at_utc 
+      ? new Date(alertSettingsData.last_sent_at_utc)
       : null;
     
     const alreadySentToday = lastSent && lastSent >= todayStart;
 
     // Check if paused
-    const pausedUntil = alertSettings?.paused_until 
-      ? new Date(alertSettings.paused_until)
+    const pausedUntil = alertSettingsData?.paused_until 
+      ? new Date(alertSettingsData.paused_until)
       : null;
     
     const isPaused = pausedUntil && pausedUntil > new Date();
@@ -94,32 +95,32 @@ export async function GET(request: NextRequest) {
         name: (userData as any).name,
         email: (userData as any).email,
       },
-      alertSettings: alertSettings ? {
-        enabled: alertSettings.enabled,
-        cadence: alertSettings.cadence,
-        lastSentAt: alertSettings.last_sent_at_utc,
-        lastSeenIds: alertSettings.last_seen_ids || [],
-        pausedUntil: alertSettings.paused_until,
+      alertSettings: alertSettingsData ? {
+        enabled: alertSettingsData.enabled,
+        cadence: alertSettingsData.cadence,
+        lastSentAt: alertSettingsData.last_sent_at_utc,
+        lastSeenIds: alertSettingsData.last_seen_ids || [],
+        pausedUntil: alertSettingsData.paused_until,
       } : null,
       alertSettingsError: alertError?.message,
       preferences: preferences ? {
-        location: preferences.location,
-        zip_codes: preferences.zip_codes,
-        radius: preferences.radius || preferences.radius_mi,
-        age_preferences: preferences.age_preferences,
-        size_preferences: preferences.size_preferences,
-        include_breeds: preferences.include_breeds,
-        energy_level: preferences.energy_level,
+        location: (preferences as any).location,
+        zip_codes: (preferences as any).zip_codes,
+        radius: (preferences as any).radius || (preferences as any).radius_mi,
+        age_preferences: (preferences as any).age_preferences,
+        size_preferences: (preferences as any).size_preferences,
+        include_breeds: (preferences as any).include_breeds,
+        energy_level: (preferences as any).energy_level,
       } : null,
       preferencesError: prefsError?.message,
       status: {
-        hasAlertSettings: !!alertSettings,
-        alertsEnabled: alertSettings?.enabled || false,
+        hasAlertSettings: !!alertSettingsData,
+        alertsEnabled: alertSettingsData?.enabled || false,
         hasPreferences: !!preferences,
         alreadySentToday,
         isPaused,
-        wouldReceiveEmail: (alertSettings?.enabled && preferences && !alreadySentToday && !isPaused) || false,
-        reason: !alertSettings?.enabled 
+        wouldReceiveEmail: (alertSettingsData?.enabled && preferences && !alreadySentToday && !isPaused) || false,
+        reason: !alertSettingsData?.enabled 
           ? 'Email alerts not enabled'
           : !preferences
           ? 'No preferences set'
