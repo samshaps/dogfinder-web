@@ -304,8 +304,8 @@ export async function POST(request: NextRequest) {
             reasons: { primary150: aiReason, blurb50: '' },
             shelter: {
               name: dog.organization?.name || 'Local Shelter',
-              email: dog.contact?.email,
-              phone: dog.contact?.phone,
+              email: dog.contact?.email || undefined,
+              phone: dog.contact?.phone || undefined,
             },
             url: dog.url || '#',
             publishedAt: dog.published_at,
