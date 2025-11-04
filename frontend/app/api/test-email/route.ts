@@ -12,14 +12,19 @@ import { appConfig } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
-    // Simple auth check - allow in dev mode without auth, require ADMIN_SECRET in production
+    // Simple auth check - allow in dev mode without auth, require ADMIN_SECRET or CRON_SECRET in production
     const authHeader = request.headers.get('authorization');
-    const adminSecret = process.env.ADMIN_SECRET || 'admin-secret';
+    const isProduction = process.env.VERCEL_ENV === 'production';
+    // Try ADMIN_SECRET first, fall back to appropriate CRON_SECRET for convenience
+    const adminSecret = process.env.ADMIN_SECRET 
+      || (isProduction ? appConfig.cronSecretProd : appConfig.cronSecretStaging)
+      || 'admin-secret';
     const isDev = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development';
     
     if (!isDev && (!authHeader || authHeader !== `Bearer ${adminSecret}`)) {
+      const secretName = process.env.ADMIN_SECRET ? 'ADMIN_SECRET' : (isProduction ? 'CRON_SECRET_PROD' : 'CRON_SECRET_STAGING');
       return NextResponse.json(
-        { error: 'Unauthorized. Provide Authorization: Bearer <ADMIN_SECRET> header' },
+        { error: `Unauthorized. Provide Authorization: Bearer <${secretName}> header` },
         { status: 401 }
       );
     }
