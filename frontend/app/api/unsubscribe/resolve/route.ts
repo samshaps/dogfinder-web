@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
       try {
         const stripe = getStripeServer();
         const subscription = await stripe.subscriptions.retrieve(planRow.stripe_subscription_id);
-        periodEndDate = subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
+        periodEndDate = (subscription as any).current_period_end
+          ? new Date((subscription as any).current_period_end * 1000).toISOString()
           : currentPeriodEnd;
       } catch (stripeError) {
         console.warn('Failed to fetch Stripe subscription:', stripeError);

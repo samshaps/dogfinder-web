@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
         });
         
         // Update database with cancel_at_period_end and current_period_end
-        currentPeriodEnd = subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
+        currentPeriodEnd = (subscription as any).current_period_end
+          ? new Date((subscription as any).current_period_end * 1000).toISOString()
           : planRow.current_period_end;
         
         await (client as any)
