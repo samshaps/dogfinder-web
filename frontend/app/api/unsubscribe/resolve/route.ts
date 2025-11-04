@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!appConfig.emailTokenSecret) {
-      return errJson(ApiErrors.serverError('Email token secret not configured'), request);
+      return errJson(ApiErrors.internalError('Email token secret not configured'), request);
     }
 
     // Verify token
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     }, request);
   } catch (error) {
     console.error('Unsubscribe resolve error:', error);
-    return errJson(ApiErrors.serverError('Failed to resolve unsubscribe token'), request);
+    return errJson(ApiErrors.internalError('Failed to resolve unsubscribe token'), request);
   }
 }
 
