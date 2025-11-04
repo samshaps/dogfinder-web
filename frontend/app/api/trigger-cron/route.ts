@@ -82,13 +82,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    // Format results for better readability
+    const formattedResults = {
       success: true,
       message: 'Cron job triggered successfully',
       cronUrl,
-      result: responseData,
       timestamp: new Date().toISOString(),
-    });
+      summary: {
+        processed: responseData.processed || 0,
+        sent: responseData.sent || 0,
+        errors: responseData.errors || 0,
+        totalUsers: responseData.results?.length || 0,
+      },
+      results: responseData.results || [],
+      debug: responseData.debug,
+      // Add a breakdown by status
+      statusBreakdown: responseData.results ? {
+        sent: responseData.results.filter((r: any) => r.status === 'sent').length,
+        already_sent_today: responseData.results.filter((r: any) => r.status === 'already_sent_today').length,
+        no_prefs: responseData.results.filter((r: any) => r.status === 'no_prefs').length,
+        no_matches: responseData.results.filter((r: any) => r.status === 'no_matches').length,
+        no_new_matches: responseData.results.filter((r: any) => r.status === 'no_new_matches').length,
+        paused: responseData.results.filter((r: any) => r.status === 'paused').length,
+        error: responseData.results.filter((r: any) => r.status === 'error').length,
+      } : {},
+      // Full raw response for debugging
+      rawResponse: responseData,
+    };
+
+    return NextResponse.json(formattedResults);
 
   } catch (error) {
     console.error('❌ Trigger cron endpoint error:', error);
