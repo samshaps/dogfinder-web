@@ -229,21 +229,45 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Filter out dogs that were already seen
+        // Calculate matches_found_total: dogs that are new or updated since last_sent_at
+        const lastSentAt = (alertSetting as any).last_sent_at_utc 
+          ? new Date((alertSetting as any).last_sent_at_utc) 
+          : null;
+        
+        // If no last_sent_at, use last 7 days as cutoff
+        const cutoffDate = lastSentAt || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        
         const lastSeenIds = (alertSetting as any).last_seen_ids || [];
-        const newDogs = dogsResponse.dogs.filter((dog: any) => 
-          !lastSeenIds.includes(dog.id)
+        
+        // Filter dogs that are new or updated since last send
+        // New: not in last_seen_ids
+        // Updated: published_at > cutoffDate (if available)
+        const newOrUpdatedDogs = dogsResponse.dogs.filter((dog: any) => {
+          const isNew = !lastSeenIds.includes(dog.id);
+          const isUpdated = dog.published_at && new Date(dog.published_at) > cutoffDate;
+          return isNew || isUpdated;
+        });
+        
+        // De-dupe by source ID (dog.id)
+        const uniqueDogs = Array.from(
+          new Map(newOrUpdatedDogs.map((dog: any) => [dog.id, dog])).values()
         );
+        
+        const matchesFoundTotal = uniqueDogs.length;
 
-        if (newDogs.length === 0) {
-          console.log(`ℹ️ No new dogs found for ${user.email}`);
+        // Skip send if no matches found
+        if (matchesFoundTotal === 0) {
+          console.log(`ℹ️ No new or updated dogs found for ${user.email} since last send`);
           results.push({
             user: user.email,
             status: 'no_new_matches',
-            reason: 'No new dogs since last alert',
+            reason: 'No new or updated dogs since last alert',
           });
           continue;
         }
+        
+        // Use the unique dogs for email
+        const newDogs = uniqueDogs;
 
         // Limit number of dogs per email
         const maxDogs = 5; // Could be configurable per user
@@ -325,6 +349,14 @@ export async function POST(request: NextRequest) {
           zipCodes = ['Unknown'];
         }
 
+        // Generate unsubscribe token for email footer
+        const { signUnsubToken } = await import('@/lib/tokens');
+        const unsubscribeToken = signUnsubToken({
+          sub: userEmail,
+          scope: 'alerts+unsubscribe',
+          jti: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        });
+        
         const emailResult = await sendEmailWithRetry({
           user: {
             name: user.name || 'Dog Lover',
@@ -338,9 +370,9 @@ export async function POST(request: NextRequest) {
             ...preferences,
           },
           matches: emailMatches,
-          unsubscribeUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/unsubscribe?email=${encodeURIComponent(userEmail)}`,
+          unsubscribeUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`,
           dashboardUrl: `${appConfig.publicBaseUrl || 'https://dogyenta.com'}/profile`,
-          totalMatches: dogsResponse.total,
+          totalMatches: matchesFoundTotal, // Use calculated matches_found_total
           generatedAt: new Date().toISOString(),
         });
 

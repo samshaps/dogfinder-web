@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
       return errJson(ApiErrors.invalidToken('Invalid unsubscribe token. Please request a new link from your email settings.'), req);
     }
 
-    if (payload.scope !== 'alerts+cancel') {
+    // Accept both 'alerts+cancel' (legacy) and 'alerts+unsubscribe' (new)
+    if (payload.scope !== 'alerts+cancel' && payload.scope !== 'alerts+unsubscribe') {
       return errJson(ApiErrors.forbidden('Invalid scope'), req);
     }
 
@@ -62,36 +63,63 @@ export async function POST(req: NextRequest) {
     }
     const userId = userRow.id as string;
 
-    // Disable alerts
+    // Disable email alerts immediately
     await (client as any)
       .from('alert_settings')
       .update({ enabled: false })
       .eq('user_id', userId);
 
-    // Cancel subscription and downgrade plan
+    // Get plan info to check subscription status
     const { data: planRow } = await (client as any)
       .from('plans')
-      .select('stripe_subscription_id')
+      .select('stripe_subscription_id, plan_type, cancel_at_period_end, current_period_end')
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (planRow?.stripe_subscription_id) {
+    let planStatus = 'free';
+    let currentPeriodEnd: string | null = null;
+
+    // If user has an active Pro subscription, schedule cancellation at period end
+    if (planRow?.stripe_subscription_id && planRow?.plan_type === 'pro') {
       const stripe = getStripeServer();
-      await stripe.subscriptions.cancel(planRow.stripe_subscription_id as string);
       
-      // Use centralized setPlan function
-      await setPlan({
-        userId,
-        planType: 'free',
-        status: 'cancelled',
-        stripeSubscriptionId: null,
-      });
+      try {
+        // Update Stripe subscription to cancel at period end
+        const subscription = await stripe.subscriptions.update(planRow.stripe_subscription_id, {
+          cancel_at_period_end: true,
+        });
+        
+        // Update database with cancel_at_period_end and current_period_end
+        currentPeriodEnd = subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : planRow.current_period_end;
+        
+        await (client as any)
+          .from('plans')
+          .update({
+            cancel_at_period_end: true,
+            current_period_end: currentPeriodEnd,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+        
+        planStatus = 'pro_pending_cancel';
+        
+      } catch (stripeError: any) {
+        console.error('❌ Failed to update Stripe subscription:', stripeError);
+        // If Stripe update fails, still mark as cancelled in DB
+        // But don't throw - we've already disabled alerts
+      }
     }
 
     // Record event and mark jti as consumed
     await recordTokenJtiConsumed(jti, userId, 'unsubscribe_via_token');
 
-    return okJson({ ok: true }, req);
+    return okJson({ 
+      plan_status: planStatus,
+      current_period_end: currentPeriodEnd,
+      email_enabled: false,
+    }, req);
   } catch (e: any) {
     console.error('unsubscribe error', e);
     const error = ApiErrors.validationError(e?.message || 'Unsubscribe failed');

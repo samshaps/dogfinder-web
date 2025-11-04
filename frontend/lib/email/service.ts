@@ -48,7 +48,7 @@ export async function sendDogMatchAlert(
     // Generate email HTML content
     const token = signUnsubToken({
       sub: templateData.user.email,
-      scope: 'alerts+cancel',
+      scope: 'alerts+unsubscribe', // New scope for single unsubscribe path
       jti: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     });
     const withLink = {
@@ -878,18 +878,27 @@ function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
 }
 
 /**
+ * Format ZIP list for email subject
+ * 1 zip → show it; 2-3 → comma-separated; >3 → first 3 + "+ more"
+ */
+function formatZipList(zipCodes: string[]): string {
+  if (!zipCodes || zipCodes.length === 0) return 'your area';
+  if (zipCodes.length === 1) return zipCodes[0];
+  if (zipCodes.length <= 3) return zipCodes.join(', ');
+  return `${zipCodes.slice(0, 3).join(', ')} + more`;
+}
+
+/**
  * Generate personalized email subject line
+ * Format: "{X} new dog matches near {ZIP_LIST}"
  */
 function generateEmailSubject(data: EmailTemplateData): string {
-  const { matches, preferences, user } = data;
-  const matchCount = matches.length;
+  const { matches, preferences } = data;
+  const matchCount = Math.min(matches.length, 99); // Cap at 99 for display
+  const displayCount = matchCount >= 99 ? '99+' : matchCount.toString();
+  const zipList = formatZipList(preferences?.zipCodes || []);
   
-  if (matchCount === 1) {
-    const d = matches[0];
-    return `${user.name ? user.name + ', ' : ''}meet ${d.name} near ${d.location.city}`;
-  }
-  
-  return `${user.name ? user.name + ', ' : ''}${matchCount} new matches near ${preferences?.zipCodes?.[0] || ''}`;
+  return `${displayCount} new dog matches near ${zipList}`;
 }
 
 /**
@@ -1004,6 +1013,13 @@ function generateEmailHTML(data: EmailTemplateData): string {
   const resultsUrl = buildUTMUrl('/results', 'dashboard_cta_top', prefs.frequency || 'na');
   const findUrl = buildUTMUrl('/find', 'manage_prefs_footer', prefs.frequency || 'na');
   
+  // Format ZIP list for preheader
+  const zipList = formatZipList(preferences?.zipCodes || []);
+  const preheader = `Based on your preferences in ${zipList}. View all or manage alerts.`;
+  
+  // Cap total matches display at 99+
+  const totalMatchesDisplay = data.totalMatches >= 99 ? '99+' : data.totalMatches.toString();
+  
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -1012,6 +1028,10 @@ function generateEmailHTML(data: EmailTemplateData): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="x-apple-disable-message-reformatting">
     <title>New Dog Matches Found</title>
+    <!-- Preheader -->
+    <div style="display:none;font-size:1px;color:#f8fafc;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+      ${preheader}
+    </div>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;color:#1f2937;">
     <!-- Container -->
@@ -1046,7 +1066,7 @@ function generateEmailHTML(data: EmailTemplateData): string {
                                 ${prefs?.size_preferences?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Sizes:</strong> ${prefs.size_preferences.join(', ')}</p>` : ''}
                                 ${prefs?.energy_level ? `<p style="margin:4px 0;color:#4a5568;"><strong>Energy:</strong> ${prefs.energy_level}</p>` : ''}
                                 ${prefs?.temperament_traits?.length ? `<p style="margin:4px 0;color:#4a5568;"><strong>Temperament:</strong> ${prefs.temperament_traits.join(', ')}</p>` : ''}
-                                <p style="margin:4px 0;color:#4a5568;"><strong>Matches Found:</strong> ${data.totalMatches} total · showing top ${data.matches.length}</p>
+                                <p style="margin:4px 0;color:#4a5568;"><strong>Matches Found:</strong> ${totalMatchesDisplay} · showing top ${data.matches.length}</p>
                             </div>
                             
                             <!-- Control Strip -->
