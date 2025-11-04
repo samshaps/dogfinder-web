@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase';
 import { sendDogMatchAlert } from '@/lib/email/service';
-import { searchDogs } from '@/lib/api';
 import { RATE_LIMITS } from '@/lib/email/config';
 import { appConfig } from '@/lib/config';
 import crypto from 'crypto';
@@ -159,11 +158,62 @@ export async function POST(request: NextRequest) {
         // Convert preferences to search parameters
         const searchParams = convertPreferencesToSearchParams(preferences);
         
-        // Search for dogs with error handling
+        // Search for dogs using Next.js API route (server-side compatible)
         console.log(`🔍 Searching for dogs for ${userEmail}...`);
-        let dogsResponse;
+        let dogsResponse: any;
         try {
-          dogsResponse = await searchDogs(searchParams);
+          // Construct base URL for server-side fetch
+          let baseUrl = appConfig.publicBaseUrl;
+          if (!baseUrl) {
+            if (process.env.VERCEL_URL) {
+              baseUrl = `https://${process.env.VERCEL_URL}`;
+            } else if (process.env.NODE_ENV === 'production') {
+              baseUrl = 'https://dogyenta.com';
+            } else {
+              baseUrl = 'http://localhost:3000';
+            }
+          }
+          
+          // Build query string from search params
+          const queryParams = new URLSearchParams();
+          if (searchParams.zip) queryParams.append('zip', searchParams.zip);
+          if (searchParams.radius) queryParams.append('radius', searchParams.radius.toString());
+          if (searchParams.age && Array.isArray(searchParams.age) && searchParams.age.length > 0) {
+            queryParams.append('age', searchParams.age.join(','));
+          }
+          if (searchParams.size && Array.isArray(searchParams.size) && searchParams.size.length > 0) {
+            queryParams.append('size', searchParams.size.join(','));
+          }
+          if (searchParams.includeBreeds && Array.isArray(searchParams.includeBreeds) && searchParams.includeBreeds.length > 0) {
+            queryParams.append('breed', searchParams.includeBreeds.join(','));
+          }
+          queryParams.append('sort', searchParams.sort || 'freshness');
+          queryParams.append('limit', (searchParams.limit || 50).toString());
+          
+          const apiUrl = `${baseUrl}/api/dogs?${queryParams.toString()}`;
+          console.log(`📡 Calling Next.js API route: ${apiUrl}`);
+          
+          // Add timeout protection (30s for server-side)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+          
+          const response = await fetch(apiUrl, {
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          dogsResponse = {
+            dogs: data.items || [],
+            total: data.total || 0,
+          };
+          
         } catch (searchError) {
           console.error(`❌ Dog search failed for ${userEmail}:`, searchError);
           errors++;
@@ -175,7 +225,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        if (!(dogsResponse as any).dogs || (dogsResponse as any).dogs.length === 0) {
+        if (!dogsResponse.dogs || dogsResponse.dogs.length === 0) {
           console.log(`ℹ️ No dogs found for ${userEmail}`);
           results.push({
             user: userEmail,
@@ -187,7 +237,7 @@ export async function POST(request: NextRequest) {
 
         // Filter out dogs that were already seen
         const lastSeenIds = (alertSetting as any).last_seen_ids || [];
-        const newDogs = (dogsResponse as any).dogs.filter((dog: any) => 
+        const newDogs = dogsResponse.dogs.filter((dog: any) => 
           !lastSeenIds.includes(dog.id)
         );
 
@@ -476,12 +526,18 @@ function isTransientError(error: string | undefined): boolean {
  * Convert user preferences to search parameters
  */
 function convertPreferencesToSearchParams(preferences: any) {
+  // Handle both zip_codes array and location string
+  let zip = preferences.location;
+  if (preferences.zip_codes && Array.isArray(preferences.zip_codes) && preferences.zip_codes.length > 0) {
+    zip = preferences.zip_codes[0]; // Use first zip code
+  }
+  
   return {
-    zip: preferences.location,
-    radius: preferences.radius || 100,
-    age: preferences.age || [],
-    size: preferences.size || [],
-    includeBreeds: preferences.breed || [],
+    zip: zip,
+    radius: preferences.radius || preferences.radius_mi || 50,
+    age: preferences.age_preferences || preferences.age || [],
+    size: preferences.size_preferences || preferences.size || [],
+    includeBreeds: preferences.include_breeds || preferences.breed || [],
     sort: 'freshness' as const,
     limit: 50, // Get more results to filter new ones
   };
