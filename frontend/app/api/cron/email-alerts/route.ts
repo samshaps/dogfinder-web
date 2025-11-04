@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         // Convert preferences to search parameters
         const searchParams = convertPreferencesToSearchParams(preferences);
         
-        // Search for dogs using Next.js API route (server-side compatible)
+        // Search for dogs via internal Next.js API route (single hop on Vercel)
         console.log(`🔍 Searching for dogs for ${userEmail}...`);
         let dogsResponse: any;
         try {
@@ -173,8 +173,7 @@ export async function POST(request: NextRequest) {
               baseUrl = 'http://localhost:3000';
             }
           }
-          
-          // Build query string from search params
+
           const queryParams = new URLSearchParams();
           if (searchParams.zip) queryParams.append('zip', searchParams.zip);
           if (searchParams.radius) queryParams.append('radius', searchParams.radius.toString());
@@ -188,32 +187,27 @@ export async function POST(request: NextRequest) {
             queryParams.append('breed', searchParams.includeBreeds.join(','));
           }
           queryParams.append('sort', searchParams.sort || 'freshness');
-          queryParams.append('limit', (searchParams.limit || 50).toString());
-          
+          queryParams.append('limit', (searchParams.limit || 20).toString()); // cap inside route too
+
           const apiUrl = `${baseUrl}/api/dogs?${queryParams.toString()}`;
-          console.log(`📡 Calling Next.js API route: ${apiUrl}`);
-          
-          // Add timeout protection (30s for server-side)
+          console.log(`📡 Calling internal API route: ${apiUrl}`);
+
+          // Single attempt with 30s timeout (internal route has its own retry/limits)
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-          
-          const response = await fetch(apiUrl, {
-            cache: 'no-store',
-            signal: controller.signal,
-          });
-          
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch(apiUrl, { cache: 'no-store', signal: controller.signal });
           clearTimeout(timeoutId);
-          
+
           if (!response.ok) {
-            throw new Error(`API error: ${response.status} ${response.statusText}`);
+            const errText = await response.text().catch(() => '');
+            throw new Error(`Internal API error: ${response.status} ${response.statusText}${errText ? ` - ${errText.substring(0, 120)}` : ''}`);
           }
-          
+
           const data = await response.json();
           dogsResponse = {
             dogs: data.items || [],
             total: data.total || 0,
           };
-          
         } catch (searchError) {
           console.error(`❌ Dog search failed for ${userEmail}:`, searchError);
           errors++;

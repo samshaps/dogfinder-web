@@ -27,34 +27,52 @@ export async function GET(
 
     console.log(`[${requestId}] 🔄 Proxying dog request to backend:`, backendUrl);
 
-    // Forward the request to the backend
-    const backendStart = Date.now();
-    const response = await fetch(backendUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Add timeout to prevent hanging requests
-      signal: AbortSignal.timeout(30000), // 30 second timeout
-    });
-    const backendDuration = Date.now() - backendStart;
+    // Forward the request to the backend with retry
+    let response: Response | null = null;
+    let backendDuration = 0;
+    const maxRetries = 2;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const backendStart = Date.now();
+      const timeoutMs = attempt === 1 ? 20000 : 35000; // 20s then 35s
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        response = await fetch(backendUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        backendDuration = Date.now() - backendStart;
+        clearTimeout(timeoutId);
+        break;
+      } catch (err) {
+        backendDuration = Date.now() - backendStart;
+        clearTimeout(timeoutId);
+        console.warn(`[${requestId}] ⚠️ Dog fetch attempt ${attempt}/${maxRetries} failed after ${backendDuration}ms:`, (err as Error)?.message);
+        if (attempt === maxRetries) throw err;
+        await new Promise((r) => setTimeout(r, attempt * 2000));
+      }
+    }
 
-    if (!response.ok) {
+    if (!response!.ok) {
       const totalDuration = Date.now() - startTime;
-      console.error(`[${requestId}] ❌ Backend API error:`, response.status, response.statusText);
+      console.error(`[${requestId}] ❌ Backend API error:`, response!.status, response!.statusText);
       const errHeaders = new Headers();
       errHeaders.set('X-Request-ID', requestId);
       errHeaders.set('X-Backend-Duration', `${backendDuration}`);
       errHeaders.set('X-Total-Duration', `${totalDuration}`);
       errHeaders.set('X-Route', '/api/dogs/[id]');
       return NextResponse.json(
-        { error: 'Backend API error', status: response.status },
-        { status: response.status, headers: errHeaders }
+        { error: 'Backend API error', status: response!.status },
+        { status: response!.status, headers: errHeaders }
       );
     }
 
     const parseStart = Date.now();
-    const data = await response.json();
+    const data = await response!.json();
     const parseDuration = Date.now() - parseStart;
     const totalDuration = Date.now() - startTime;
     console.log(`[${requestId}] ✅ Backend API success, returning dog data`, {

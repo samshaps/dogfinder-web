@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Backend API base URL - use environment variable or default to deployed backend
-// Support staging backend URL via environment variable
-const BACKEND_API_BASE = process.env.BACKEND_API_BASE || 
-  (process.env.VERCEL_ENV === 'preview' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview' 
-    ? 'https://dogfinder-web-staging.onrender.com' 
-    : 'https://dogfinder-web.onrender.com');
+// Simple in-memory Petfinder token cache (scoped to the serverless instance)
+let pfToken: { accessToken: string; expiresAt: number } | null = null;
+
+async function getPetfinderAccessToken(requestId: string): Promise<string> {
+  const now = Date.now();
+  if (pfToken && pfToken.expiresAt - 60_000 > now) {
+    return pfToken.accessToken;
+  }
+  const clientId = process.env.PETFINDER_CLIENT_ID;
+  const clientSecret = process.env.PETFINDER_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('Petfinder credentials missing');
+  }
+  const resp = await fetch('https://api.petfinder.com/v2/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret })
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`Failed to get Petfinder token: ${resp.status} ${resp.statusText} ${txt.substring(0,120)}`);
+  }
+  const data = await resp.json();
+  const expiresInMs = (data.expires_in || 3600) * 1000;
+  pfToken = { accessToken: data.access_token, expiresAt: now + expiresInMs };
+  return pfToken.accessToken;
+}
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -28,110 +49,78 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
     
-    // Build the backend URL with all query parameters (FOR NOW - we'll measure with guidance first)
-    const backendUrl = new URL('/api/dogs', BACKEND_API_BASE);
-    searchParams.forEach((value, key) => {
-      backendUrl.searchParams.set(key, value);
+    // Build Petfinder query
+    const normalized = new URLSearchParams();
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 20);
+    const page = parseInt(searchParams.get('page') || '1', 10) || 1;
+    normalized.set('limit', String(limit));
+    normalized.set('page', String(page));
+    ['zip','radius','age','size','breed','sort'].forEach((k) => {
+      const v = searchParams.get(k);
+      if (v) normalized.set(k, v);
     });
 
-    console.log(`[${requestId}] 🔄 Proxying request to backend:`, backendUrl.toString());
-    const backendStartTime = Date.now();
+    const pfParams = new URLSearchParams();
+    pfParams.set('type', 'dog');
+    if (normalized.get('zip')) pfParams.set('location', normalized.get('zip') as string);
+    if (normalized.get('radius')) pfParams.set('distance', normalized.get('radius') as string);
+    if (normalized.get('age')) pfParams.set('age', normalized.get('age') as string);
+    if (normalized.get('size')) pfParams.set('size', normalized.get('size') as string);
+    if (normalized.get('breed')) pfParams.set('breed', normalized.get('breed') as string);
+    pfParams.set('sort', normalized.get('sort') === 'distance' ? 'distance' : 'recent');
+    pfParams.set('limit', String(limit));
+    pfParams.set('page', String(page));
 
-    // Forward the request to the backend with manual timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-    
+    const pfUrl = `https://api.petfinder.com/v2/animals?${pfParams.toString()}`;
     let backendDuration = 0;
-    let response: Response;
-    try {
-      response = await fetch(backendUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-      backendDuration = Date.now() - backendStartTime;
-      clearTimeout(timeoutId);
-      console.log(`[${requestId}] ✅ Backend responded in ${backendDuration}ms (status: ${response.status})`);
-    } catch (fetchError) {
-      backendDuration = Date.now() - backendStartTime;
-      clearTimeout(timeoutId);
-      console.error(`[${requestId}] ❌ Backend fetch failed after ${backendDuration}ms:`, fetchError);
-      throw fetchError;
-    }
-
-    if (!response.ok) {
-      console.error(`[${requestId}] ❌ Backend API error:`, response.status, response.statusText);
-      
-      // Check if it's a rate limit error (429 from Petfinder) - check for 400 status
-      if (response.status === 400) {
-        try {
-          const errorText = await response.text();
-          console.log(`[${requestId}] 📄 Backend error response:`, errorText);
-          
-          // Parse the JSON and check for rate limit
-          if (errorText) {
-            const errorData = JSON.parse(errorText);
-            if (errorData.detail && errorData.detail.includes('429 Client Error: Too Many Requests')) {
-              console.log(`[${requestId}] 🚫 Rate limit detected, returning 429`);
-              const errorHeaders = new Headers();
-              const totalDuration429 = Date.now() - startTime;
-              errorHeaders.set('X-Request-ID', requestId);
-              errorHeaders.set('X-Backend-Duration', `${backendDuration}`);
-              errorHeaders.set('X-Total-Duration', `${totalDuration429}`);
-              errorHeaders.set('X-Route', '/api/dogs');
-              return NextResponse.json(
-                { 
-                  error: 'RATE_LIMIT_EXCEEDED',
-                  message: 'We\'ve been hugged to death! Please try again in a few minutes.',
-                  redirectTo: '/rate-limit'
-                },
-                { status: 429, headers: errorHeaders }
-              );
-            }
-          }
-        } catch (e) {
-          console.error(`[${requestId}] ❌ Error parsing backend response:`, e);
+    let animals: any[] = [];
+    let total = 0;
+    let currentPage = page;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const attemptStart = Date.now();
+      try {
+        const token = await getPetfinderAccessToken(requestId);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), attempt === 1 ? 20000 : 35000);
+        const resp = await fetch(pfUrl, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        backendDuration = Date.now() - attemptStart;
+        if (resp.status === 401 && attempt === 1) { pfToken = null; continue; }
+        if (!resp.ok) {
+          const txt = await resp.text().catch(() => '');
+          throw new Error(`Petfinder error: ${resp.status} ${resp.statusText} ${txt.substring(0,120)}`);
         }
+        const data = await resp.json();
+        animals = Array.isArray(data.animals) ? data.animals : [];
+        total = data.pagination?.total_count || animals.length;
+        currentPage = data.pagination?.current_page || currentPage;
+        break;
+      } catch (e) {
+        backendDuration = Date.now() - attemptStart;
+        console.warn(`[${requestId}] ⚠️ Petfinder attempt ${attempt} failed after ${backendDuration}ms:`, (e as Error)?.message);
+        if (attempt === 2) throw e;
+        await new Promise((r) => setTimeout(r, 1500));
       }
-      
-      const totalDuration = Date.now() - startTime;
-      console.log(`[${requestId}] ⏱️ /api/dogs total duration: ${totalDuration}ms (backend: ${backendDuration}ms)`);
-      const errorHeaders = new Headers();
-      errorHeaders.set('X-Request-ID', requestId);
-      errorHeaders.set('X-Backend-Duration', `${backendDuration}`);
-      errorHeaders.set('X-Total-Duration', `${totalDuration}`);
-      errorHeaders.set('X-Route', '/api/dogs');
-      return NextResponse.json(
-        { error: 'Backend API error', status: response.status },
-        { status: response.status, headers: errorHeaders }
-      );
     }
 
-    const parseStartTime = Date.now();
-    const data = await response.json();
-    const parseDuration = Date.now() - parseStartTime;
     const totalDuration = Date.now() - startTime;
-    
-    console.log(`[${requestId}] ✅ Backend API success`, {
-      totalDuration: `${totalDuration}ms`,
-      backendDuration: `${backendDuration}ms`,
-      parseDuration: `${parseDuration}ms`,
-      dogCount: data.items?.length || 0,
-      hasGuidance,
-      zipCoarse: coarseZip
-    });
-    
-    // Add performance headers
     const responseHeaders = new Headers();
     responseHeaders.set('X-Request-ID', requestId);
     responseHeaders.set('X-Backend-Duration', `${backendDuration}`);
     responseHeaders.set('X-Total-Duration', `${totalDuration}`);
-    responseHeaders.set('X-Parse-Duration', `${parseDuration}`);
     responseHeaders.set('X-Route', '/api/dogs');
-    
-    return NextResponse.json(data, { headers: responseHeaders });
+
+    // Return in the shape the client expects (raw items; client transforms)
+    return NextResponse.json({
+      items: animals,
+      page: currentPage,
+      pageSize: animals.length,
+      total
+    }, { headers: responseHeaders });
   } catch (error) {
     const totalDuration = Date.now() - startTime;
     console.error(`[${requestId}] ❌ Error proxying to backend after ${totalDuration}ms:`, error);
