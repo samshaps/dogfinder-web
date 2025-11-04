@@ -262,43 +262,53 @@ export async function POST(request: NextRequest) {
           console.warn(`⚠️ Failed to import fetchAIReasoningForDogs for ${userEmail}:`, importError instanceof Error ? importError.message : 'Unknown error');
         }
 
-        // Convert dogs to email format
+        // Convert dogs to email format (Petfinder raw -> template)
         const emailMatches = dogsToSend.map((dog: any) => {
-          // Normalize ID to string for lookup consistency
           const dogIdStr = String(dog.id);
-          // Use empty string when AI reasoning is missing - conditional render will hide the section
           const aiReason = aiReasons[dogIdStr] || '';
-          
           if (!aiReason) {
             console.log(`⚠️ No AI reasoning for dog ${dogIdStr} (${dog.name || 'unknown'}) - will be omitted from email`);
           }
-          
+
+          // Breeds
+          const breeds: string[] = [];
+          if (dog.breeds?.primary) breeds.push(dog.breeds.primary);
+          if (dog.breeds?.secondary) breeds.push(dog.breeds.secondary);
+          if (breeds.length === 0) breeds.push('Mixed Breed');
+
+          // Photos -> array of URLs
+          const photos: string[] = Array.isArray(dog.photos)
+            ? dog.photos.reduce((acc: string[], p: any) => {
+                if (p?.large) acc.push(p.large);
+                else if (p?.medium) acc.push(p.medium);
+                else if (p?.small) acc.push(p.small);
+                return acc;
+              }, [])
+            : [];
+
           return {
-            id: dog.id,
-            name: dog.name,
-            breeds: Array.isArray(dog.breeds) ? dog.breeds : (dog.breeds?.primary ? [dog.breeds.primary] : ['Mixed Breed']),
-            age: dog.age,
-            size: dog.size,
-            energy: dog.energy || 'medium',
-            temperament: dog.temperament || [],
+            id: dogIdStr,
+            name: dog.name || 'Unknown',
+            breeds,
+            age: dog.age || 'Unknown',
+            size: dog.size || 'Unknown',
+            energy: 'medium',
+            temperament: Array.isArray(dog.tags) ? dog.tags : [],
             location: {
-              city: dog.city || 'Unknown',
-              state: dog.state || 'Unknown',
-              distanceMi: dog.distanceMi,
+              city: dog.contact?.address?.city || 'Unknown',
+              state: dog.contact?.address?.state || 'Unknown',
+              distanceMi: dog.distance,
             },
-            photos: dog.photos || [],
-            matchScore: Math.floor(Math.random() * 30) + 70, // Placeholder - would use actual matching score
-            reasons: {
-              primary150: aiReason, // Empty string when missing - conditional render hides it
-              blurb50: '',
-            },
+            photos,
+            matchScore: Math.floor(Math.random() * 30) + 70,
+            reasons: { primary150: aiReason, blurb50: '' },
             shelter: {
-              name: dog.shelter?.name || 'Local Shelter',
-              email: dog.shelter?.email,
-              phone: dog.shelter?.phone,
+              name: dog.organization?.name || 'Local Shelter',
+              email: dog.contact?.email,
+              phone: dog.contact?.phone,
             },
             url: dog.url || '#',
-            publishedAt: dog.publishedAt || dog.published_at,
+            publishedAt: dog.published_at,
           };
         });
 
