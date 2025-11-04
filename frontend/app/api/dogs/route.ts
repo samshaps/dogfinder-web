@@ -114,13 +114,22 @@ export async function GET(request: NextRequest) {
     responseHeaders.set('X-Total-Duration', `${totalDuration}`);
     responseHeaders.set('X-Route', '/api/dogs');
 
-    // Return in the shape the client expects (raw items; client transforms)
-    return NextResponse.json({
-      items: animals,
-      page: currentPage,
-      pageSize: animals.length,
-      total
-    }, { headers: responseHeaders });
+    // Simple 60s in-memory cache per normalized query
+    try {
+      (globalThis as any).__DOGS_CACHE__ = (globalThis as any).__DOGS_CACHE__ || new Map<string, { data: any; exp: number }>();
+      const cacheKey = `q:${pfParams.toString()}`;
+      const cache = (globalThis as any).__DOGS_CACHE__ as Map<string, { data: any; exp: number }>;
+      const now = Date.now();
+      // Write-through cache
+      const payload = { items: animals, page: currentPage, pageSize: animals.length, total };
+      cache.set(cacheKey, { data: payload, exp: now + 60_000 });
+      responseHeaders.set('X-Cache', 'MISS');
+      return NextResponse.json(payload, { headers: responseHeaders });
+    } catch {
+      // If cache fails, still return the payload
+      const payload = { items: animals, page: currentPage, pageSize: animals.length, total };
+      return NextResponse.json(payload, { headers: responseHeaders });
+    }
   } catch (error) {
     const totalDuration = Date.now() - startTime;
     console.error(`[${requestId}] ❌ Error proxying to backend after ${totalDuration}ms:`, error);

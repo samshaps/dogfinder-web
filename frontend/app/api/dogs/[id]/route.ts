@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Backend API base URL - use environment variable or default to deployed backend
-const BACKEND_API_BASE = process.env.BACKEND_API_BASE || 'https://dogfinder-web.onrender.com';
+// Petfinder token cache
+let pfToken: { accessToken: string; expiresAt: number } | null = null;
+async function getPetfinderAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (pfToken && pfToken.expiresAt - 60_000 > now) return pfToken.accessToken;
+  const clientId = process.env.PETFINDER_CLIENT_ID;
+  const clientSecret = process.env.PETFINDER_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error('Petfinder credentials missing');
+  const resp = await fetch('https://api.petfinder.com/v2/oauth2/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret })
+  });
+  if (!resp.ok) throw new Error('Failed to get Petfinder token');
+  const data = await resp.json();
+  pfToken = { accessToken: data.access_token, expiresAt: Date.now() + (data.expires_in || 3600) * 1000 };
+  return pfToken.accessToken;
+}
 
 export async function GET(
   request: NextRequest,
@@ -22,12 +37,12 @@ export async function GET(
       );
     }
 
-    // Build the backend URL for the specific dog
-    const backendUrl = `${BACKEND_API_BASE}/api/dogs/${id}`;
+    // Build Petfinder URL for specific animal
+    const pfUrl = `https://api.petfinder.com/v2/animals/${encodeURIComponent(id)}`;
 
-    console.log(`[${requestId}] 🔄 Proxying dog request to backend:`, backendUrl);
+    console.log(`[${requestId}] 🔄 Fetching dog from Petfinder:`, pfUrl);
 
-    // Forward the request to the backend with retry
+    // Fetch with retry and timeouts
     let response: Response | null = null;
     let backendDuration = 0;
     const maxRetries = 2;
@@ -37,16 +52,19 @@ export async function GET(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        response = await fetch(backendUrl, {
+        const token = await getPetfinderAccessToken();
+        response = await fetch(pfUrl, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store',
           signal: controller.signal,
         });
         backendDuration = Date.now() - backendStart;
         clearTimeout(timeoutId);
+        if (response.status === 401 && attempt === 1) {
+          pfToken = null; // refresh token and retry
+          continue;
+        }
         break;
       } catch (err) {
         backendDuration = Date.now() - backendStart;
@@ -65,8 +83,9 @@ export async function GET(
       errHeaders.set('X-Backend-Duration', `${backendDuration}`);
       errHeaders.set('X-Total-Duration', `${totalDuration}`);
       errHeaders.set('X-Route', '/api/dogs/[id]');
+      const txt = await response!.text().catch(() => '');
       return NextResponse.json(
-        { error: 'Backend API error', status: response!.status },
+        { error: 'Petfinder API error', status: response!.status, details: txt.substring(0,120) },
         { status: response!.status, headers: errHeaders }
       );
     }
