@@ -25,6 +25,9 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string; messageId?: string; resendDashboardUrl?: string } | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
 
+  // Debug logging
+  console.log('[EmailAlertSettings] Render - isPro:', isPro, 'loading:', loading, 'settings:', settings);
+
   const handleToggleAlerts = async (enabled: boolean) => {
     try {
       await toggleAlerts(enabled);
@@ -219,12 +222,10 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
               <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
             </div>
           )}
-          {/* Debug info - remove after testing */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="absolute -top-8 left-0 text-xs text-gray-500">
-              isPro: {String(isPro)}, showTooltip: {String(showTooltip)}
-            </div>
-          )}
+          {/* Debug info - always show in staging */}
+          <div className="absolute -top-8 left-0 text-xs text-red-600 bg-yellow-100 p-1 rounded border border-red-300 z-50">
+            DEBUG: isPro={String(isPro)}, showTooltip={String(showTooltip)}, loading={String(loading)}
+          </div>
         </div>
         </div>
         <p id="email-notifications-description" className="text-xs text-gray-500 mt-2 ml-8">
