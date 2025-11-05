@@ -293,6 +293,39 @@ function mapStripeStatusToPlanStatus(stripeStatus: string): string {
 }
 
 /**
+ * Enable email alerts for a user (called automatically when upgrading to Pro)
+ */
+async function enableEmailAlertsForUser(userId: string, requestId: string): Promise<void> {
+  try {
+    const client = getSupabaseClient();
+    
+    // Upsert alert settings with enabled: true
+    const { error } = await (client as any)
+      .from('alert_settings')
+      .upsert({
+        user_id: userId,
+        enabled: true,
+        cadence: 'daily',
+        last_sent_at_utc: null,
+        last_seen_ids: [],
+        paused_until: null,
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (error) {
+      console.error(`⚠️ [${requestId}] Failed to enable email alerts for user ${userId}:`, error);
+      // Don't throw - this is not critical for webhook processing
+    } else {
+      console.log(`✅ [${requestId}] Email alerts enabled for user ${userId}`);
+    }
+  } catch (error) {
+    console.error(`⚠️ [${requestId}] Error enabling email alerts for user ${userId}:`, error);
+    // Don't throw - this is not critical for webhook processing
+  }
+}
+
+/**
  * Handle successful checkout session completion
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, requestId: string, eventId: string) {
@@ -377,6 +410,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, request
       status: planStatus,
       subscriptionId,
     });
+
+    // Auto-enable email alerts when upgrading to Pro
+    if (planType === 'pro' && (planStatus === 'active' || planStatus === 'trialing')) {
+      await enableEmailAlertsForUser(userId, requestId);
+    }
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update user plan:`, error);
     throw error;
@@ -403,10 +441,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
     const startIso = toIsoOrNull((subscription as any).current_period_start);
     const endIso = toIsoOrNull((subscription as any).current_period_end);
     
+    const planStatus = mapStripeStatusToPlanStatus(subscription.status) as any;
+    
     await setPlan({
       userId,
       planType: subscription.status === 'trialing' ? 'pro' : 'pro', // Ensure Pro during trial
-      status: mapStripeStatusToPlanStatus(subscription.status) as any,
+      status: planStatus,
       stripeSubscriptionId: subscription.id,
       currentPeriodStart: startIso,
       currentPeriodEnd: endIso,
@@ -417,6 +457,11 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
       status: subscription.status,
       periodEnd: endIso,
     });
+
+    // Auto-enable email alerts when creating Pro subscription
+    if (planStatus === 'active' || planStatus === 'trialing') {
+      await enableEmailAlertsForUser(userId, requestId);
+    }
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update subscription details:`, error);
     throw error;
@@ -575,14 +620,19 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, requestId: string
       throw new Error(`Could not resolve user by subscription id: ${selErr?.message || 'No data'}`);
     }
 
+    const userId = (rows as any).user_id;
+    
     await setPlan({
-      userId: (rows as any).user_id,
+      userId,
       planType: 'pro',
       status: 'active',
       stripeEventId: eventId,
     });
     
     console.log(`✅ [${requestId}] Plan status updated to active`);
+
+    // Auto-enable email alerts when payment succeeds for Pro subscription
+    await enableEmailAlertsForUser(userId, requestId);
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update plan status:`, error);
     throw error;

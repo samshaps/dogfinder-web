@@ -19,6 +19,7 @@ export interface EmailAlertSettings {
 export function useEmailAlerts() {
   const { user, isAuthenticated } = useUser();
   const [settings, setSettings] = useState<EmailAlertSettings | null>(null);
+  const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export function useEmailAlerts() {
       }
 
       setSettings(data.settings);
+      setIsPro(data.isPro ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       console.error('Error fetching email alert settings:', err);
@@ -173,6 +175,7 @@ export function useEmailAlerts() {
 
   return {
     settings,
+    isPro,
     loading,
     error,
     fetchSettings,

@@ -11,6 +11,7 @@ interface EmailAlertSettingsProps {
 export default function EmailAlertSettings({ className = '' }: EmailAlertSettingsProps) {
   const {
     settings,
+    isPro,
     loading,
     error,
     updateSettings,
@@ -161,10 +162,10 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
           </div>
           <button
             onClick={() => handleToggleAlerts(!settings.enabled)}
-            disabled={loading}
+            disabled={loading || !isPro}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
               settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
-            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+            } ${loading || !isPro ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
             role="switch"
             aria-checked={settings.enabled}
             aria-labelledby="email-notifications-label"
@@ -178,15 +179,17 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
           </button>
         </div>
         <p id="email-notifications-description" className="text-xs text-gray-500 mt-2 ml-8">
-          {settings.enabled 
-            ? 'Email alerts are enabled. You\'ll receive notifications based on your preferences below.'
-            : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
+          {!isPro 
+            ? 'Pro users can get notified when new dogs match your preferences. Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
+            : settings.enabled 
+              ? 'Email alerts are enabled. You\'ll receive notifications based on your preferences below.'
+              : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
           }
         </p>
       </div>
 
       {/* Settings Panel */}
-      {settings.enabled && (
+      {settings.enabled && isPro && (
         <div className="space-y-6 border-t border-gray-200 pt-6" role="region" aria-labelledby="settings-panel-title">
           <h4 id="settings-panel-title" className="text-lg font-medium text-gray-900 mb-4">
             Alert Preferences

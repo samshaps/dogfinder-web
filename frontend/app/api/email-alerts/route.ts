@@ -5,6 +5,7 @@ import { EmailAlertPreferencesSchema } from '@/lib/email/types';
 import { getStripeServer } from '@/lib/stripe/config';
 import { sendTestEmail } from '@/lib/email/service';
 import { appConfig } from '@/lib/config';
+import { getUserPlan } from '@/lib/stripe/plan-utils';
 
 // GET /api/email-alerts - Get user's email alert settings
 export async function GET(request: NextRequest) {
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (userData as any).id;
+
+    // Get user plan information
+    const planInfo = await getUserPlan(userId);
+    const isPro = planInfo?.isPro ?? false;
 
     // Get alert settings
     const { data: alertSettings, error: alertError } = await client
@@ -74,7 +79,8 @@ export async function GET(request: NextRequest) {
         lastSentAt: settings.last_sent_at_utc,
         lastSeenIds: settings.last_seen_ids || [],
         pausedUntil: settings.paused_until,
-      }
+      },
+      isPro
     });
 
   } catch (error) {
@@ -151,6 +157,18 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (userData as any).id;
+
+    // Get user plan information to validate Pro status
+    const planInfo = await getUserPlan(userId);
+    const isPro = planInfo?.isPro ?? false;
+
+    // Validate that free users cannot enable email alerts
+    if (validatedData.enabled && !isPro) {
+      return NextResponse.json(
+        { error: 'Email alerts are only available to Pro users. Please upgrade to Pro to enable email alerts.' },
+        { status: 403 }
+      );
+    }
 
     // Prepare alert settings data for database
     const alertSettingsData = {
