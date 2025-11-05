@@ -44,7 +44,8 @@ function ProfilePageContent() {
   const [downgradeSuccess, setDowngradeSuccess] = useState<{ periodEnd: string | null } | null>(null);
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const { preferences } = usePreferences();
-  const { settings, toggleAlerts, loading: emailLoading } = useEmailAlerts();
+  const { settings, isPro: emailIsPro, toggleAlerts, loading: emailLoading } = useEmailAlerts();
+  const [showEmailTooltip, setShowEmailTooltip] = useState(false);
   const previousPlanRef = useRef<{ isPro: boolean } | null>(null);
   const [showUpgradeToast, setShowUpgradeToast] = useState(false);
   const upgradeToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -530,26 +531,69 @@ function ProfilePageContent() {
               <div>
                 <div className="bg-white rounded-lg border border-gray-200 p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900" id="email-toggle-label">Email Notifications</p>
-                    <button
-                      onClick={() => toggleAlerts(!(settings?.enabled ?? false))}
-                      disabled={emailLoading}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
-                        settings?.enabled ? 'bg-blue-600' : 'bg-gray-200'
-                      } ${emailLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
-                      role="switch"
-                      aria-checked={settings?.enabled}
-                      aria-labelledby="email-toggle-label"
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900" id="email-toggle-label">Email Notifications</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {!emailIsPro 
+                          ? 'Pro users can get notified when new dogs match your preferences'
+                          : 'Get notified when new dogs match your preferences'
+                        }
+                      </p>
+                    </div>
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => {
+                        if (!emailIsPro) {
+                          setShowEmailTooltip(true);
+                        }
+                      }}
+                      onMouseLeave={() => setShowEmailTooltip(false)}
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                          settings?.enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                      <button
+                        onClick={(e) => {
+                          if (!emailIsPro) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowEmailTooltip(true);
+                            setTimeout(() => setShowEmailTooltip(false), 3000);
+                            return;
+                          }
+                          toggleAlerts(!(settings?.enabled ?? false));
+                        }}
+                        disabled={emailLoading || !emailIsPro}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
+                          settings?.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                        } ${emailLoading || !emailIsPro ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+                        role="switch"
+                        aria-checked={settings?.enabled}
+                        aria-labelledby="email-toggle-label"
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                            settings?.enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      {!emailIsPro && (
+                        <div 
+                          className={`absolute right-0 top-full mt-2 w-56 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-[9999] transition-opacity duration-200 ${
+                            showEmailTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'
+                          }`}
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          Only Pro users have access to email notifications
+                          <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Get notified when new dogs match your preferences. {settings?.enabled ? 'Email alerts are enabled.' : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'}
+                    {!emailIsPro 
+                      ? 'Pro users can get notified when new dogs match your preferences. Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
+                      : settings?.enabled 
+                        ? 'Email alerts are enabled. You\'ll receive notifications based on your preferences.'
+                        : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
+                    }
                   </p>
                 </div>
               </div>
