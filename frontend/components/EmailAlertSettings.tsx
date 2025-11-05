@@ -23,6 +23,7 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
   const [testEmail, setTestEmail] = useState('');
   const [testEmailLoading, setTestEmailLoading] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string; messageId?: string; resendDashboardUrl?: string } | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const handleToggleAlerts = async (enabled: boolean) => {
     try {
@@ -163,9 +164,20 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
               </p>
             </div>
           </div>
-          <div className="relative group">
+          <div 
+            className="relative"
+            onMouseEnter={() => !isPro && setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
             <button
-              onClick={() => handleToggleAlerts(!settings.enabled)}
+              onClick={() => {
+                if (!isPro) {
+                  setShowTooltip(true);
+                  setTimeout(() => setShowTooltip(false), 3000);
+                  return;
+                }
+                handleToggleAlerts(!settings.enabled);
+              }}
               disabled={loading || !isPro}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
                 settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
@@ -181,8 +193,8 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
               }`}
             />
           </button>
-          {!isPro && (
-            <div className="absolute right-0 top-full mt-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 pointer-events-none">
+          {!isPro && showTooltip && (
+            <div className="absolute right-0 top-full mt-2 w-56 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
               Only Pro users have access to email notifications
               <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
             </div>
