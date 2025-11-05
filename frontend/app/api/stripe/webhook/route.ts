@@ -456,6 +456,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, requ
       userId,
       planType,
       status: mapStripeStatusToPlanStatus(stripeStatus) as any,
+      stripeSubscriptionId: subscription.id,
       currentPeriodStart: startIso,
       currentPeriodEnd: endIso,
       stripeEventId: eventId,
