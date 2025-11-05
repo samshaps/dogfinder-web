@@ -166,14 +166,29 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
           </div>
           <div 
             className="relative"
-            onMouseEnter={() => !isPro && setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+            onMouseEnter={() => {
+              if (!isPro) {
+                console.log('Mouse enter - showing tooltip, isPro:', isPro);
+                setShowTooltip(true);
+              }
+            }}
+            onMouseLeave={() => {
+              console.log('Mouse leave - hiding tooltip');
+              setShowTooltip(false);
+            }}
           >
             <button
-              onClick={() => {
+              onClick={(e) => {
+                console.log('Button clicked, isPro:', isPro, 'loading:', loading);
                 if (!isPro) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Free user clicked - showing tooltip');
                   setShowTooltip(true);
-                  setTimeout(() => setShowTooltip(false), 3000);
+                  setTimeout(() => {
+                    console.log('Hiding tooltip after timeout');
+                    setShowTooltip(false);
+                  }, 3000);
                   return;
                 }
                 handleToggleAlerts(!settings.enabled);
@@ -193,10 +208,21 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
               }`}
             />
           </button>
-          {!isPro && showTooltip && (
-            <div className="absolute right-0 top-full mt-2 w-56 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+          {!isPro && (
+            <div 
+              className={`absolute right-0 top-full mt-2 w-56 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-[9999] transition-opacity duration-200 ${
+                showTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'
+              }`}
+              style={{ pointerEvents: 'none' }}
+            >
               Only Pro users have access to email notifications
               <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+            </div>
+          )}
+          {/* Debug info - remove after testing */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="absolute -top-8 left-0 text-xs text-gray-500">
+              isPro: {String(isPro)}, showTooltip: {String(showTooltip)}
             </div>
           )}
         </div>
