@@ -156,27 +156,38 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
                 Email Notifications
               </h3>
               <p className="text-sm text-gray-600">
-                Get notified when new dogs match your preferences
+                {!isPro 
+                  ? 'Pro users can get notified when new dogs match your preferences'
+                  : 'Get notified when new dogs match your preferences'
+                }
               </p>
             </div>
           </div>
-          <button
-            onClick={() => handleToggleAlerts(!settings.enabled)}
-            disabled={loading || !isPro}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
-              settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
-            } ${loading || !isPro ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
-            role="switch"
-            aria-checked={settings.enabled}
-            aria-labelledby="email-notifications-label"
-            aria-describedby="email-notifications-description"
-          >
+          <div className="relative group">
+            <button
+              onClick={() => handleToggleAlerts(!settings.enabled)}
+              disabled={loading || !isPro}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
+                settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
+              } ${loading || !isPro ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+              role="switch"
+              aria-checked={settings.enabled}
+              aria-labelledby="email-notifications-label"
+              aria-describedby="email-notifications-description"
+            >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
                 settings.enabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
+          {!isPro && (
+            <div className="absolute right-0 top-full mt-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 pointer-events-none">
+              Only Pro users have access to email notifications
+              <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+            </div>
+          )}
+        </div>
         </div>
         <p id="email-notifications-description" className="text-xs text-gray-500 mt-2 ml-8">
           {!isPro 
