@@ -32,7 +32,7 @@ export async function inferDogTraitsBatch(
   
   // Filter dogs that have descriptions
   const dogsWithDescriptions = dogs.filter(
-    dog => (dog.rawDescription || dog.description || '').trim().length > 0
+    dog => (dog.rawDescription || '').trim().length > 0
   );
   
   if (dogsWithDescriptions.length === 0) {
@@ -46,7 +46,7 @@ export async function inferDogTraitsBatch(
     // Process batch in parallel
     const batchPromises = batch.map(async (dog) => {
       try {
-        const description = dog.rawDescription || dog.description || '';
+        const description = dog.rawDescription || '';
         const tags = dog.tags || [];
         
         // Resolve API URL for server-side calls

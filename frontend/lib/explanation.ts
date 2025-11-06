@@ -99,7 +99,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   };
 
   // Get sanitized description for context
-  const shelterDescription = dog.rawDescription || dog.description || '';
+  const shelterDescription = dog.rawDescription || '';
   const sanitizedDescription = shelterDescription ? sanitizeDescription(shelterDescription) : '';
   const hasDescription = sanitizedDescription.length > 0;
 
@@ -196,7 +196,7 @@ export async function generateTop3Reasoning(
   const facts = buildFactPack(effectivePrefs, dog);
   
   // Observability: Track description usage
-  const shelterDescription = dog.rawDescription || dog.description || '';
+  const shelterDescription = dog.rawDescription || '';
   const hasDescription = shelterDescription.length > 0;
   const descriptionSnippet = hasDescription 
     ? shelterDescription.substring(0, 50).replace(/\s+/g, ' ')
