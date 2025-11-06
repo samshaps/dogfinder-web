@@ -5,6 +5,7 @@ import { COPY_MAX, COPY_SOFT } from './constants/copyLimits';
 import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments';
 import { buildReasoningMessages } from './reasoning-messages';
 import { runTextResponse, isOpenAIConfigured } from './openai-client';
+import { sanitizeDescription } from './utils/description-sanitizer';
 
 function resolveApiUrl(path: string): string {
   if (typeof window === 'undefined') {
@@ -97,6 +98,11 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     temperament_evidence: temperamentEvidence
   };
 
+  // Get sanitized description for context
+  const shelterDescription = dog.rawDescription || dog.description || '';
+  const sanitizedDescription = shelterDescription ? sanitizeDescription(shelterDescription) : '';
+  const hasDescription = sanitizedDescription.length > 0;
+
   const header = [
     `Write ONE sentence ≤ 135 characters using OR-based matching logic.`,
     `Address the reader only as "you". No names/PII.`,
@@ -104,6 +110,9 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     hasPrefs
       ? `ONLY cite user preferences that are explicitly listed in the "User preferences" section below. Do NOT invent or assume any user preferences. Highlight which actual user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
       : `Do NOT mention user preferences, desires, or wants. Do NOT mention size (small, medium, large, xl) unless explicitly provided by the user. Focus on highlighting the breed's most positive and appealing characteristics that make them wonderful companions. Emphasize what makes this breed special - their unique personality, temperament, intelligence, loyalty, or other notable traits. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make it feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters. Examples: "A gentle Great Pyrenees known for being protective and loyal" or "A highly intelligent Australian Shepherd renowned for being energetic and great with active families".`,
+    hasDescription
+      ? `Use the shelter description below as evidence source. Do NOT copy verbatim - summarize relevant facts (training cues, demeanor, compatibility). Ground claims in the description or structured traits. Prefer concrete facts that matter for adoption decisions.`
+      : '',
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
@@ -114,11 +123,12 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `Never mention UI terms like "included breeds" or "filters"; refer to breed concepts instead (e.g., "Labrador mix").`,
     `Use OR-based matching to reward overlap rather than requiring all facets to match.`,
     `Return JSON exactly as: {"text":"<=135 chars","cited":["..."]}. No extra text.`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   const body = [
     `User preferences: ${facts.prefs.join(', ') || 'none explicitly provided'}`,
     `Dog facts: ${facts.dogTraits.join(', ') || 'limited'}`,
+    hasDescription ? `Shelter description: ${sanitizedDescription}` : '',
     `Matched facets: ${JSON.stringify(matched_facets)}`,
     breed_exact ? `Exact breed label: ${breed_label}` : ''
   ].filter(Boolean).join('\n');
@@ -184,12 +194,45 @@ export async function generateTop3Reasoning(
   })();
   const prompt = createTop3Prompt(dog, analysis, effectivePrefs);
   const facts = buildFactPack(effectivePrefs, dog);
+  
+  // Observability: Track description usage
+  const shelterDescription = dog.rawDescription || dog.description || '';
+  const hasDescription = shelterDescription.length > 0;
+  const descriptionSnippet = hasDescription 
+    ? shelterDescription.substring(0, 50).replace(/\s+/g, ' ')
+    : '';
+  // Simple hash for deduplication (works in both browser and Node)
+  const descriptionHash = hasDescription 
+    ? (() => {
+        let hash = 0;
+        const str = shelterDescription.substring(0, 100);
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(36).substring(0, 16);
+      })()
+    : '';
+  
+  if (hasDescription) {
+    // eslint-disable-next-line no-console
+    console.log('[reasoning] Using shelter description', {
+      dogId: dog.id,
+      descriptionLength: shelterDescription.length,
+      snippet: descriptionSnippet,
+      hash: descriptionHash
+    });
+  }
+  
   try {
     if (debug) {
       // eslint-disable-next-line no-console
       console.log('[reasoning] TOP150 prompt:', prompt);
       // eslint-disable-next-line no-console
       console.log('[reasoning] FactPack:', facts);
+      // eslint-disable-next-line no-console
+      console.log('[reasoning] Description used:', hasDescription);
     }
     
     // If running server-side and OpenAI is configured, call directly (faster)

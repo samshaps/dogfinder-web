@@ -1,5 +1,7 @@
 // API utility functions for communicating with the FastAPI backend
 
+import { sanitizeDescription } from './utils/description-sanitizer';
+
 // Prefer env base; in dev default to FastAPI backend directly
 const DEV_DEFAULT_BASE = 'http://127.0.0.1:8000';
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV !== 'production' ? DEV_DEFAULT_BASE : '');
@@ -26,6 +28,7 @@ export interface Dog {
     email: string;
     phone: string;
   };
+  description?: string;
 }
 
 export interface DogsResponse {
@@ -70,6 +73,7 @@ type RawDog = {
   organization?: { name?: string };
   tags?: string[];
   attributes?: Record<string, unknown>;
+  description?: string;
 };
 
 // Convert search parameters to URL query string
@@ -127,6 +131,9 @@ function transformDogData(raw: RawDog): Dog {
     });
   }
   
+  // Sanitize description if present
+  const sanitizedDescription = sanitizeDescription(raw.description);
+  
   return {
     id: raw.id,
     name: raw.name || 'Unknown',
@@ -147,7 +154,8 @@ function transformDogData(raw: RawDog): Dog {
       name: raw.organization?.name || 'Unknown Shelter',
       email: raw.contact?.email || '',
       phone: raw.contact?.phone || ''
-    }
+    },
+    description: sanitizedDescription || undefined
   };
 }
 

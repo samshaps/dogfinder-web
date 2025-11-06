@@ -32,7 +32,7 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
     groomingLoad: apiDog.tags.some(tag => tag.toLowerCase().includes('low grooming')) ? 'low' :
                   apiDog.tags.some(tag => tag.toLowerCase().includes('high grooming')) ? 'high' : 'med',
     barky: apiDog.tags.some(tag => tag.toLowerCase().includes('barky')),
-    rawDescription: apiDog.tags.join(', '),
+    rawDescription: apiDog.description || apiDog.tags.join(', '),
     gender: apiDog.gender || 'Unknown',
     photos: apiDog.photos,
     publishedAt: apiDog.publishedAt,

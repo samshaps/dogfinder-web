@@ -10,7 +10,8 @@ export type FeatureFlag =
   | 'auth'
   | 'pro'
   | 'alerts'
-  | 'payments';
+  | 'payments'
+  | 'match_use_inferred_traits';
 
 /**
  * Check if a feature is enabled
@@ -36,6 +37,7 @@ export function getAllFeatureFlags(): Record<FeatureFlag, boolean> {
     pro: isFeatureEnabled('pro'),
     alerts: isFeatureEnabled('alerts'),
     payments: isFeatureEnabled('payments'),
+    match_use_inferred_traits: isFeatureEnabled('match_use_inferred_traits'),
   };
 }
 

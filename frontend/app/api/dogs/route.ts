@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { inferDogTraitsBatch } from '@/lib/inference/trait-inference';
+import { storeInferredTraits, getInferredTraits } from '@/lib/inference/trait-storage';
+import { Dog as SchemaDog } from '@/lib/schemas';
 
 // Simple in-memory Petfinder token cache (scoped to the serverless instance)
 let pfToken: { accessToken: string; expiresAt: number } | null = null;
@@ -124,6 +127,71 @@ export async function GET(request: NextRequest) {
       const payload = { items: animals, page: currentPage, pageSize: animals.length, total };
       cache.set(cacheKey, { data: payload, exp: now + 60_000 });
       responseHeaders.set('X-Cache', 'MISS');
+      
+      // V2: Trigger batch inference asynchronously (don't block response)
+      if (animals.length > 0) {
+        // Fire and forget - run in background using Promise (works in both Node and Edge)
+        Promise.resolve().then(async () => {
+          try {
+            // Transform animals to SchemaDog format for inference
+            const dogsForInference: SchemaDog[] = animals.map((animal: any) => ({
+              id: String(animal.id || ''),
+              name: animal.name || 'Unknown',
+              breeds: animal.breeds ? [
+                animal.breeds.primary,
+                animal.breeds.secondary
+              ].filter(Boolean) : ['Mixed Breed'],
+              age: animal.age || 'Unknown',
+              size: animal.size || 'Unknown',
+              energy: 'medium', // Default, will be inferred
+              temperament: [],
+              location: {
+                zip: `${animal.contact?.address?.city || 'Unknown'}, ${animal.contact?.address?.state || 'Unknown'}`,
+                distanceMi: animal.distance || 0
+              },
+              tags: animal.tags || [],
+              url: animal.url || '#',
+              shelter: {
+                name: animal.organization?.name || 'Unknown Shelter',
+                email: animal.contact?.email || '',
+                phone: animal.contact?.phone || ''
+              },
+              rawDescription: animal.description || undefined
+            }));
+            
+            // Filter dogs that need inference (have description, don't have cached traits)
+            const dogsNeedingInference: SchemaDog[] = [];
+            for (const dog of dogsForInference) {
+              const description = dog.rawDescription || '';
+              if (description.trim().length > 0) {
+                // Check if we already have inferred traits
+                const existing = await getInferredTraits(dog.id);
+                if (!existing) {
+                  dogsNeedingInference.push(dog);
+                }
+              }
+            }
+            
+            if (dogsNeedingInference.length > 0) {
+              console.log(`[${requestId}] 🔍 Batch inferring traits for ${dogsNeedingInference.length} dogs...`);
+              const inferredMap = await inferDogTraitsBatch(dogsNeedingInference, 10);
+              
+              // Store results
+              for (const [dogId, traits] of inferredMap.entries()) {
+                await storeInferredTraits(dogId, traits);
+              }
+              
+              console.log(`[${requestId}] ✅ Stored inferred traits for ${inferredMap.size} dogs`);
+            }
+          } catch (error) {
+            console.error(`[${requestId}] ⚠️ Background trait inference failed:`, error);
+            // Don't throw - this is fire-and-forget
+          }
+        }).catch(() => {
+          // Silently handle any promise rejection
+        });
+      }
+      
       return NextResponse.json(payload, { headers: responseHeaders });
     } catch {
       // If cache fails, still return the payload

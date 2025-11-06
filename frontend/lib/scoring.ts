@@ -1,6 +1,9 @@
 import { Dog, EffectivePreferences, DogAnalysis } from './schemas';
 import { dogBreedHit } from '@/utils/breedFuzzy';
 import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments';
+import { isFeatureEnabled } from './featureFlags';
+import { getInferenceConfig } from './config/inference-config';
+import { InferredTraits } from '@/app/api/infer-traits/route';
 
 /**
  * Scoring Layer
@@ -73,8 +76,16 @@ function getScoringWeight(origin: "user" | "guidance" | "default"): number {
  * Score a dog against effective preferences
  * Uses OR-based logic: rewards overlap but never requires all facets to match
  * Partial matches are acceptable and dogs are never filtered out for missing single criteria
+ * 
+ * @param dog - The dog to score
+ * @param effectivePrefs - User preferences
+ * @param inferredTraits - Optional inferred traits from description (V2 feature)
  */
-export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAnalysis {
+export function scoreDog(
+  dog: Dog, 
+  effectivePrefs: EffectivePreferences,
+  inferredTraits?: InferredTraits | null
+): DogAnalysis {
   const features = deriveDogFeatures(dog);
   let score = 100; // Base score - all dogs start with positive score
   const matchedPrefs: string[] = [];
@@ -247,12 +258,70 @@ export function scoreDog(dog: Dog, effectivePrefs: EffectivePreferences): DogAna
   // Clamp score to 0+ range (allow bonuses above 100)
   score = Math.max(0, score);
   
+  const baseScore = score;
+  let inferredBonus = 0;
+  
+  // V2: Apply inferred trait bonuses if feature flag is enabled
+  if (isFeatureEnabled('match_use_inferred_traits') && inferredTraits) {
+    const config = getInferenceConfig();
+    const bonuses: number[] = [];
+    
+    // Energy bonus
+    if (inferredTraits.energy && 
+        inferredTraits.confidence >= config.confidenceThreshold &&
+        effectivePrefs.energy &&
+        inferredTraits.energy === effectivePrefs.energy.value) {
+      const bonus = Math.min(config.maxBonusPerTrait, inferredTraits.confidence * 2.0);
+      bonuses.push(bonus);
+    }
+    
+    // Size bonus (if we can infer size from description - not in current schema, but future-proof)
+    // Note: Size inference not in current InferredTraits, skipping for now
+    
+    // Temperament bonus (kidFriendly)
+    if (inferredTraits.kidFriendly === 'yes' &&
+        inferredTraits.confidence >= config.confidenceThreshold &&
+        effectivePrefs.flags.kidFriendly) {
+      const bonus = Math.min(config.maxBonusPerTrait, inferredTraits.confidence * 2.0);
+      bonuses.push(bonus);
+    }
+    
+    // Apartment bonus
+    if (inferredTraits.apartmentOk === true &&
+        inferredTraits.confidence >= config.confidenceThreshold &&
+        effectivePrefs.flags.apartmentOk) {
+      const bonus = Math.min(config.maxBonusPerTrait, inferredTraits.confidence * 2.0);
+      bonuses.push(bonus);
+    }
+    
+    // Quiet bonus (barky = false)
+    if (inferredTraits.barky === false &&
+        inferredTraits.confidence >= config.confidenceThreshold &&
+        effectivePrefs.flags.quietPreferred) {
+      const bonus = Math.min(config.maxBonusPerTrait, inferredTraits.confidence * 2.0);
+      bonuses.push(bonus);
+    }
+    
+    // Sum bonuses and cap total
+    inferredBonus = Math.min(
+      config.maxTotalInferredBonus,
+      bonuses.reduce((sum, b) => sum + b, 0)
+    );
+    
+    score += inferredBonus;
+  }
+  
   return {
     dogId: dog.id,
     score,
     matchedPrefs,
     unmetPrefs,
-    reasons: {} // Will be filled by explanation layer
+    reasons: {}, // Will be filled by explanation layer
+    inferredBonusTotal: inferredBonus > 0 ? inferredBonus : undefined,
+    scoreComponents: inferredBonus > 0 ? {
+      base: baseScore,
+      inferred: inferredBonus
+    } : undefined
   };
 }
 

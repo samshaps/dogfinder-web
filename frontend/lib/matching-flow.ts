@@ -11,6 +11,8 @@ import { applyFilters } from './filtering';
 import { scoreDog, getTopMatches, sortDogsByScore } from './scoring';
 import { generateTop3Reasoning, generateAllMatchesReasoning } from './explanation';
 import { getExpansionNotes } from './normalization';
+import { isFeatureEnabled } from './featureFlags';
+import { getInferredTraitsBatch } from './inference/trait-storage';
 
 /**
  * Main Matching Flow
@@ -50,18 +52,45 @@ export async function processDogMatching(
     };
   }
   
-  // Step 4: Score all filtered dogs
-  const analyses = filteredDogs.map(dog => scoreDog(dog, effectivePrefs));
+  // Step 4: Load inferred traits if feature flag is enabled (V2)
+  let inferredTraitsMap = new Map<string, any>();
+  if (isFeatureEnabled('match_use_inferred_traits')) {
+    console.log('🔍 Loading inferred traits for', filteredDogs.length, 'dogs...');
+    const petfinderIds = filteredDogs.map(dog => dog.id);
+    inferredTraitsMap = await getInferredTraitsBatch(petfinderIds);
+    console.log('✅ Loaded inferred traits for', inferredTraitsMap.size, 'dogs');
+  }
+  
+  // Step 5: Score all filtered dogs
+  const analyses = filteredDogs.map(dog => {
+    const inferredTraits = inferredTraitsMap.get(dog.id);
+    return scoreDog(dog, effectivePrefs, inferredTraits);
+  });
   console.log('📊 Scored', analyses.length, 'dogs');
   
-  // Step 5: Sort by score and distance
+  // Analytics: Track bonus distribution
+  if (isFeatureEnabled('match_use_inferred_traits')) {
+    const dogsWithBonuses = analyses.filter(a => (a.inferredBonusTotal || 0) > 0);
+    const totalBonus = analyses.reduce((sum, a) => sum + (a.inferredBonusTotal || 0), 0);
+    const avgBonus = dogsWithBonuses.length > 0 ? totalBonus / dogsWithBonuses.length : 0;
+    const maxBonus = Math.max(...analyses.map(a => a.inferredBonusTotal || 0), 0);
+    
+    console.log('📈 Inferred trait bonuses:', {
+      dogsWithBonuses: dogsWithBonuses.length,
+      totalBonus: totalBonus.toFixed(2),
+      avgBonus: avgBonus.toFixed(2),
+      maxBonus: maxBonus.toFixed(2)
+    });
+  }
+  
+  // Step 6: Sort by score and distance
   const { dogs: sortedDogs, analyses: sortedAnalyses } = sortDogsByScore(filteredDogs, analyses);
   
-  // Step 6: Get top matches (max 3)
+  // Step 7: Get top matches (max 3)
   const topMatches = sortedAnalyses.slice(0, 3);
   const topDogs = sortedDogs.slice(0, 3);
   
-  // Step 7: Generate AI explanations for top matches
+  // Step 8: Generate AI explanations for top matches
   console.log('🤖 Generating AI explanations for top matches...');
   const topMatchesWithReasons = await Promise.all(
     topMatches.map(async (analysis, index) => {
@@ -86,14 +115,14 @@ export async function processDogMatching(
     })
   );
   
-  // Step 8: No AI explanations for all matches
+  // Step 9: No AI explanations for all matches
   console.log('🛑 Skipping AI explanations for all matches.');
   const allMatchesWithReasons = sortedAnalyses.map((analysis) => ({
     ...analysis,
     reasons: { blurb50: '' }
   }));
   
-    // Step 9: Compile results
+    // Step 10: Compile results
     const results: MatchingResults = {
       topMatches: topMatchesWithReasons,
       allMatches: allMatchesWithReasons,
@@ -142,6 +171,7 @@ export function processDogMatchingSync(
     };
   }
   
+  // Note: Sync version doesn't load inferred traits (for testing only)
   const analyses = filteredDogs.map(dog => scoreDog(dog, effectivePrefs));
   const { dogs: sortedDogs, analyses: sortedAnalyses } = sortDogsByScore(filteredDogs, analyses);
   
@@ -244,7 +274,7 @@ export function validateMatchingResults(
   if (userPreferences.breedsExclude && userPreferences.breedsExclude.length > 0) {
     const excludedBreeds = results.allMatches.some(match => {
       const dog = originalDogs.find(d => d.id === match.dogId);
-      return dog && userPreferences.breedsExclude!.some(exclude => 
+      return dog && userPreferences.breedsExclude!.some((exclude: string) => 
         dog.breeds.some(breed => breed.toLowerCase().includes(exclude.toLowerCase()))
       );
     });

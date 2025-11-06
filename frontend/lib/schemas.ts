@@ -96,6 +96,11 @@ export type DogAnalysis = {
     primary150?: string;
     blurb50?: string;
   };
+  inferredBonusTotal?: number;       // Total bonus from inferred traits (V2)
+  scoreComponents?: {                 // Score breakdown (V2)
+    base: number;
+    inferred: number;
+  };
 };
 
 // Final output type
