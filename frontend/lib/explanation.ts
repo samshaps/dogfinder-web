@@ -105,7 +105,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   const hasDescription = sanitizedDescription.length > 0;
 
   const header = [
-    `Write ONE sentence ≤ ${COPY_SOFT.TOP} characters using OR-based matching logic.`,
+    `Write a detailed description of ${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} characters using OR-based matching logic. Aim for the upper end of this range to provide comprehensive information.`,
     `Address the reader only as "you". No names/PII.`,
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
@@ -123,7 +123,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `  - If temperament_evidence[trait]="likely": use tendency phrasing ("tends to be kid-friendly")`,
     `Never mention UI terms like "included breeds" or "filters"; refer to breed concepts instead (e.g., "Labrador mix").`,
     `Use OR-based matching to reward overlap rather than requiring all facets to match.`,
-    `Return JSON exactly as: {"text":"<=${COPY_SOFT.TOP} chars","cited":["..."]}. No extra text.`,
+    `Return JSON exactly as: {"text":"${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} chars","cited":["..."]}. Aim for the upper end of the range. No extra text.`,
   ].filter(Boolean).join('\n');
 
   const body = [
@@ -253,7 +253,7 @@ export async function generateTop3Reasoning(
         temperaments: effectivePrefs.temperament.value as string[]
       });
       raw = await runTextResponse(messages, {
-        max_tokens: 50,
+        max_tokens: 100,
         temperature: 0.1,
       });
     } else {
@@ -264,7 +264,7 @@ export async function generateTop3Reasoning(
         const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, type: 'free', max_tokens: 50, temperature: 0.1 }),
+          body: JSON.stringify({ prompt, type: 'free', max_tokens: 100, temperature: 0.1 }),
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`AI service error: ${response.status}`);
