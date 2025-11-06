@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { Dog, EffectivePreferences, DogAnalysis, Origin } from './schemas';
 import { buildFactPack } from './facts';
 import { verifyBlurb, verifyBlurbWithTemperament } from './verify';
@@ -197,7 +198,8 @@ export async function generateTop3Reasoning(
   
   // Observability: Track description usage
   const shelterDescription = dog.rawDescription || '';
-  const hasDescription = shelterDescription.length > 0;
+  const sanitizedDescription = shelterDescription ? sanitizeDescription(shelterDescription) : '';
+  const hasDescription = sanitizedDescription.length > 0;
   const descriptionSnippet = hasDescription 
     ? shelterDescription.substring(0, 50).replace(/\s+/g, ' ')
     : '';
@@ -233,6 +235,10 @@ export async function generateTop3Reasoning(
       console.log('[reasoning] FactPack:', facts);
       // eslint-disable-next-line no-console
       console.log('[reasoning] Description used:', hasDescription);
+      if (hasDescription) {
+        // eslint-disable-next-line no-console
+        console.log('[reasoning] Description snippet in prompt:', sanitizedDescription.substring(0, 200));
+      }
     }
     
     // If running server-side and OpenAI is configured, call directly (faster)
