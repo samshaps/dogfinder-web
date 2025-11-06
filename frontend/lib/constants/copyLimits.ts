@@ -1,9 +1,9 @@
 export const COPY_MAX = {
-  TOP: 150,
+  TOP: 200,
 } as const;
 
 export const COPY_SOFT = {
-  TOP: 135,
+  TOP: 185,
 } as const;
 
 

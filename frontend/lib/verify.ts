@@ -1,6 +1,7 @@
 import { FactPack } from './facts';
 import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments';
 import { Dog } from './schemas';
+import { COPY_MAX } from './constants/copyLimits';
 
 export type VerifyResult = { ok: boolean; errors: string[]; fixed: string };
 
@@ -83,7 +84,7 @@ export function verifyTemperamentClaims(text: string, dog: Dog, facts: FactPack)
 
 export function verifyBlurb(text: string, facts: FactPack, {
   minPrefHit = 1,
-  lengthCap = 150,
+  lengthCap = COPY_MAX.TOP,
 }: { minPrefHit?: number; lengthCap?: number } = {}): VerifyResult {
   const original = (text || '').trim();
   let s = norm(original);
@@ -215,7 +216,7 @@ export function verifyBlurb(text: string, facts: FactPack, {
 
 // Enhanced verification: enforce size citation and strip UI terms
 export function verifyBlurbWithFacets(text: string, facts: FactPack): VerifyResult {
-  const base = verifyBlurb(text, facts, { lengthCap: 150 });
+  const base = verifyBlurb(text, facts, { lengthCap: COPY_MAX.TOP });
   let fixed = base.fixed;
   const errors = [...base.errors];
 
@@ -240,7 +241,7 @@ export function verifyBlurbWithFacets(text: string, facts: FactPack): VerifyResu
   }
 
   // Final cap
-  if (fixed.length > 150) fixed = fixed.slice(0, 150);
+  if (fixed.length > COPY_MAX.TOP) fixed = fixed.slice(0, COPY_MAX.TOP);
 
   return { ok: errors.length === 0, errors, fixed };
 }
@@ -250,7 +251,7 @@ export function verifyBlurbWithFacets(text: string, facts: FactPack): VerifyResu
  */
 export function verifyBlurbWithTemperament(text: string, facts: FactPack, dog: Dog, {
   minPrefHit = 1,
-  lengthCap = 150,
+  lengthCap = COPY_MAX.TOP,
 }: { minPrefHit?: number; lengthCap?: number } = {}): VerifyResult {
   // First run standard verification
   const baseResult = verifyBlurb(text, facts, { minPrefHit, lengthCap });

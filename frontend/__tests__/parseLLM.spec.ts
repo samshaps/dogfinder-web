@@ -25,8 +25,8 @@ describe('PII guardrails', () => {
     expect(out).toBe(input);
   });
 
-  it('caps body at 149 and appends a period to make ≤150', () => {
-    const body = 'A'.repeat(149);
+  it(`caps body at ${COPY_MAX.TOP - 1} and appends a period to make ≤${COPY_MAX.TOP}`, () => {
+    const body = 'A'.repeat(COPY_MAX.TOP - 1);
     const out = sanitizeReasoning(body, COPY_MAX.TOP);
     expect(out.endsWith('.')).toBe(true);
     expect(out.length).toBeLessThanOrEqual(COPY_MAX.TOP);

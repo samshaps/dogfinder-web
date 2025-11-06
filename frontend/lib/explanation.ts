@@ -105,7 +105,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   const hasDescription = sanitizedDescription.length > 0;
 
   const header = [
-    `Write ONE sentence ≤ 135 characters using OR-based matching logic.`,
+    `Write ONE sentence ≤ ${COPY_SOFT.TOP} characters using OR-based matching logic.`,
     `Address the reader only as "you". No names/PII.`,
     `"You" refers ONLY to the adopter; never address the dog as "you".`,
     hasPrefs
@@ -123,7 +123,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `  - If temperament_evidence[trait]="likely": use tendency phrasing ("tends to be kid-friendly")`,
     `Never mention UI terms like "included breeds" or "filters"; refer to breed concepts instead (e.g., "Labrador mix").`,
     `Use OR-based matching to reward overlap rather than requiring all facets to match.`,
-    `Return JSON exactly as: {"text":"<=135 chars","cited":["..."]}. No extra text.`,
+    `Return JSON exactly as: {"text":"<=${COPY_SOFT.TOP} chars","cited":["..."]}. No extra text.`,
   ].filter(Boolean).join('\n');
 
   const body = [
@@ -389,7 +389,7 @@ function generateFallbackTop3Reasoning(
       }
     }
   }
-  return { primary: primary.substring(0, 150), additional: [], concerns: [] };
+  return { primary: primary.substring(0, COPY_MAX.TOP), additional: [], concerns: [] };
 }
 
 /**
@@ -400,7 +400,7 @@ function generateFallbackTop3Reasoning(
 /**
  * Sanitize text to remove default claims and length violations
  */
-export function sanitizeReasoning(text: string, maxLength: number = 150): string {
+export function sanitizeReasoning(text: string, maxLength: number = COPY_MAX.TOP): string {
   let sanitized = text;
   
   // Remove default claims

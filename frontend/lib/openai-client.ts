@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { COPY_MAX } from './constants/copyLimits';
 
 // Note: Environment variable validation moved to getOpenAIClient() to avoid build-time errors
 
@@ -194,7 +195,7 @@ export async function runStructuredResponse(
   } catch (error) {
     // Fallback to basic structure if JSON parsing fails
     return {
-      primary: response.output_text.substring(0, 150),
+      primary: response.output_text.substring(0, COPY_MAX.TOP),
       additional: [],
       concerns: []
     };

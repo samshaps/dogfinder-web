@@ -13,6 +13,7 @@ import { generateTop3Reasoning, generateAllMatchesReasoning } from './explanatio
 import { getExpansionNotes } from './normalization';
 import { isFeatureEnabled } from './featureFlags';
 import { getInferredTraitsBatch } from './inference/trait-storage';
+import { COPY_MAX } from './constants/copyLimits';
 
 /**
  * Main Matching Flow
@@ -247,8 +248,8 @@ export function validateMatchingResults(
   
   // Check copy length constraints
   results.topMatches.forEach((match, index) => {
-    if (match.reasons.primary150 && match.reasons.primary150.length > 150) {
-      issues.push(`Top match ${index + 1} primary reason exceeds 150 characters`);
+    if (match.reasons.primary150 && match.reasons.primary150.length > COPY_MAX.TOP) {
+      issues.push(`Top match ${index + 1} primary reason exceeds ${COPY_MAX.TOP} characters`);
     }
   });
   
