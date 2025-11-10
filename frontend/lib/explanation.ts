@@ -253,7 +253,7 @@ export async function generateTop3Reasoning(
         temperaments: effectivePrefs.temperament.value as string[]
       });
       raw = await runTextResponse(messages, {
-        max_tokens: 100,
+        max_tokens: 160,
         temperature: 0.1,
       });
     } else {
@@ -264,7 +264,7 @@ export async function generateTop3Reasoning(
         const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, type: 'free', max_tokens: 100, temperature: 0.1 }),
+          body: JSON.stringify({ prompt, type: 'free', max_tokens: 160, temperature: 0.1 }),
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`AI service error: ${response.status}`);
