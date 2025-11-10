@@ -17,8 +17,17 @@ const SYNONYMS: Record<string, string[]> = {
 function clampToLength(text: string, max: number): string {
   let s = String(text || '').trim();
   if (!s) return s;
-  if (s.length <= max) return s;
+  if (s.length <= max) return ensureTerminalPunctuation(s);
   const hard = s.slice(0, max);
+  const sentenceBoundary = Math.max(
+    hard.lastIndexOf('. '),
+    hard.lastIndexOf('! '),
+    hard.lastIndexOf('? ')
+  );
+  if (sentenceBoundary > 0) {
+    const sentenceCut = hard.slice(0, sentenceBoundary + 1).trim();
+    if (sentenceCut) return ensureTerminalPunctuation(sentenceCut);
+  }
   const boundary = Math.max(
     hard.lastIndexOf(' '),
     hard.lastIndexOf(','),
@@ -29,7 +38,15 @@ function clampToLength(text: string, max: number): string {
   );
   let cut = boundary > 0 ? hard.slice(0, boundary) : hard;
   cut = cut.replace(/[\s,;:\-—]+$/g, '').trim();
-  return cut || hard.trim();
+  if (!cut) cut = hard.trim();
+  return ensureTerminalPunctuation(cut);
+}
+
+function ensureTerminalPunctuation(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  if (/[.!?]$/.test(trimmed)) return trimmed;
+  return `${trimmed}.`;
 }
 
 /**
