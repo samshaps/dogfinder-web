@@ -14,6 +14,24 @@ const SYNONYMS: Record<string, string[]> = {
   'quiet': ['calm', 'low noise', 'not barky'],
 };
 
+function clampToLength(text: string, max: number): string {
+  let s = String(text || '').trim();
+  if (!s) return s;
+  if (s.length <= max) return s;
+  const hard = s.slice(0, max);
+  const boundary = Math.max(
+    hard.lastIndexOf(' '),
+    hard.lastIndexOf(','),
+    hard.lastIndexOf('—'),
+    hard.lastIndexOf('-'),
+    hard.lastIndexOf(';'),
+    hard.lastIndexOf(':')
+  );
+  let cut = boundary > 0 ? hard.slice(0, boundary) : hard;
+  cut = cut.replace(/[\s,;:\-—]+$/g, '').trim();
+  return cut || hard.trim();
+}
+
 /**
  * Verify temperament claims are properly labeled as proven vs likely
  */
@@ -156,7 +174,7 @@ export function verifyBlurb(text: string, facts: FactPack, {
 
   if (errors.length === 0) {
     // Enforce length cap softly. Keep cited preference intact.
-    const capped = original.slice(0, lengthCap);
+    const capped = clampToLength(original, lengthCap);
     if (process.env.DEBUG_REASONING === '1') {
       // eslint-disable-next-line no-console
       console.log('[verify] OK. before:', original, 'after:', capped);
@@ -202,8 +220,7 @@ export function verifyBlurb(text: string, facts: FactPack, {
 
   // Re-truncate (avoid cutting right after appended preference token when possible)
   if (fixed.length > lengthCap) {
-    const cap = lengthCap;
-    fixed = fixed.slice(0, cap);
+    fixed = clampToLength(fixed, lengthCap);
   }
 
   if (process.env.DEBUG_REASONING === '1') {
