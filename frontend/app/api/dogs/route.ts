@@ -65,8 +65,14 @@ export async function GET(request: NextRequest) {
 
     const pfParams = new URLSearchParams();
     pfParams.set('type', 'dog');
-    if (normalized.get('zip')) pfParams.set('location', normalized.get('zip') as string);
-    if (normalized.get('radius')) pfParams.set('distance', normalized.get('radius') as string);
+    const zip = normalized.get('zip');
+    const radius = normalized.get('radius');
+    if (zip) pfParams.set('location', zip);
+    if (zip && radius) {
+      pfParams.set('distance', radius);
+    } else if (radius) {
+      console.warn(`[${requestId}] ⚠️ Skipping Petfinder distance param because no location was provided`);
+    }
     if (normalized.get('age')) pfParams.set('age', normalized.get('age') as string);
     if (normalized.get('size')) pfParams.set('size', normalized.get('size') as string);
     if (normalized.get('breed')) pfParams.set('breed', normalized.get('breed') as string);
