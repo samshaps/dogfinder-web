@@ -18,3 +18,6 @@ frontend/node_modules/
 # Mac cruft
 .DS_Store
 **/.DS_Store
+
+# macOS duplicate copies (e.g. "file 2.txt")
+* [0-9].*

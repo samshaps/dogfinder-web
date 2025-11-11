@@ -23,7 +23,7 @@ export default function Navigation() {
   return (
     <>
       {/* Navigation */}
-      <nav className="bg-surface shadow-sm" aria-label="Primary">
+      <nav className="bg-surface" aria-label="Primary">
         <div className="container mx-auto">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
