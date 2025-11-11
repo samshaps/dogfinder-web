@@ -3,12 +3,30 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Copy, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog as APIDog } from '@/lib/api';
 import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/schemas';
 import PhotoCarousel from '@/components/PhotoCarousel';
 import PreferencesSummary from '@/components/PreferencesSummary';
 import { COPY_MAX } from '@/lib/constants/copyLimits';
+
+function CopyLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="8" y="8" width="11" height="11" rx="2" ry="2" />
+      <path d="M5.5 16.5A2.5 2.5 0 0 1 3 14V5.5A2.5 2.5 0 0 1 5.5 3H14a2.5 2.5 0 0 1 2.5 2.5" />
+    </svg>
+  );
+}
 
 // Convert API Dog to schemas Dog
 function mapAPIDogToDog(apiDog: APIDog): Dog {
@@ -81,7 +99,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
 
   return (
-    <div className="card overflow-hidden w-[360px]">
+    <div className="card overflow-hidden w-[360px] flex flex-col">
       <div className="relative">
         <div className="aspect-square relative">
           {photos.length > 0 ? (
@@ -97,7 +115,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
         </div>
       </div>
       
-      <div className="card-padding">
+      <div className="card-padding flex flex-col h-full">
         <div className="mb-4">
           <h3 className="text-[20px] font-bold text-gray-900">{dog.name}</h3>
           <p className="text-[14px] text-gray-600">{dog.breeds.join(', ')}</p>
@@ -133,7 +151,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
         </div>
         
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-nowrap mt-auto">
           <a
             href={dog.url}
             target="_blank"
@@ -148,7 +166,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             title={showCopied ? 'Link copied' : 'Share'}
             className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
           >
-            <Copy className="w-5 h-5 text-gray-700" />
+            <CopyLinkIcon className="w-5 h-5 text-gray-700" />
           </button>
         </div>
       </div>
@@ -177,7 +195,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
 
   return (
-    <div className="card overflow-hidden hover:shadow-lg transition-shadow w-[320px]">
+    <div className="card overflow-hidden hover:shadow-lg transition-shadow w-[320px] flex flex-col">
       <div className="aspect-square relative">
         {photos.length > 0 ? (
           <PhotoCarousel
@@ -191,7 +209,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
         )}
       </div>
       
-      <div className="card-padding">
+      <div className="card-padding flex flex-col h-full">
         <div className="mb-3">
           <h3 className="font-semibold text-gray-900 text-[18px]">{dog.name}</h3>
           <p className="text-[14px] text-gray-600">{dog.breeds.join(', ')}</p>
@@ -224,7 +242,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
         
         {/* AI Note removed for All Matches */}
         
-        <div className="mt-4 flex gap-2">
+        <div className="mt-auto flex gap-2">
           <a
             href={dog.url}
             target="_blank"
@@ -237,7 +255,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             onClick={handleShare}
             className="btn-ghost text-sm"
           >
-            <Copy className="w-5 h-5" />
+            <CopyLinkIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
