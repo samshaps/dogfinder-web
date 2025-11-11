@@ -47,10 +47,18 @@ export function sanitizeEventProperties(
       continue;
     }
 
+    const lowerKey = key.toLowerCase();
+
     // Block values that look like PII
     if (typeof value === 'string') {
+      let sanitizedKey = key;
+      let sanitizedValue = value;
+
       if (PII_PATTERNS.email.test(value)) {
-        console.warn(`🚨 Blocked email-like value from analytics: ${key}`);
+        console.warn(`🚨 Hashing email-like value for analytics key: ${key}`);
+        sanitizedKey = lowerKey.endsWith('_hash') ? key : `${key}_hash`;
+        sanitizedValue = hashForAnalytics(value);
+        sanitized[sanitizedKey] = sanitizedValue;
         continue;
       }
       if (PII_PATTERNS.phone.test(value)) {
@@ -60,7 +68,10 @@ export function sanitizeEventProperties(
       // Allow UUIDs only for non-user identifiers (like session IDs)
       // But warn if it looks suspicious
       if (PII_PATTERNS.uuid.test(value) && key.toLowerCase().includes('user')) {
-        console.warn(`🚨 Blocked UUID that might be user ID: ${key}`);
+        console.warn(`🚨 Hashing UUID that might be user ID for analytics key: ${key}`);
+        sanitizedKey = lowerKey.endsWith('_hash') ? key : `${key}_hash`;
+        sanitizedValue = hashForAnalytics(value);
+        sanitized[sanitizedKey] = sanitizedValue;
         continue;
       }
     }

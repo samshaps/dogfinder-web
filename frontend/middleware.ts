@@ -31,6 +31,7 @@ export function middleware(request: NextRequest) {
     'https://api.openai.com',
     'https://api.petfinder.com',
     'https://cloud.umami.is',
+    'https://api-gateway.umami.dev',
     'https://vercel.live',
   ];
 

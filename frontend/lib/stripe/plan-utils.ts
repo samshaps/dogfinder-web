@@ -25,6 +25,30 @@ export async function getUserPlan(userIdOrEmail: string): Promise<{
   features: string[];
 } | null> {
   try {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch('/api/stripe/plan-info', {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          console.error('Error fetching plan info from API:', response.status);
+          return null;
+        }
+
+        const payload = await response.json();
+        if (!payload?.success) {
+          console.error('Plan info API responded with failure:', payload?.error || payload);
+          return null;
+        }
+
+        return payload.data ?? null;
+      } catch (fetchError) {
+        console.error('Network error fetching plan info:', fetchError);
+        return null;
+      }
+    }
+
     const client = getSupabaseClient();
     
     // Resolve user_id if we received an email or non-UUID identifier
