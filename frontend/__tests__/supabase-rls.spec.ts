@@ -144,7 +144,7 @@ if (missingEnv.length > 0) {
       expect(signInData.session).not.toBeNull();
 
       const { data: plansData, error: plansError } = await userA.client
-        .from('plans')
+        .from('alert_settings')
         .select('user_id');
 
       expect(plansError).toBeNull();
@@ -152,7 +152,7 @@ if (missingEnv.length > 0) {
       expect(plansData?.[0].user_id).toEqual(userA.authId);
 
       const { data: otherData, error: otherError } = await userA.client
-        .from('plans')
+        .from('alert_settings')
         .select('user_id')
         .eq('user_id', userB.authId);
 
@@ -173,7 +173,7 @@ if (missingEnv.length > 0) {
 
       const { error: updateError } = await userA.client
         .from('plans')
-        .update({ plan_type: 'enterprise' })
+        .update({ cancel_at_period_end: true })
         .eq('user_id', userB.authId);
 
       expect(updateError).not.toBeNull();
