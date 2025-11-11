@@ -9,24 +9,7 @@ import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/sche
 import PhotoCarousel from '@/components/PhotoCarousel';
 import PreferencesSummary from '@/components/PreferencesSummary';
 import { COPY_MAX } from '@/lib/constants/copyLimits';
-
-function CopyLinkIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="8" y="8" width="11" height="11" rx="2" ry="2" />
-      <path d="M5.5 16.5A2.5 2.5 0 0 1 3 14V5.5A2.5 2.5 0 0 1 5.5 3H14a2.5 2.5 0 0 1 2.5 2.5" />
-    </svg>
-  );
-}
+import CopyLinkButton from '@/components/CopyLinkButton';
 
 // Convert API Dog to schemas Dog
 function mapAPIDogToDog(apiDog: APIDog): Dog {
@@ -72,8 +55,6 @@ function pickCitedPreference(userPreferences?: UserPreferences): string | null {
 }
 
 function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog; onPhotoClick: (dog: APIDog) => void; userPreferences?: UserPreferences; analysis?: any }) {
-  const [showCopied, setShowCopied] = useState(false);
-  
   // Use the analysis data directly from the new matching system
   const aiReasoning = analysis?.reasons?.primary150 ? {
     primary: analysis.reasons.primary150,
@@ -84,16 +65,6 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
     const cite = pickCitedPreference(userPreferences);
     return cite ? `Matches your ${cite}.` : 'Great potential as a loving companion';
   })();
-  
-  const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(dog.url);
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy URL:', error);
-    }
-  };
 
   // Convert dog.photos (string[]) to Photo[] format
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
@@ -160,14 +131,11 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
           >
             View on Petfinder
           </a>
-          <button
-            onClick={handleShare}
-            aria-label={showCopied ? 'Link copied' : 'Share dog link'}
-            title={showCopied ? 'Link copied' : 'Share'}
+          <CopyLinkButton
+            text={dog.url}
             className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
-          >
-            <CopyLinkIcon className="w-5 h-5 text-gray-700" />
-          </button>
+            iconClassName="w-4 h-4 text-gray-700"
+          />
         </div>
       </div>
     </div>
@@ -175,21 +143,9 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
 }
 
 function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog; onPhotoClick: (dog: APIDog) => void; userPreferences?: UserPreferences; analysis?: any }) {
-  const [showCopied, setShowCopied] = useState(false);
-  
   // Use the analysis data directly from the new matching system
   // All Matches: no AI guidance rendered
   const shortAIReasoning = '';
-  
-  const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(dog.url);
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy URL:', error);
-    }
-  };
 
   // Convert dog.photos (string[]) to Photo[] format
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
@@ -251,12 +207,11 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
           >
             View on Petfinder
           </a>
-          <button
-            onClick={handleShare}
-            className="btn-ghost text-sm"
-          >
-            <CopyLinkIcon className="w-5 h-5" />
-          </button>
+          <CopyLinkButton
+            text={dog.url}
+            className="btn-ghost text-sm flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300"
+            iconClassName="w-4 h-4"
+          />
         </div>
       </div>
     </div>
