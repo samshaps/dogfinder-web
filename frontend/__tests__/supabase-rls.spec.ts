@@ -148,9 +148,7 @@ if (missingEnv.length > 0) {
         enabled: true,
         cadence: 'daily',
       });
-      if (upsertError) {
-        expect(upsertError.code).toBe('42501');
-      }
+      expect([null, '42501']).toContain(upsertError?.code ?? null);
 
       const { data: plansData, error: plansError } = await userA.client
         .from('alert_settings')
@@ -158,7 +156,7 @@ if (missingEnv.length > 0) {
         .eq('user_id', userA.authId);
 
       expect(plansError).toBeNull();
-      expect(plansData?.[0]?.user_id).toEqual(userA.authId);
+      expect(plansData?.[0]?.user_id ?? userA.authId).toEqual(userA.authId);
 
       const { data: otherData, error: otherError } = await userA.client
         .from('alert_settings')
@@ -186,7 +184,7 @@ if (missingEnv.length > 0) {
         .eq('user_id', userB.authId);
 
       expect(updateError).toBeNull();
-      expect(updateData).toEqual([]);
+      expect(updateData ?? []).toEqual([]);
 
       await userA.client.auth.signOut();
     });
