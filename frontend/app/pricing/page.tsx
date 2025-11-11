@@ -453,7 +453,7 @@ function PricingPageContent() {
               
               <div className="mb-6">
                 <h3 className="mb-2">Free Plan</h3>
-                <div className="text-4xl font-extrabold mb-4">
+                <div className="text-4xl font-extrabold text-gray-900 mb-4">
                   $0<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
                 <p className="body-text">Unlimited use of our site to find your perfect pup.</p>
@@ -505,7 +505,7 @@ function PricingPageContent() {
               
               <div className="mb-6">
                 <h3 className="mb-2">Pro Plan</h3>
-                <div className="text-4xl font-extrabold mb-4">
+                <div className="text-4xl font-extrabold text-gray-900 mb-4">
                   $9.99<span className="text-base text-slate-500 align-baseline">/month</span>
                 </div>
                 <p className="body-text">Always-on monitoring with email notifications.</p>

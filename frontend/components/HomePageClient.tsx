@@ -161,9 +161,9 @@ export default function HomePageClient() {
             <Link
               href="/find"
               onClick={() => trackEvent('homepage_cta_band_clicked' as unknown as any)}
-              className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white"
+              className="inline-flex items-center justify-center border border-white/80 bg-transparent px-8 py-4 rounded-xl text-lg font-semibold text-white shadow-sm transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600"
             >
-              <Search className="w-5 h-5 mr-2" />
+              <Search className="w-5 h-5 mr-2 text-white" />
               Find My Top Matches
             </Link>
           </div>

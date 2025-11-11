@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Share2, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog as APIDog } from '@/lib/api';
 import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/schemas';
 import PhotoCarousel from '@/components/PhotoCarousel';
@@ -81,7 +81,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
   const photos = dog.photos?.map(photoUrl => ({ url: photoUrl, alt: `${dog.name}'s photo` })) || [];
 
   return (
-    <div className="card overflow-hidden w-[320px]">
+    <div className="card overflow-hidden w-[360px]">
       <div className="relative">
         <div className="aspect-square relative">
           {photos.length > 0 ? (
@@ -148,7 +148,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             title={showCopied ? 'Link copied' : 'Share'}
             className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
           >
-            <Share2 className="w-4 h-4 text-gray-700" />
+            <Copy className="w-4 h-4 text-gray-700" />
           </button>
         </div>
       </div>
@@ -237,7 +237,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             onClick={handleShare}
             className="btn-ghost text-sm"
           >
-            <Share2 className="w-4 h-4" />
+            <Copy className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -512,7 +512,7 @@ function ResultsPageContent() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="freshness">Freshness</option>
               <option value="distance">Distance</option>
