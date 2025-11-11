@@ -29,15 +29,26 @@ NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=https://your-domain.vercel.app
 
 # Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=your_webhook_secret
+STRIPE_MODE=live
+STRIPE_SECRET_KEY_TEST=your_test_secret_key
+STRIPE_SECRET_KEY_LIVE=your_live_secret_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST=your_test_publishable_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_LIVE=your_live_publishable_key
+STRIPE_WEBHOOK_SECRET_TEST=your_test_webhook_secret
+STRIPE_WEBHOOK_SECRET_LIVE=your_live_webhook_secret
+STRIPE_PRO_PRICE_ID_TEST=price_test_xxx
+STRIPE_PRO_PRICE_ID_LIVE=price_live_xxx
 
 # Email
 RESEND_API_KEY=your_resend_api_key
 EMAIL_FROM=theyenta@dogyenta.com
 EMAIL_REPLY_TO=support@dogyenta.com
 EMAIL_DOMAIN=dogyenta.com
+EMAIL_COMPANY_NAME=DogYenta
+EMAIL_PHYSICAL_ADDRESS="DogYenta LLC · 548 Market St #12345 · San Francisco, CA 94104"
+EMAIL_SUPPORT_URL=https://dogyenta.com/support
+EMAIL_PRIVACY_URL=https://dogyenta.com/privacy
+EMAIL_TERMS_URL=https://dogyenta.com/terms
 
 # AI
 OPENAI_API_KEY=your_openai_api_key
@@ -109,8 +120,8 @@ ADMIN_SECRET=your_admin_secret
 
 ### Stripe Setup
 1. Create a Stripe account
-2. Get API keys from dashboard
-3. Create products and prices:
+2. Collect both test and live API keys and configure `STRIPE_MODE` appropriately
+3. Create products and prices in both environments:
    ```bash
    # Create Pro plan
    stripe products create --name "DogYenta Pro"

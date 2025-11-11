@@ -5,6 +5,7 @@ import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProviders } from "@/components/AuthProviders";
 import Navigation from "@/components/Navigation";
+import { appConfig } from "@/lib/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,17 +30,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log('🔧 RootLayout rendering...');
-  
+  const analyticsEnabled = !!(appConfig.umamiScriptUrl && appConfig.umamiWebsiteId);
+
   return (
     <html lang="en">
       <head>
         {/* Umami Analytics */}
-        {process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL && 
-         process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+        {analyticsEnabled && (
           <Script
-            src={process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL}
-            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            src={appConfig.umamiScriptUrl!}
+            data-website-id={appConfig.umamiWebsiteId}
             strategy="afterInteractive"
           />
         )}
@@ -49,8 +49,13 @@ export default function RootLayout({
       >
         <AuthProviders>
           <ErrorBoundary>
+            <a href="#main-content" className="skip-link">
+              Skip to main content
+            </a>
             <Navigation />
-            {children}
+            <main id="main-content" tabIndex={-1}>
+              {children}
+            </main>
           </ErrorBoundary>
         </AuthProviders>
       </body>

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Supabase client instance
 let supabase: ReturnType<typeof createClient> | null = null;
+const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * Get or create Supabase client
@@ -16,12 +17,14 @@ export function getSupabaseClient() {
       throw new Error('Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
     }
 
-    console.log('🔍 Creating Supabase client:', {
-      url: supabaseUrl,
-      hasAnonKey: !!supabaseAnonKey,
-      nodeEnv: process.env.NODE_ENV,
-      vercelEnv: process.env.VERCEL_ENV
-    });
+    if (isDev) {
+      console.log('🔍 Creating Supabase client:', {
+        url: supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey,
+        nodeEnv: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV
+      });
+    }
 
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -46,7 +49,9 @@ export async function query<T extends Record<string, any> = any>(
   const start = Date.now();
   
   try {
-    console.log('🔍 Executing Supabase query:', sql.substring(0, 100) + '...');
+    if (isDev) {
+      console.log('🔍 Executing Supabase query:', sql.substring(0, 100) + '...');
+    }
     
     // For now, we'll use a simple approach with direct SQL
     // In a real implementation, you'd use Supabase's query builder or RPC
@@ -63,11 +68,13 @@ export async function query<T extends Record<string, any> = any>(
     }
     
     // Log slow queries (> 100ms)
-    if (duration > 100) {
+    if (isDev && duration > 100) {
       console.warn(`Slow Supabase query (${duration}ms):`, sql);
     }
     
-    console.log('✅ Supabase query successful:', { duration, rowCount: data?.length || 0 });
+    if (isDev) {
+      console.log('✅ Supabase query successful:', { duration, rowCount: data?.length || 0 });
+    }
     
     return {
       rows: data || [],
@@ -85,7 +92,9 @@ export async function query<T extends Record<string, any> = any>(
 export async function testConnection(): Promise<boolean> {
   try {
     const result = await query('SELECT NOW() as now, version() as version');
-    console.log('Supabase connected:', result.rows[0]);
+    if (isDev) {
+      console.log('Supabase connected:', result.rows[0]);
+    }
     return true;
   } catch (error) {
     console.error('Supabase connection failed:', error);

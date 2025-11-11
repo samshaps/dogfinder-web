@@ -96,13 +96,25 @@ NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=http://localhost:3000
 
 # Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=your_webhook_secret
+STRIPE_MODE=test
+STRIPE_SECRET_KEY_TEST=your_test_secret_key
+STRIPE_SECRET_KEY_LIVE=your_live_secret_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST=your_test_publishable_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_LIVE=your_live_publishable_key
+STRIPE_WEBHOOK_SECRET_TEST=your_test_webhook_secret
+STRIPE_WEBHOOK_SECRET_LIVE=your_live_webhook_secret
+STRIPE_PRO_PRICE_ID_TEST=price_test_xxx
+STRIPE_PRO_PRICE_ID_LIVE=price_live_xxx
 
 # Email
 RESEND_API_KEY=your_resend_api_key
 EMAIL_FROM=theyenta@dogyenta.com
+EMAIL_REPLY_TO=support@dogyenta.com
+EMAIL_COMPANY_NAME=DogYenta
+EMAIL_PHYSICAL_ADDRESS="DogYenta LLC · 548 Market St #12345 · San Francisco, CA 94104"
+EMAIL_SUPPORT_URL=https://dogyenta.com/support
+EMAIL_PRIVACY_URL=https://dogyenta.com/privacy
+EMAIL_TERMS_URL=https://dogyenta.com/terms
 
 # AI
 OPENAI_API_KEY=your_openai_api_key
@@ -137,6 +149,13 @@ Open [http://localhost:3000](http://localhost:3000) to see the application.
 - [Email Alerts Setup Guide](docs/EMAIL_ALERTS_SETUP_GUIDE.md)
 - [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 - [Development Setup](docs/DEVELOPMENT_SETUP.md)
+- [Stripe Launch Checklist](docs/STRIPE_LAUNCH_CHECKLIST.md)
+- [Email Compliance Checklist](docs/EMAIL_COMPLIANCE_CHECKLIST.md)
+- [Observability & Analytics Runbook](docs/OBSERVABILITY_RUNBOOK.md)
+- [Performance & Accessibility Checklist](docs/PERFORMANCE_ACCESSIBILITY_CHECKLIST.md)
+- [Security Hardening Checklist](docs/SECURITY_HARDENING_CHECKLIST.md)
+- [Voucher Campaign Playbook](docs/VOUCHER_CAMPAIGN_PLAYBOOK.md)
+- [Launch Runbook](docs/launch-runbook.md)
 
 ### **Module Documentation**
 - [Module 1: Config & Types Foundation](docs/v2_refactor.md#module-1-config--types-foundation)

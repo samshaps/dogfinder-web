@@ -8,6 +8,41 @@ function get(name: string, required = true): string | undefined {
   return v;
 }
 
+const stripeModeRaw = (process.env.STRIPE_MODE ?? 'test').toLowerCase();
+export type StripeMode = 'test' | 'live';
+const stripeMode: StripeMode = stripeModeRaw === 'live' ? 'live' : 'test';
+
+interface StripeValueOptions {
+  liveKey: string;
+  testKey: string;
+  legacyKey?: string;
+  required?: boolean;
+  label: string;
+}
+
+function getStripeValue({
+  liveKey,
+  testKey,
+  legacyKey,
+  required = true,
+  label,
+}: StripeValueOptions): string | undefined {
+  const primaryKey = stripeMode === 'live' ? liveKey : testKey;
+  const fallbackKey = legacyKey;
+  const value =
+    process.env[primaryKey] ??
+    (fallbackKey ? process.env[fallbackKey] : undefined);
+
+  if (required && (!value || value.trim() === '')) {
+    const expected = fallbackKey
+      ? `${primaryKey} (or ${fallbackKey})`
+      : primaryKey;
+    throw new Error(`${label} is not set. Expected ${expected}`);
+  }
+
+  return value?.trim();
+}
+
 export const appConfig = {
   nodeEnv: (process.env.NODE_ENV as Env) || 'development',
   vercelEnv: process.env.VERCEL_ENV,
@@ -16,11 +51,38 @@ export const appConfig = {
   supabaseUrl: get('NEXT_PUBLIC_SUPABASE_URL')!,
   supabaseAnonKey: get('NEXT_PUBLIC_SUPABASE_ANON_KEY')!,
 
+  // Analytics
+  umamiScriptUrl: get('NEXT_PUBLIC_UMAMI_SCRIPT_URL', false),
+  umamiWebsiteId: get('NEXT_PUBLIC_UMAMI_WEBSITE_ID', false),
+
   // Stripe
-  stripePublishableKey: get('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'),
-  stripeSecretKey: get('STRIPE_SECRET_KEY'),
-  stripeWebhookSecret: get('STRIPE_WEBHOOK_SECRET', false),
-  stripeProPriceId: get('STRIPE_PRO_PRICE_ID', false),
+  stripeMode,
+  stripePublishableKey: getStripeValue({
+    liveKey: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_LIVE',
+    testKey: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST',
+    legacyKey: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
+    label: 'Stripe publishable key',
+  })!,
+  stripeSecretKey: getStripeValue({
+    liveKey: 'STRIPE_SECRET_KEY_LIVE',
+    testKey: 'STRIPE_SECRET_KEY_TEST',
+    legacyKey: 'STRIPE_SECRET_KEY',
+    label: 'Stripe secret key',
+  })!,
+  stripeWebhookSecret: getStripeValue({
+    liveKey: 'STRIPE_WEBHOOK_SECRET_LIVE',
+    testKey: 'STRIPE_WEBHOOK_SECRET_TEST',
+    legacyKey: 'STRIPE_WEBHOOK_SECRET',
+    required: false,
+    label: 'Stripe webhook secret',
+  }),
+  stripeProPriceId: getStripeValue({
+    liveKey: 'STRIPE_PRO_PRICE_ID_LIVE',
+    testKey: 'STRIPE_PRO_PRICE_ID_TEST',
+    legacyKey: 'STRIPE_PRO_PRICE_ID',
+    required: false,
+    label: 'Stripe Pro price id',
+  }),
 
   // Resend
   resendApiKey: get('RESEND_API_KEY'),

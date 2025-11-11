@@ -19,6 +19,13 @@ export const EMAIL_CONFIG = {
   domain: process.env.EMAIL_DOMAIN || 'dogyenta.com',
   unsubscribeUrl: process.env.EMAIL_UNSUBSCRIBE_URL || 'https://dogyenta.com/unsubscribe',
   dashboardUrl: process.env.DASHBOARD_URL || 'https://dogyenta.com/profile',
+  companyName: process.env.EMAIL_COMPANY_NAME || 'DogYenta',
+  physicalAddress:
+    process.env.EMAIL_PHYSICAL_ADDRESS ||
+    'DogYenta LLC · 548 Market St #12345 · San Francisco, CA 94104',
+  supportUrl: process.env.EMAIL_SUPPORT_URL || 'https://dogyenta.com/support',
+  privacyUrl: process.env.EMAIL_PRIVACY_URL || 'https://dogyenta.com/privacy',
+  termsUrl: process.env.EMAIL_TERMS_URL || 'https://dogyenta.com/terms',
 } as const;
 
 // Rate limiting configuration

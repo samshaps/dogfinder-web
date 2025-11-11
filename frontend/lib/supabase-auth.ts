@@ -1,10 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 /**
  * Get Supabase client for server-side operations
  * Uses service role key when available (bypasses RLS), otherwise falls back to anon key
  */
 export function getSupabaseClient(): SupabaseClient {
+  if (typeof window !== 'undefined') {
+    throw new Error('Supabase admin client must only be instantiated on the server');
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -29,15 +35,6 @@ export function getSupabaseClient(): SupabaseClient {
     }
   });
 
-  console.log('🔍 Creating Supabase client:', {
-    url: supabaseUrl,
-    usingServiceRole,
-    hasServiceRoleKey: !!serviceRoleKey,
-    hasAnonKey: !!anonKey,
-    nodeEnv: process.env.NODE_ENV,
-    vercelEnv: process.env.VERCEL_ENV
-  });
-
   return client;
 }
 
@@ -47,7 +44,9 @@ export function getSupabaseClient(): SupabaseClient {
 export async function getUserByEmail(email: string): Promise<{ id: string } | null> {
   const client = getSupabaseClient();
   
-  console.log('🔍 Checking if user exists:', email);
+  if (isDev) {
+    console.log('🔍 Checking if user exists:', email);
+  }
   
   const { data, error } = await (client as any)
     .from('users')
@@ -60,7 +59,9 @@ export async function getUserByEmail(email: string): Promise<{ id: string } | nu
     throw error;
   }
   
-  console.log('✅ User check result:', data ? 'Found' : 'Not found');
+  if (isDev) {
+    console.log('✅ User check result:', data ? 'Found' : 'Not found');
+  }
   return data;
 }
 
@@ -76,7 +77,9 @@ export async function createUser(userData: {
 }): Promise<{ id: string } | null> {
   const client = getSupabaseClient();
   
-  console.log('🔍 Creating new user:', userData.email);
+  if (isDev) {
+    console.log('🔍 Creating new user:', userData.email);
+  }
   
   const { data, error } = await (client as any)
     .from('users')
@@ -89,7 +92,9 @@ export async function createUser(userData: {
     throw error;
   }
   
-  console.log('✅ User created:', data);
+  if (isDev) {
+    console.log('✅ User created:', data);
+  }
   return data;
 }
 
@@ -99,7 +104,9 @@ export async function createUser(userData: {
 export async function createUserPlan(userId: string) {
   const client = getSupabaseClient();
   
-  console.log('🔍 Creating default plan for user:', userId);
+  if (isDev) {
+    console.log('🔍 Creating default plan for user:', userId);
+  }
   
   const { data, error } = await (client as any)
     .from('plans')
@@ -116,7 +123,9 @@ export async function createUserPlan(userId: string) {
     throw error;
   }
   
-  console.log('✅ User plan created:', data);
+  if (isDev) {
+    console.log('✅ User plan created:', data);
+  }
   return data;
 }
 
@@ -126,7 +135,9 @@ export async function createUserPlan(userId: string) {
 export async function getUserPreferences(userId: string): Promise<any | null> {
   const client = getSupabaseClient();
   
-  console.log('🔍 Getting user preferences for:', userId);
+  if (isDev) {
+    console.log('🔍 Getting user preferences for:', userId);
+  }
   
   const { data, error } = await (client as any)
     .from('preferences')
@@ -141,7 +152,9 @@ export async function getUserPreferences(userId: string): Promise<any | null> {
     throw error;
   }
   
-  console.log('✅ User preferences result:', data ? 'Found' : 'Not found');
+  if (isDev) {
+    console.log('✅ User preferences result:', data ? 'Found' : 'Not found');
+  }
   return data;
 }
 
@@ -151,8 +164,10 @@ export async function getUserPreferences(userId: string): Promise<any | null> {
 export async function saveUserPreferences(userId: string, preferencesData: any): Promise<any> {
   const client = getSupabaseClient();
   
-  console.log('🔍 Saving user preferences for:', userId);
-  console.log('🔍 Preferences data to save:', JSON.stringify(preferencesData, null, 2));
+  if (isDev) {
+    console.log('🔍 Saving user preferences for:', userId);
+    console.log('🔍 Preferences data to save:', JSON.stringify(preferencesData, null, 2));
+  }
   
   // Check if preferences already exist (use maybeSingle to avoid error if no rows)
   // Note: preferences table uses user_id as PRIMARY KEY, not a separate id column
@@ -188,8 +203,10 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
     
   if (existingData) {
     // Update existing preferences
-    console.log('🔍 Updating existing preferences for user_id:', userId);
-    console.log('🔍 DB data to update:', JSON.stringify(dbData, null, 2));
+    if (isDev) {
+      console.log('🔍 Updating existing preferences for user_id:', userId);
+      console.log('🔍 DB data to update:', JSON.stringify(dbData, null, 2));
+    }
     
     const { data, error } = await (client as any)
       .from('preferences')
@@ -207,12 +224,16 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
       throw error;
     }
     
-    console.log('✅ Preferences updated:', data);
+    if (isDev) {
+      console.log('✅ Preferences updated:', data);
+    }
     return data;
   } else {
     // Create new preferences
-    console.log('🔍 Creating new preferences...');
-    console.log('🔍 DB data to insert:', JSON.stringify(dbData, null, 2));
+    if (isDev) {
+      console.log('🔍 Creating new preferences...');
+      console.log('🔍 DB data to insert:', JSON.stringify(dbData, null, 2));
+    }
     
     const { data, error } = await (client as any)
       .from('preferences')
@@ -229,7 +250,9 @@ export async function saveUserPreferences(userId: string, preferencesData: any):
       throw error;
     }
     
-    console.log('✅ Preferences created:', data);
+    if (isDev) {
+      console.log('✅ Preferences created:', data);
+    }
     return data;
   }
 }
@@ -252,7 +275,9 @@ export async function testSupabaseConnection(): Promise<boolean> {
       return false;
     }
     
-    console.log('✅ Supabase connection successful');
+    if (isDev) {
+      console.log('✅ Supabase connection successful');
+    }
     return true;
   } catch (error) {
     console.error('Supabase connection failed:', error);

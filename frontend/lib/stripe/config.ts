@@ -5,16 +5,17 @@
 
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import StripeServer from 'stripe';
+import { appConfig } from '../config';
 
 // Client-side Stripe instance
 let stripePromise: Promise<Stripe | null>;
 
 export const getStripe = () => {
   if (!stripePromise) {
-    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    const publishableKey = appConfig.stripePublishableKey;
     
     if (!publishableKey) {
-      throw new Error('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set');
+      throw new Error('Stripe publishable key is not set');
     }
     
     stripePromise = loadStripe(publishableKey);
@@ -25,10 +26,10 @@ export const getStripe = () => {
 
 // Server-side Stripe instance
 export const getStripeServer = () => {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const secretKey = appConfig.stripeSecretKey;
   
   if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY is not set');
+    throw new Error('Stripe secret key is not set');
   }
   
   return new StripeServer(secretKey, {
@@ -59,7 +60,7 @@ export const PLANS = {
     id: 'pro',
     name: 'Pro',
     price: 9.99,
-    priceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro_monthly',
+    priceId: appConfig.stripeProPriceId || 'price_pro_monthly',
     features: [
       'Always-on monitoring',
       'Saved preferences',

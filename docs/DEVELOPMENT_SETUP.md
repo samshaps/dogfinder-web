@@ -60,14 +60,26 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=http://localhost:3000
 
-# Stripe (Test Mode)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Stripe
+STRIPE_MODE=test
+STRIPE_SECRET_KEY_TEST=sk_test_...
+STRIPE_SECRET_KEY_LIVE=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST=pk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_LIVE=pk_live_...
+STRIPE_WEBHOOK_SECRET_TEST=whsec_test_...
+STRIPE_WEBHOOK_SECRET_LIVE=whsec_live_...
+STRIPE_PRO_PRICE_ID_TEST=price_test_...
+STRIPE_PRO_PRICE_ID_LIVE=price_live_...
 
 # Email
 RESEND_API_KEY=re_...
 EMAIL_FROM=theyenta@dogyenta.com
+EMAIL_REPLY_TO=support@dogyenta.com
+EMAIL_COMPANY_NAME=DogYenta
+EMAIL_PHYSICAL_ADDRESS="DogYenta LLC · 548 Market St #12345 · San Francisco, CA 94104"
+EMAIL_SUPPORT_URL=https://dogyenta.com/support
+EMAIL_PRIVACY_URL=https://dogyenta.com/privacy
+EMAIL_TERMS_URL=https://dogyenta.com/terms
 
 # AI
 OPENAI_API_KEY=sk-...
@@ -116,12 +128,12 @@ INSERT INTO preferences (user_id, zip_codes, radius_mi, breeds, sizes, ages, ene
 VALUES ('test-user-id', '{"10001"}', 25, '{"Golden Retriever"}', '{"Medium"}', '{"Adult"}', '{"Medium"}');
 ```
 
-## 💳 Payment Setup (Test Mode)
+## 💳 Payment Setup
 
-### Stripe Test Configuration
-1. Go to [Stripe Dashboard](https://dashboard.stripe.com/test)
-2. Get your test API keys
-3. Create test products:
+### Stripe Configuration
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com/)
+2. Collect both **test** and **live** API keys and populate `.env.local`
+3. Create test products (repeat in live mode before launch):
    ```bash
    # Install Stripe CLI
    npm install -g @stripe/stripe-cli

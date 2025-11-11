@@ -1012,6 +1012,12 @@ function generateEmailHTML(data: EmailTemplateData): string {
   const prefs = preferences as any; // Access full preferences object
   const resultsUrl = buildUTMUrl('/results', 'dashboard_cta_top', prefs.frequency || 'na');
   const findUrl = buildUTMUrl('/find', 'manage_prefs_footer', prefs.frequency || 'na');
+  const companyName = EMAIL_CONFIG.companyName || 'DogYenta';
+  const physicalAddress = EMAIL_CONFIG.physicalAddress;
+  const supportUrl = EMAIL_CONFIG.supportUrl;
+  const privacyUrl = EMAIL_CONFIG.privacyUrl;
+  const termsUrl = EMAIL_CONFIG.termsUrl;
+  const supportEmail = EMAIL_CONFIG.replyTo;
   
   // Format ZIP list for preheader
   const zipList = formatZipList(preferences?.zipCodes || []);
@@ -1118,6 +1124,15 @@ function generateEmailHTML(data: EmailTemplateData): string {
                                 <p style="margin:5px 0;opacity:0.8;font-size:13px;line-height:1.6;">
                                     Or <a href="${findUrl}" style="color:#90cdf4;text-decoration:underline;">manage your preferences</a> to customize your alerts
                                 </p>
+                                <p style="margin:12px 0 0 0;opacity:0.7;font-size:12px;line-height:1.6;">
+                                    You received this email because you opted in at dogyenta.com. Questions? Email <a href="mailto:${supportEmail}" style="color:#90cdf4;text-decoration:underline;">${supportEmail}</a> or visit <a href="${supportUrl}" style="color:#90cdf4;text-decoration:underline;">our support center</a>.
+                                </p>
+                                <p style="margin:8px 0 0 0;opacity:0.7;font-size:12px;line-height:1.6;">
+                                    ${companyName} · ${physicalAddress}
+                                </p>
+                                <p style="margin:8px 0 0 0;opacity:0.7;font-size:12px;line-height:1.6;">
+                                    <a href="${privacyUrl}" style="color:#90cdf4;text-decoration:underline;">Privacy Policy</a> · <a href="${termsUrl}" style="color:#90cdf4;text-decoration:underline;">Terms of Service</a>
+                                </p>
                             </div>
                         </td>
                     </tr>
@@ -1137,6 +1152,12 @@ function generateEmailText(data: EmailTemplateData): string {
   const prefs = preferences as any;
   const resultsUrl = buildUTMUrl('/results', 'dashboard_text', prefs.frequency || 'na');
   const findUrl = buildUTMUrl('/find', 'manage_prefs_footer', prefs.frequency || 'na');
+  const companyName = EMAIL_CONFIG.companyName || 'DogYenta';
+  const physicalAddress = EMAIL_CONFIG.physicalAddress;
+  const supportUrl = EMAIL_CONFIG.supportUrl;
+  const supportEmail = EMAIL_CONFIG.replyTo;
+  const privacyUrl = EMAIL_CONFIG.privacyUrl;
+  const termsUrl = EMAIL_CONFIG.termsUrl;
   
   let text = `Hi ${user.name || 'there'}! Here's your latest update from the yenta. 👋\n\n`;
   text += `We found ${matches.length} new match(es) within ${preferences.radiusMi} miles.\n\n`;
@@ -1163,6 +1184,11 @@ function generateEmailText(data: EmailTemplateData): string {
   text += `Manage preferences: ${findUrl}\n\n`;
   text += `Happy dog hunting! 🐕\n`;
   text += `The DogYenta Team\n`;
+  text += `\nYou received this email because you opted in at dogyenta.com.\n`;
+  text += `Contact us: ${supportEmail} · ${supportUrl}\n`;
+  text += `${companyName}\n${physicalAddress}\n`;
+  text += `Privacy: ${privacyUrl}\n`;
+  text += `Terms: ${termsUrl}\n`;
   
   return text;
 }

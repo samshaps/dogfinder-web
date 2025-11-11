@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const webhookSecret = appConfig.stripeWebhookSecret;
     
     if (!webhookSecret) {
-      console.error(`❌ [${requestId}] STRIPE_WEBHOOK_SECRET not set`);
+      console.error(`❌ [${requestId}] Stripe webhook secret not set (expected STRIPE_WEBHOOK_SECRET_${appConfig.stripeMode.toUpperCase()} or STRIPE_WEBHOOK_SECRET)`);
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }

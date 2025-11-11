@@ -23,7 +23,7 @@ export default function Navigation() {
   return (
     <>
       {/* Navigation */}
-      <nav className="bg-surface shadow-sm">
+      <nav className="bg-surface shadow-sm" aria-label="Primary">
         <div className="container mx-auto">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -35,8 +35,9 @@ export default function Navigation() {
             {/* Desktop Navigation */}
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-6">
-                <Link 
-                  href="/find" 
+                <Link
+                  href="/find"
+                  aria-current={pathname === '/find' ? 'page' : undefined}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                     pathname === '/find'
                       ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
@@ -45,8 +46,9 @@ export default function Navigation() {
                 >
                   Find a Dog
                 </Link>
-                <Link 
-                  href="/about" 
+                <Link
+                  href="/about"
+                  aria-current={pathname === '/about' ? 'page' : undefined}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                     pathname === '/about'
                       ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
@@ -55,8 +57,9 @@ export default function Navigation() {
                 >
                   About
                 </Link>
-                <Link 
-                  href="/pricing" 
+                <Link
+                  href="/pricing"
+                  aria-current={pathname === '/pricing' ? 'page' : undefined}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                     pathname === '/pricing'
                       ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
@@ -69,8 +72,9 @@ export default function Navigation() {
                 {/* Authentication Links */}
                 {isAuthenticated ? (
                   <div className="flex items-center space-x-4">
-                    <Link 
-                      href="/profile" 
+                    <Link
+                      href="/profile"
+                      aria-current={pathname === '/profile' ? 'page' : undefined}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                         pathname === '/profile'
                           ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
@@ -124,6 +128,7 @@ export default function Navigation() {
           <div className="px-2 pt-2 pb-3 space-y-1">
             <Link
               href="/find"
+              aria-current={pathname === '/find' ? 'page' : undefined}
               className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
                 pathname === '/find'
                   ? 'text-slate-900 font-semibold'
@@ -135,6 +140,7 @@ export default function Navigation() {
             </Link>
             <Link
               href="/about"
+              aria-current={pathname === '/about' ? 'page' : undefined}
               className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
                 pathname === '/about'
                   ? 'text-slate-900 font-semibold'
@@ -146,6 +152,7 @@ export default function Navigation() {
             </Link>
             <Link
               href="/pricing"
+              aria-current={pathname === '/pricing' ? 'page' : undefined}
               className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
                 pathname === '/pricing'
                   ? 'text-slate-900 font-semibold'
@@ -161,6 +168,7 @@ export default function Navigation() {
               <>
                 <Link
                   href="/profile"
+                  aria-current={pathname === '/profile' ? 'page' : undefined}
                   className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
                     pathname === '/profile'
                       ? 'text-slate-900 font-semibold'

@@ -8,7 +8,7 @@ This test plan covers the new email alerts improvements and single-path unsubscr
 - [ ] Verify all environment variables are set:
   - `EMAIL_TOKEN_SECRET`
   - `RESEND_API_KEY`
-  - `STRIPE_SECRET_KEY`
+  - `STRIPE_SECRET_KEY_TEST` (and `STRIPE_SECRET_KEY_LIVE` in production)
   - `CRON_SECRET_STAGING`
 - [ ] Database migrations applied (verify `cancel_at_period_end` exists in `plans` table)
 - [ ] Stripe webhook endpoint configured for staging

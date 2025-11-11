@@ -27,8 +27,6 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  console.log('🏠 HomePage rendering...');
-  
   try {
     return <HomePageClient />;
   } catch (error) {
