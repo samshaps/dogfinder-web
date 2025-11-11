@@ -113,9 +113,9 @@ export const appConfig = {
 
   // Resend
   resendApiKey: isBrowser ? undefined : get('RESEND_API_KEY'),
-  emailFrom: get('EMAIL_FROM') || 'theyenta@dogyenta.com',
+  emailFrom: get('EMAIL_FROM', false) || 'theyenta@dogyenta.com',
   emailReplyTo: get('EMAIL_REPLY_TO', false) || 'support@dogyenta.com',
-  emailUnsubscribeBase: get('EMAIL_UNSUBSCRIBE_URL') || 'https://dogyenta.com/unsubscribe',
+  emailUnsubscribeBase: get('EMAIL_UNSUBSCRIBE_URL', false) || 'https://dogyenta.com/unsubscribe',
   dashboardUrl: get('DASHBOARD_URL', false) || 'https://dogyenta.com/profile',
 
   // Tokens / Secrets
