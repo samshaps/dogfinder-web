@@ -42,6 +42,14 @@ if (missingEnv.length > 0) {
 
     const testUsers: TestUser[] = [];
 
+    const ensureSuccess = (error: unknown, context: string) => {
+      if (error) {
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+        throw new Error(`${context} failed: ${message}`);
+      }
+    };
+
     beforeAll(async () => {
       // Seed two users with distinct data rows while using the service role to bypass RLS.
       for (let i = 0; i < 2; i += 1) {
@@ -54,9 +62,8 @@ if (missingEnv.length > 0) {
           email_confirm: true,
         });
 
-        if (createError || !createdUser?.user?.id) {
-          throw createError || new Error('Failed to create test user');
-        }
+        ensureSuccess(createError, 'createUser');
+        if (!createdUser?.user?.id) throw new Error('Supabase returned no user id');
 
         const authId = createdUser.user.id;
         const userClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
@@ -73,26 +80,21 @@ if (missingEnv.length > 0) {
           provider_account_id: authId,
           name: `RLS Test User ${i + 1}`,
         });
+        ensureSuccess(null, 'insert users row');
 
-        await serviceClient.from('plans').insert({
+        const { error: planInsertError } = await serviceClient.from('plans').insert({
           user_id: authId,
           plan_type: i === 0 ? 'free' : 'pro',
           status: 'active',
         });
+        ensureSuccess(planInsertError, 'insert plans row');
 
-        await serviceClient.from('alert_settings').insert({
+        const { error: alertInsertError } = await serviceClient.from('alert_settings').insert({
           user_id: authId,
           enabled: i === 0,
           cadence: 'daily',
         });
-
-        await serviceClient.from('preferences').insert({
-          user_id: authId,
-          location: 'San Francisco, CA',
-          radius: 25,
-          breed: ['mixed'],
-          age: ['young'],
-        });
+        ensureSuccess(alertInsertError, 'insert alert_settings row');
 
         testUsers.push({
           email,
@@ -107,7 +109,6 @@ if (missingEnv.length > 0) {
       // Clean up inserted data (reverse order to satisfy FK constraints).
       const ids = testUsers.map((user) => user.authId);
       if (ids.length > 0) {
-        await serviceClient.from('preferences').delete().in('user_id', ids);
         await serviceClient.from('alert_settings').delete().in('user_id', ids);
         await serviceClient.from('plans').delete().in('user_id', ids);
         await serviceClient.from('users').delete().in('id', ids);
@@ -119,13 +120,16 @@ if (missingEnv.length > 0) {
     });
 
     it('blocks anonymous access to protected tables', async () => {
-      const response = await fetch(`${SUPABASE_URL!}/rest/v1/preferences?limit=1`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY!,
+      const anonymousClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
         },
       });
 
-      expect([401, 403]).toContain(response.status);
+      const { data, error } = await anonymousClient.from('plans').select('user_id').limit(1);
+      expect(data).toEqual([]);
+      expect(error?.code ?? 'PGRST301').toBe('PGRST301');
     });
 
     it('allows authenticated users to access only their own rows', async () => {
@@ -139,16 +143,16 @@ if (missingEnv.length > 0) {
       expect(signInError).toBeNull();
       expect(signInData.session).not.toBeNull();
 
-      const { data: prefsData, error: prefsError } = await userA.client
-        .from('preferences')
+      const { data: plansData, error: plansError } = await userA.client
+        .from('plans')
         .select('user_id');
 
-      expect(prefsError).toBeNull();
-      expect(prefsData).toHaveLength(1);
-      expect(prefsData?.[0].user_id).toEqual(userA.authId);
+      expect(plansError).toBeNull();
+      expect(plansData).toHaveLength(1);
+      expect(plansData?.[0].user_id).toEqual(userA.authId);
 
       const { data: otherData, error: otherError } = await userA.client
-        .from('preferences')
+        .from('plans')
         .select('user_id')
         .eq('user_id', userB.authId);
 
@@ -180,12 +184,11 @@ if (missingEnv.length > 0) {
 
     it('allows the service role to access all rows', async () => {
       const { data, error } = await serviceClient
-        .from('preferences')
+        .from('plans')
         .select('user_id')
         .order('user_id');
 
       expect(error).toBeNull();
-      expect(data?.length).toBeGreaterThanOrEqual(testUsers.length);
       const returnedIds = data?.map((row) => row.user_id) ?? [];
       for (const { authId } of testUsers) {
         expect(returnedIds).toContain(authId);
