@@ -148,7 +148,7 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             title={showCopied ? 'Link copied' : 'Share'}
             className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
           >
-            <Copy className="w-4 h-4 text-gray-700" />
+            <Copy className="w-5 h-5 text-gray-700" />
           </button>
         </div>
       </div>
@@ -237,7 +237,7 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             onClick={handleShare}
             className="btn-ghost text-sm"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-5 h-5" />
           </button>
         </div>
       </div>
