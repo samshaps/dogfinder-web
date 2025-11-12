@@ -118,7 +118,7 @@ h3 {
 
 /* Semantic Color Tokens */
 .bg-surface {
-  @apply bg-white;
+  @apply bg-white shadow-none;
 }
 
 .bg-surface-tinted {
