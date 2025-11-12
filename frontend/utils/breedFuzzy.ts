@@ -339,6 +339,14 @@ export function expandUserBreedsV2(terms: string[]): BreedExpansion {
   const notes: string[] = [];
   for (const raw of terms) {
     const { text, isMix } = normalizeQueryV2(raw);
+    const normalizedRaw = normalizeBaseV2(raw);
+
+    if (normalizedRaw.includes('doodle')) {
+      expanded.push(...DOODLE_FAMILY);
+      notes.push(`'${raw}' → doodle family (${DOODLE_FAMILY.join(', ')})`);
+      continue;
+    }
+
     const alias = SYNONYMS_V2[text];
     if (alias) {
       expanded.push(alias);

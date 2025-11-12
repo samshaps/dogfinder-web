@@ -7,6 +7,7 @@ import { getMultiBreedTemperaments, TemperamentTrait } from './breedTemperaments
 import { buildReasoningMessages } from './reasoning-messages';
 import { runTextResponse, isOpenAIConfigured } from './openai-client';
 import { sanitizeDescription } from './utils/description-sanitizer';
+import { getDogPronouns, applyDogPronouns, normalizeDogGender } from './utils/pronouns';
 
 function resolveApiUrl(path: string): string {
   if (typeof window === 'undefined') {
@@ -54,7 +55,15 @@ function createFactBundle(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   const fp = buildFactPack(effectivePrefs, dog);
   const prefs = fp.prefs.join(', ') || 'none explicitly provided';
   const traits = fp.dogTraits.join(', ') || 'limited';
-  return `User preferences: ${prefs}\nDog facts: ${traits}`;
+  const pronouns = getDogPronouns(dog.gender);
+  const gender = normalizeDogGender(dog.gender);
+  const genderLabel = gender === 'male' ? 'Male' : gender === 'female' ? 'Female' : 'Unknown';
+  return [
+    `User preferences: ${prefs}`,
+    `Dog facts: ${traits}`,
+    `Dog gender: ${genderLabel}`,
+    `Pronouns: ${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective} (${pronouns.noun})`
+  ].join('\n');
 }
 
 /**
@@ -63,6 +72,11 @@ function createFactBundle(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
 function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: EffectivePreferences): string {
   const facts = buildFactPack(effectivePrefs, dog);
   const hasPrefs = (facts.prefs || []).length > 0;
+  const pronouns = getDogPronouns(dog.gender);
+  const normalizedGender = normalizeDogGender(dog.gender);
+  const pronounInstruction = normalizedGender === 'unknown'
+    ? `Gender is unknown; use neutral pronouns (${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}) and phrases like "${pronouns.noun}". Never refer to the dog as "it".`
+    : `The dog is ${normalizedGender}. Use pronouns "${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}" and phrases like "${pronouns.noun}". Never refer to ${pronouns.object} as "it".`;
 
   // Matched facets
   const dogSize = String(dog.size || '').toLowerCase();
@@ -116,6 +130,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
       : '',
     `Do not introduce attributes not present in the lists below.`,
     `Use only the info below; no assumptions.`,
+    pronounInstruction,
     `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
     `If matched_facets.breed_exact=true, explicitly cite the exact breed (e.g., "${breed_label}").`,
     `For temperament traits:`,
@@ -129,6 +144,8 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   const body = [
     `User preferences: ${facts.prefs.join(', ') || 'none explicitly provided'}`,
     `Dog facts: ${facts.dogTraits.join(', ') || 'limited'}`,
+    `Dog gender: ${normalizedGender === 'unknown' ? 'Unknown (use neutral language)' : normalizedGender.charAt(0).toUpperCase() + normalizedGender.slice(1)}`,
+    `Pronouns: ${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective} (${pronouns.noun})`,
     hasDescription ? `Shelter description: ${sanitizedDescription}` : '',
     `Matched facets: ${JSON.stringify(matched_facets)}`,
     breed_exact ? `Exact breed label: ${breed_label}` : ''
@@ -195,6 +212,7 @@ export async function generateTop3Reasoning(
   })();
   const prompt = createTop3Prompt(dog, analysis, effectivePrefs);
   const facts = buildFactPack(effectivePrefs, dog);
+  const pronouns = getDogPronouns(dog.gender);
   
   // Observability: Track description usage
   const shelterDescription = dog.rawDescription || '';
@@ -250,7 +268,9 @@ export async function generateTop3Reasoning(
       // Direct OpenAI call - much faster, no HTTP overhead
       const messages = buildReasoningMessages(prompt, {
         hasUserPreferences: (facts.prefs || []).length > 0,
-        temperaments: effectivePrefs.temperament.value as string[]
+        temperaments: effectivePrefs.temperament.value as string[],
+        pronouns,
+        dogName: dog.name
       });
       raw = await runTextResponse(messages, {
         max_tokens: 160,
@@ -261,10 +281,29 @@ export async function generateTop3Reasoning(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       try {
+        const pronounPayload = {
+          subject: pronouns.subject,
+          object: pronouns.object,
+          possessiveAdjective: pronouns.possessiveAdjective,
+          possessive: pronouns.possessive,
+          reflexive: pronouns.reflexive,
+          noun: pronouns.noun,
+          gender: pronouns.gender,
+          subjectCapitalized: pronouns.subjectCapitalized,
+          objectCapitalized: pronouns.objectCapitalized,
+          possessiveAdjectiveCapitalized: pronouns.possessiveAdjectiveCapitalized
+        };
         const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, type: 'free', max_tokens: 160, temperature: 0.1 }),
+          body: JSON.stringify({ 
+            prompt, 
+            type: 'free', 
+            max_tokens: 160, 
+            temperature: 0.1,
+            pronouns: pronounPayload,
+            dogName: dog.name
+          }),
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`AI service error: ${response.status}`);
@@ -286,6 +325,7 @@ export async function generateTop3Reasoning(
     let processed = scrubPII(text);
     processed = sanitizePerspective(processed);
     if (!hasPrefs) processed = sanitizeNoPreferenceClaims(processed);
+    processed = applyDogPronouns(processed, pronouns);
     // Verification and tighten pass (with temperament checking)
     const v = verifyBlurbWithTemperament(processed, facts, dog, { lengthCap: BODY_CAP });
     processed = v.fixed;
@@ -318,6 +358,7 @@ export async function generateTop3Reasoning(
   if ((buildFactPack(effectivePrefs, dog).prefs || []).length === 0) {
     fbProcessed = sanitizeNoPreferenceClaims(fbProcessed);
   }
+  fbProcessed = applyDogPronouns(fbProcessed, pronouns);
   const v2 = verifyBlurbWithTemperament(fbProcessed, buildFactPack(effectivePrefs, dog), dog, { lengthCap: BODY_CAP });
   return { ...fb, primary: finalClamp(v2.fixed, COPY_MAX.TOP) };
 }

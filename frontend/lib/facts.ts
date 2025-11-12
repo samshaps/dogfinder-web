@@ -40,6 +40,12 @@ export function buildFactPack(eff: EffectivePreferences, dog: Dog): FactPack {
   if (dog.age) dogTraits.push(dog.age.toLowerCase());
   if (dog.size) dogTraits.push(dog.size.toLowerCase());
   if (dog.energy) dogTraits.push(`${dog.energy.toLowerCase()} energy`);
+  if (dog.gender) {
+    const genderLower = dog.gender.toLowerCase();
+    if (genderLower && genderLower !== 'unknown') {
+      dogTraits.push(genderLower);
+    }
+  }
   if (dog.hypoallergenic) dogTraits.push('hypoallergenic');
   if (dog.barky === false) dogTraits.push('not barky');
   for (const t of dog.temperament ?? []) dogTraits.push(t.toLowerCase());

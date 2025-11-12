@@ -10,9 +10,12 @@ import PhotoCarousel from '@/components/PhotoCarousel';
 import PreferencesSummary from '@/components/PreferencesSummary';
 import { COPY_MAX } from '@/lib/constants/copyLimits';
 import CopyLinkButton from '@/components/CopyLinkButton';
+import { normalizeDogGender } from '@/lib/utils/pronouns';
 
 // Convert API Dog to schemas Dog
 function mapAPIDogToDog(apiDog: APIDog): Dog {
+  const normalizedGender = normalizeDogGender(apiDog.gender);
+  const genderLabel = normalizedGender === 'male' ? 'Male' : normalizedGender === 'female' ? 'Female' : 'Unknown';
   return {
     id: apiDog.id,
     name: apiDog.name,
@@ -34,7 +37,7 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
                   apiDog.tags.some(tag => tag.toLowerCase().includes('high grooming')) ? 'high' : 'med',
     barky: apiDog.tags.some(tag => tag.toLowerCase().includes('barky')),
     rawDescription: apiDog.description || apiDog.tags.join(', '),
-    gender: apiDog.gender || 'Unknown',
+    gender: genderLabel,
     photos: apiDog.photos,
     publishedAt: apiDog.publishedAt,
     city: apiDog.location.city,

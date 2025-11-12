@@ -18,15 +18,15 @@ const PII_PATTERNS = {
 const BLOCKED_KEYS = [
   'email',
   'name',
-  'fullName',
-  'firstName',
-  'lastName',
+  'fullname',
+  'firstname',
+  'lastname',
   'address',
   'phone',
-  'userId',
-  'dogId',
-  'petfinderId',
-  'shelterId',
+  'userid',
+  'dogid',
+  'petfinderid',
+  'shelterid',
   'password',
   'token',
   'secret',
@@ -42,12 +42,16 @@ export function sanitizeEventProperties(
 
   for (const [key, value] of Object.entries(properties)) {
     // Block keys that are known PII
-    if (BLOCKED_KEYS.some(blocked => key.toLowerCase().includes(blocked))) {
+    const lowerKey = key.toLowerCase();
+    const isBlockedKey = BLOCKED_KEYS.some(blocked => lowerKey.includes(blocked));
+    if (isBlockedKey) {
       console.warn(`🚨 Blocked PII key from analytics: ${key}`);
+      if (typeof value === 'string' && value.trim()) {
+        const hashedKey = lowerKey.endsWith('_hash') ? key : `${key}_hash`;
+        sanitized[hashedKey] = hashForAnalytics(value);
+      }
       continue;
     }
-
-    const lowerKey = key.toLowerCase();
 
     // Block values that look like PII
     if (typeof value === 'string') {

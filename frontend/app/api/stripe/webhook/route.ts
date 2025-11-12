@@ -295,17 +295,41 @@ function mapStripeStatusToPlanStatus(stripeStatus: string): string {
 /**
  * Enable email alerts for a user (called automatically when upgrading to Pro)
  */
-async function enableEmailAlertsForUser(userId: string, requestId: string): Promise<void> {
+async function enableEmailAlertsForUser(
+  userId: string,
+  requestId: string,
+  options: { force?: boolean } = {}
+): Promise<void> {
   try {
     const client = getSupabaseClient();
-    
+
+    const { data: existing, error: fetchError } = await (client as any)
+      .from('alert_settings')
+      .select('enabled, cadence')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error(`⚠️ [${requestId}] Failed to read alert settings for user ${userId}:`, fetchError);
+      return;
+    }
+
+    const force = options.force ?? false;
+
+    if (existing && existing.enabled === false && !force) {
+      console.log(`ℹ️ [${requestId}] Skipping auto-enable of email alerts for user ${userId} (user opted out).`);
+      return;
+    }
+
+    const cadence = existing?.cadence || 'daily';
+
     // Upsert alert settings with enabled: true
     const { error } = await (client as any)
       .from('alert_settings')
       .upsert({
         user_id: userId,
         enabled: true,
-        cadence: 'daily',
+        cadence,
         last_sent_at_utc: null,
         last_seen_ids: [],
         paused_until: null,
@@ -460,7 +484,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
 
     // Auto-enable email alerts when creating Pro subscription
     if (planStatus === 'active' || planStatus === 'trialing') {
-      await enableEmailAlertsForUser(userId, requestId);
+      await enableEmailAlertsForUser(userId, requestId, { force: true });
+    if (planStatus === 'active' || planStatus === 'trialing') {
+      await enableEmailAlertsForUser(userId, requestId, { force: true });
     }
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update subscription details:`, error);

@@ -195,13 +195,14 @@ function PricingPageContent() {
 
       // Load billing information
       try {
-        const billingResponse = await fetch('/api/stripe/billing-info', {
+        const billingResponse = await fetch(`/api/stripe/billing-info?ts=${Date.now()}`, {
           credentials: 'include',
+          cache: 'no-store',
+          next: { revalidate: 0 },
         });
         if (billingResponse.ok) {
-          const billingResponseData = await billingResponse.json();
-          // Extract data from wrapped response
-          const billingData = billingResponseData.data || billingResponseData;
+          const billingPayload = await billingResponse.json();
+          const billingData = (billingPayload?.data ?? null) as BillingInfo | null;
           setBillingInfo(billingData);
         }
       } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runStructuredResponse, runTextResponse, isOpenAIConfigured } from '@/lib/openai-client';
 import { buildReasoningMessages } from '@/lib/reasoning-messages';
+import { DogPronouns, getDogPronouns } from '@/lib/utils/pronouns';
 
 /**
  * AI Reasoning API Route
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const parseStartTime = Date.now();
-    const { prompt, type, max_tokens, temperature, temperaments } = await request.json();
+    const { prompt, type, max_tokens, temperature, temperaments, pronouns, dogName } = await request.json();
     const parseDuration = Date.now() - parseStartTime;
     const promptLength = prompt?.length || 0;
     
@@ -62,9 +63,28 @@ export async function POST(request: NextRequest) {
       prompt.toLowerCase().includes('limited') ||
       (prompt.split('\n').length <= 2 && !prompt.toLowerCase().includes('preferences'));
     
+    const pronounContext: DogPronouns | undefined = (() => {
+      if (!pronouns || typeof pronouns !== 'object') return undefined;
+      const base = getDogPronouns(pronouns.gender);
+      return {
+        gender: base.gender,
+        subject: typeof pronouns.subject === 'string' ? pronouns.subject : base.subject,
+        object: typeof pronouns.object === 'string' ? pronouns.object : base.object,
+        possessiveAdjective: typeof pronouns.possessiveAdjective === 'string' ? pronouns.possessiveAdjective : base.possessiveAdjective,
+        possessive: typeof pronouns.possessive === 'string' ? pronouns.possessive : base.possessive,
+        reflexive: typeof pronouns.reflexive === 'string' ? pronouns.reflexive : base.reflexive,
+        noun: typeof pronouns.noun === 'string' ? pronouns.noun : base.noun,
+        subjectCapitalized: typeof pronouns.subjectCapitalized === 'string' ? pronouns.subjectCapitalized : base.subjectCapitalized,
+        objectCapitalized: typeof pronouns.objectCapitalized === 'string' ? pronouns.objectCapitalized : base.objectCapitalized,
+        possessiveAdjectiveCapitalized: typeof pronouns.possessiveAdjectiveCapitalized === 'string' ? pronouns.possessiveAdjectiveCapitalized : base.possessiveAdjectiveCapitalized,
+      };
+    })();
+    
     const context = {
       temperaments: temperaments && Array.isArray(temperaments) ? temperaments : undefined,
-      hasUserPreferences: !hasMinimalPrefs
+      hasUserPreferences: !hasMinimalPrefs,
+      pronouns: pronounContext,
+      dogName: typeof dogName === 'string' ? dogName : undefined
     };
     
     const messages = buildReasoningMessages(prompt as string, context);

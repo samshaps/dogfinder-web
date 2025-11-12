@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useEmailAlerts } from '@/lib/hooks/use-email-alerts';
-import { Mail, Bell, BellOff, Settings, TestTube, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, Bell, BellOff, Settings, TestTube, CheckCircle, AlertCircle, Lock } from 'lucide-react';
 
 interface EmailAlertSettingsProps {
   className?: string;
@@ -23,10 +24,6 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
   const [testEmail, setTestEmail] = useState('');
   const [testEmailLoading, setTestEmailLoading] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string; messageId?: string; resendDashboardUrl?: string } | null>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  // Debug logging
-  console.log('[EmailAlertSettings] Render - isPro:', isPro, 'loading:', loading, 'settings:', settings);
 
   const handleToggleAlerts = async (enabled: boolean) => {
     try {
@@ -160,78 +157,45 @@ export default function EmailAlertSettings({ className = '' }: EmailAlertSetting
                 Email Notifications
               </h3>
               <p className="text-sm text-gray-600">
-                {!isPro 
-                  ? 'Pro users can get notified when new dogs match your preferences'
-                  : 'Get notified when new dogs match your preferences'
+                {!isPro
+                  ? 'Upgrade to Pro to get notified when new dogs match your preferences.'
+                  : 'Get notified when new dogs match your preferences.'
                 }
               </p>
             </div>
           </div>
-          <div 
-            className="relative"
-            onMouseEnter={() => {
-              if (!isPro) {
-                console.log('Mouse enter - showing tooltip, isPro:', isPro);
-                setShowTooltip(true);
-              }
-            }}
-            onMouseLeave={() => {
-              console.log('Mouse leave - hiding tooltip');
-              setShowTooltip(false);
-            }}
-          >
+          {isPro ? (
             <button
-              onClick={(e) => {
-                console.log('Button clicked, isPro:', isPro, 'loading:', loading);
-                if (!isPro) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('Free user clicked - showing tooltip');
-                  setShowTooltip(true);
-                  setTimeout(() => {
-                    console.log('Hiding tooltip after timeout');
-                    setShowTooltip(false);
-                  }, 3000);
-                  return;
-                }
-                handleToggleAlerts(!settings.enabled);
-              }}
-              disabled={loading || !isPro}
+              onClick={() => handleToggleAlerts(!settings.enabled)}
+              disabled={loading}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
                 settings.enabled ? 'bg-blue-600' : 'bg-gray-200'
-              } ${loading || !isPro ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
+              } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'}`}
               role="switch"
               aria-checked={settings.enabled}
               aria-labelledby="email-notifications-label"
               aria-describedby="email-notifications-description"
             >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                settings.enabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-          {!isPro && (
-            <div 
-              className={`absolute right-0 top-full mt-2 w-56 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-[9999] transition-opacity duration-200 ${
-                showTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'
-              }`}
-              style={{ pointerEvents: 'none' }}
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                  settings.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          ) : (
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Only Pro users have access to email notifications
-              <div className="absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
-            </div>
+              <Lock className="w-4 h-4" aria-hidden="true" />
+              Upgrade to Pro
+            </Link>
           )}
-          {/* Debug info - always show in staging */}
-          <div className="absolute -top-8 left-0 text-xs text-red-600 bg-yellow-100 p-1 rounded border border-red-300 z-50">
-            DEBUG: isPro={String(isPro)}, showTooltip={String(showTooltip)}, loading={String(loading)}
-          </div>
-        </div>
         </div>
         <p id="email-notifications-description" className="text-xs text-gray-500 mt-2 ml-8">
-          {!isPro 
-            ? 'Pro users can get notified when new dogs match your preferences. Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
-            : settings.enabled 
+          {!isPro
+            ? 'Email alerts are part of the Pro plan. Upgrade to enable notifications about new dog matches.'
+            : settings.enabled
               ? 'Email alerts are enabled. You\'ll receive notifications based on your preferences below.'
               : 'Email alerts are disabled. Enable to start receiving notifications about new dog matches.'
           }

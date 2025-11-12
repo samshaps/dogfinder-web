@@ -10,6 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { signUnsubToken } from '@/lib/tokens';
 import { getUserPreferences } from '@/lib/supabase-auth';
 import { appConfig } from '@/lib/config';
+import { getDogPronouns, normalizeDogGender, applyDogPronouns } from '@/lib/utils/pronouns';
 
 /**
  * Send a dog match alert email to a user
@@ -229,11 +230,29 @@ export async function fetchAIReasoningForDogs(
       try {
         // Build a comprehensive prompt with dog details and user preferences
         const breeds = Array.isArray(dog.breeds) ? dog.breeds.join(', ') : (dog.breeds?.primary || 'Mixed Breed');
-        const prompt = `Dog: ${dog.name || 'Unknown'}, ${breeds}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}${dog.energy ? `, ${dog.energy} energy` : ''}.${prefContext} Explain why this dog would be a good match in one concise sentence (max 50 words).`;
+        const normalizedGender = normalizeDogGender(dog.gender);
+        const pronouns = getDogPronouns(dog.gender);
+        const pronounInstruction = normalizedGender === 'unknown'
+          ? `Gender is unknown; use neutral pronouns (${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}) or phrases like "${pronouns.noun}". Never call the dog "it".`
+          : `This dog is ${normalizedGender}. Use pronouns "${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}" and phrases like "${pronouns.noun}". Never call ${pronouns.object} "it".`;
+        const prompt = `Dog: ${dog.name || 'Unknown'}, ${breeds}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}${dog.energy ? `, ${dog.energy} energy` : ''}.${prefContext}\n${pronounInstruction}\nExplain why this dog would be a good match in one concise sentence (max 50 words).`;
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
+        const pronounPayload = {
+          subject: pronouns.subject,
+          object: pronouns.object,
+          possessiveAdjective: pronouns.possessiveAdjective,
+          possessive: pronouns.possessive,
+          reflexive: pronouns.reflexive,
+          noun: pronouns.noun,
+          gender: pronouns.gender,
+          subjectCapitalized: pronouns.subjectCapitalized,
+          objectCapitalized: pronouns.objectCapitalized,
+          possessiveAdjectiveCapitalized: pronouns.possessiveAdjectiveCapitalized
+        };
+
         const resp = await fetch(reasoningUrl, {
           method: 'POST',
           headers,
@@ -243,7 +262,9 @@ export async function fetchAIReasoningForDogs(
             prompt,
             type: 'free',
             max_tokens: 60,
-            temperature: 0.1
+            temperature: 0.1,
+            pronouns: pronounPayload,
+            dogName: dog.name
           }),
         });
         
@@ -256,7 +277,8 @@ export async function fetchAIReasoningForDogs(
         }
         
         const data = await resp.json();
-        const reason = typeof data.reasoning === 'string' ? data.reasoning.trim() : '';
+        const rawReason = typeof data.reasoning === 'string' ? data.reasoning.trim() : '';
+        const reason = rawReason ? applyDogPronouns(rawReason, pronouns).trim() : '';
         
         if (!reason) {
           console.warn(`⚠️ Empty AI reasoning for dog ${dogId} (${dog.name})`);

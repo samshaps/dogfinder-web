@@ -112,23 +112,29 @@ function ProfilePageContent() {
       
       setPlanInfo(plan);
       
-      // If we're polling and plan is now Pro, stop polling
-      if (plan?.isPro && pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+      // If plan is now Pro, stop polling and clear upgrade message
+      if (plan?.isPro) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
         pollAttemptsRef.current = 0;
         setUpgradeSuccess(false); // Clear success message once upgrade is confirmed
       }
 
       // Load billing information
       try {
-        const billingResponse = await fetch('/api/stripe/billing-info');
+        const billingResponse = await fetch(`/api/stripe/billing-info?ts=${Date.now()}`, {
+          cache: 'no-store',
+          next: { revalidate: 0 },
+        });
         if (billingResponse.ok) {
-          const billingData = await billingResponse.json();
+          const billingPayload = await billingResponse.json();
+          const billingData = (billingPayload?.data ?? null) as BillingInfo | null;
           setBillingInfo(billingData);
           
           // If subscription is scheduled for cancellation, set downgrade success state
-          if (billingData.isScheduledForCancellation && billingData.finalBillingDate) {
+          if (billingData?.isScheduledForCancellation && billingData.finalBillingDate) {
             setDowngradeSuccess({ periodEnd: billingData.finalBillingDate });
           } else {
             setDowngradeSuccess(null);

@@ -1,6 +1,7 @@
 // API utility functions for communicating with the FastAPI backend
 
 import { sanitizeDescription } from './utils/description-sanitizer';
+import { normalizeDogGender } from './utils/pronouns';
 
 // Prefer env base; in dev default to FastAPI backend directly
 const DEV_DEFAULT_BASE = 'http://127.0.0.1:8000';
@@ -140,7 +141,10 @@ function transformDogData(raw: RawDog): Dog {
     breeds: breeds.length > 0 ? breeds : ['Mixed Breed'],
     age: raw.age || 'Unknown',
     size: raw.size || 'Unknown',
-    gender: raw.gender || 'Unknown',
+    gender: (() => {
+      const normalized = normalizeDogGender(raw.gender);
+      return normalized === 'male' ? 'Male' : normalized === 'female' ? 'Female' : 'Unknown';
+    })(),
     photos: photos,
     publishedAt: raw.published_at || new Date().toISOString(),
     location: {

@@ -23,6 +23,31 @@ export function useEmailAlerts() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const withDefaults = useCallback(
+    (partial: Partial<EmailAlertPreferences>): EmailAlertPreferences => {
+      const fallback: EmailAlertSettings = settings ?? {
+        enabled: false,
+        frequency: 'daily',
+        maxDogsPerEmail: 5,
+        minMatchScore: 70,
+        includePhotos: true,
+        includeReasoning: true,
+        lastSentAt: undefined,
+        lastSeenIds: [],
+      };
+
+      return {
+        enabled: partial.enabled ?? fallback.enabled ?? false,
+        frequency: partial.frequency ?? fallback.frequency ?? 'daily',
+        maxDogsPerEmail: partial.maxDogsPerEmail ?? fallback.maxDogsPerEmail ?? 5,
+        minMatchScore: partial.minMatchScore ?? fallback.minMatchScore ?? 70,
+        includePhotos: partial.includePhotos ?? fallback.includePhotos ?? true,
+        includeReasoning: partial.includeReasoning ?? fallback.includeReasoning ?? true,
+      };
+    },
+    [settings]
+  );
+
   // Fetch email alert settings
   const fetchSettings = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -56,12 +81,13 @@ export function useEmailAlerts() {
     setError(null);
 
     try {
+      const payload = withDefaults(newSettings);
       const response = await fetch('/api/email-alerts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newSettings),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -79,7 +105,7 @@ export function useEmailAlerts() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, withDefaults]);
 
   // Send test email
   const sendTestEmail = useCallback(async (testEmail: string) => {
@@ -150,19 +176,8 @@ export function useEmailAlerts() {
   const toggleAlerts = useCallback(async (enabled: boolean) => {
     if (!isAuthenticated) return;
 
-    const newSettings = { enabled };
-    
-    // If enabling, set some default values
-    if (enabled && settings) {
-      (newSettings as any).frequency = (settings as any).frequency || 'daily';
-      (newSettings as any).maxDogsPerEmail = (settings as any).maxDogsPerEmail || 5;
-      (newSettings as any).minMatchScore = (settings as any).minMatchScore || 70;
-      (newSettings as any).includePhotos = (settings as any).includePhotos ?? true;
-      (newSettings as any).includeReasoning = (settings as any).includeReasoning ?? true;
-    }
-
-    return await updateSettings(newSettings);
-  }, [isAuthenticated, settings, updateSettings]);
+    return await updateSettings({ enabled });
+  }, [isAuthenticated, updateSettings]);
 
   // Fetch settings when user changes
   useEffect(() => {

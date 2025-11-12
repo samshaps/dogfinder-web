@@ -3,9 +3,13 @@
  * Ensures consistency between API routes and other callers
  */
 
+import { DogPronouns } from './utils/pronouns';
+
 export interface ReasoningContext {
   temperaments?: string[];
   hasUserPreferences: boolean;
+  pronouns?: DogPronouns;
+  dogName?: string;
 }
 
 /**
@@ -22,6 +26,14 @@ export function buildSystemPrompt(context: ReasoningContext): string {
   if (!context.hasUserPreferences) {
     systemPrompt += `\n\nMINIMAL INPUT GUIDANCE: When no specific user preferences are provided, focus on highlighting the breed's most positive and appealing characteristics. Do NOT mention size (small, medium, large, xl) unless explicitly provided by the user. Emphasize what makes this breed special and why they make excellent companions. Highlight their unique traits, personality, temperament, or special qualities. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make the recommendation feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters.`;
   }
+
+  if (context.pronouns) {
+    if (context.pronouns.gender === 'unknown') {
+      systemPrompt += `\n\nPRONOUN GUIDANCE: The dog's gender is unknown. Use neutral pronouns (${context.pronouns.subject}/${context.pronouns.object}/${context.pronouns.possessiveAdjective}) and phrases like "${context.pronouns.noun}". Never refer to the dog as "it".`;
+    } else {
+      systemPrompt += `\n\nPRONOUN GUIDANCE: The dog uses ${context.pronouns.subject}/${context.pronouns.object}/${context.pronouns.possessiveAdjective} pronouns. Use phrases like "${context.pronouns.noun}" as needed. Never refer to the dog as "it". If pronouns ever feel ambiguous, repeat the dog's name instead.`;
+    }
+  }
   
   return systemPrompt;
 }
@@ -33,6 +45,13 @@ export function buildUserMessage(prompt: string, context: ReasoningContext): str
   let userMessage = prompt;
   if (context.temperaments && context.temperaments.length > 0) {
     userMessage += `\n\nAdopter's temperament preferences: ${context.temperaments.join(', ')}`;
+  }
+  if (context.pronouns) {
+    if (context.pronouns.gender === 'unknown') {
+      userMessage += `\n\nPronoun guidance: Use neutral pronouns (${context.pronouns.subject}/${context.pronouns.object}/${context.pronouns.possessiveAdjective}) and say "${context.pronouns.noun}". Never call the dog "it".`;
+    } else {
+      userMessage += `\n\nPronoun guidance: Use ${context.pronouns.subject}/${context.pronouns.object}/${context.pronouns.possessiveAdjective} pronouns and phrases like "${context.pronouns.noun}". Never call the dog "it".`;
+    }
   }
   return userMessage;
 }

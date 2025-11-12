@@ -131,6 +131,74 @@ describe('Refactored API Routes', () => {
       expect(json.success).toBe(false);
       expect(json.error?.code).toBe('UNAUTHORIZED');
     });
+
+    it('should save validated preferences on POST', async () => {
+      const { getServerSession } = await import('next-auth');
+      vi.mocked(getServerSession).mockResolvedValue({
+        user: { email: 'test@example.com' },
+      } as any);
+
+      const { POST } = await import('@/app/api/preferences/route');
+      const { saveUserPreferences } = await import('@/lib/supabase-auth');
+
+      const body = {
+        zip_codes: ['10001'],
+        age_preferences: ['adult'],
+        size_preferences: ['medium'],
+        include_breeds: ['poodle'],
+        temperament_traits: ['kid friendly'],
+      };
+
+      const request = new Request('http://localhost:3000/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const response = await POST(request as any);
+      expect(response.status).toBe(200);
+
+      const json = await response.json();
+      expect(json.success).toBe(true);
+
+      expect(saveUserPreferences).toHaveBeenCalledWith(
+        'user-123',
+        expect.objectContaining({
+          zip_codes: ['10001'],
+          age_preferences: ['adult'],
+          size_preferences: ['medium'],
+          include_breeds: ['poodle'],
+          temperament_traits: ['kid friendly'],
+        }),
+      );
+    });
+
+    it('should reject invalid preference payloads', async () => {
+      const { getServerSession } = await import('next-auth');
+      vi.mocked(getServerSession).mockResolvedValue({
+        user: { email: 'test@example.com' },
+      } as any);
+
+      const { POST } = await import('@/app/api/preferences/route');
+      const { saveUserPreferences } = await import('@/lib/supabase-auth');
+
+      const request = new Request('http://localhost:3000/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zip_codes: ['ABCDE'], // invalid zip
+        }),
+      });
+
+      const response = await POST(request as any);
+      expect(response.status).toBe(400);
+
+      const json = await response.json();
+      expect(json.success).toBe(false);
+      expect(json.error?.code).toBe('VALIDATION_ERROR');
+
+      expect(saveUserPreferences).not.toHaveBeenCalled();
+    });
   });
 
   describe('Unsubscribe Route', () => {
@@ -177,7 +245,9 @@ describe('Refactored API Routes', () => {
       const json = await response.json();
 
       // Should return success for already processed token (idempotent)
-      expect(json.success).toBe(true);
+      expect(response.status).toBe(400);
+      expect(json.success).toBe(false);
+      expect(json.error?.code).toBe('VALIDATION_ERROR');
       expect(consumeTokenJti).toHaveBeenCalled();
     });
 

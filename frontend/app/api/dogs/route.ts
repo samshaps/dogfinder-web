@@ -155,6 +155,7 @@ export async function GET(request: NextRequest) {
                 zip: `${animal.contact?.address?.city || 'Unknown'}, ${animal.contact?.address?.state || 'Unknown'}`,
                 distanceMi: animal.distance || 0
               },
+              gender: animal.gender || 'Unknown',
               tags: animal.tags || [],
               url: animal.url || '#',
               shelter: {

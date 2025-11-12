@@ -4,6 +4,9 @@ import { getStripeServer } from '@/lib/stripe/config';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { okJson, errJson, ApiErrors } from '@/lib/api/helpers';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/stripe/billing-info
  * Get comprehensive billing information for the current user
@@ -14,7 +17,9 @@ export async function GET(request: NextRequest) {
     // Verify authentication
     const session = await getServerSession();
     if (!session?.user?.email) {
-      return errJson(ApiErrors.unauthorized('Authentication required'), request);
+      const response = errJson(ApiErrors.unauthorized('Authentication required'), request);
+      response.headers.set('Cache-Control', 'no-store');
+      return response;
     }
 
     // Get user ID from email
@@ -26,7 +31,9 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (userError || !userData) {
-      return errJson(ApiErrors.notFound('User not found'), request);
+      const response = errJson(ApiErrors.notFound('User not found'), request);
+      response.headers.set('Cache-Control', 'no-store');
+      return response;
     }
 
     const userId = (userData as any).id;
@@ -40,13 +47,15 @@ export async function GET(request: NextRequest) {
 
     if (planError) {
       // If no plan found, user is on free (never had Pro)
-      return okJson({
+      const response = okJson({
         planType: 'free',
         hasActiveSubscription: false,
         isScheduledForCancellation: false,
         nextBillingDate: null,
         wasDowngradedFromPro: false,
       }, request);
+      response.headers.set('Cache-Control', 'no-store');
+      return response;
     }
 
     const planType = planRow.plan_type || 'free';
@@ -54,13 +63,15 @@ export async function GET(request: NextRequest) {
 
     // If user is on Free and has no subscription, they never had Pro
     if (planType === 'free' && !hasActiveSubscription) {
-      return okJson({
+      const response = okJson({
         planType: 'free',
         hasActiveSubscription: false,
         isScheduledForCancellation: false,
         nextBillingDate: null,
         wasDowngradedFromPro: false,
       }, request);
+      response.headers.set('Cache-Control', 'no-store');
+      return response;
     }
 
     // If user has a subscription, check Stripe for details
@@ -78,18 +89,20 @@ export async function GET(request: NextRequest) {
 
         // If user is on Pro and subscription is active (not scheduled to cancel)
         if (planType === 'pro' && !isScheduled) {
-          return okJson({
+          const response = okJson({
             planType: 'pro',
             hasActiveSubscription: true,
             isScheduledForCancellation: false,
             nextBillingDate: periodEnd,
             wasDowngradedFromPro: false,
           }, request);
+          response.headers.set('Cache-Control', 'no-store');
+          return response;
         }
 
         // If user is on Pro and subscription is scheduled to cancel
         if (planType === 'pro' && isScheduled) {
-          return okJson({
+          const response = okJson({
             planType: 'pro',
             hasActiveSubscription: true,
             isScheduledForCancellation: true,
@@ -97,22 +110,26 @@ export async function GET(request: NextRequest) {
             finalBillingDate: periodEnd,
             wasDowngradedFromPro: false, // Still on Pro, just scheduled to cancel
           }, request);
+          response.headers.set('Cache-Control', 'no-store');
+          return response;
         }
 
         // If user is on Free but has an active subscription (edge case - shouldn't happen)
         if (planType === 'free' && !isScheduled) {
-          return okJson({
+          const response = okJson({
             planType: 'free',
             hasActiveSubscription: true,
             isScheduledForCancellation: false,
             nextBillingDate: periodEnd,
             wasDowngradedFromPro: true, // Had subscription, now on free
           }, request);
+          response.headers.set('Cache-Control', 'no-store');
+          return response;
         }
 
         // If user is on Free with scheduled cancellation
         if (planType === 'free' && isScheduled) {
-          return okJson({
+          const response = okJson({
             planType: 'free',
             hasActiveSubscription: true,
             isScheduledForCancellation: true,
@@ -120,6 +137,8 @@ export async function GET(request: NextRequest) {
             finalBillingDate: periodEnd,
             wasDowngradedFromPro: true,
           }, request);
+          response.headers.set('Cache-Control', 'no-store');
+          return response;
         }
 
       } catch (stripeError: any) {
@@ -127,13 +146,15 @@ export async function GET(request: NextRequest) {
         if (stripeError.code === 'resource_missing') {
           // User had Pro but subscription is gone - they're on free now (downgraded)
           const dbPeriodEnd = planRow.current_period_end;
-          return okJson({
+          const response = okJson({
             planType: 'free',
             hasActiveSubscription: false,
             isScheduledForCancellation: false,
             nextBillingDate: null,
             wasDowngradedFromPro: dbPeriodEnd ? true : false, // If we have period_end in DB, they likely had Pro
           }, request);
+          response.headers.set('Cache-Control', 'no-store');
+          return response;
         }
 
         throw stripeError;
@@ -141,20 +162,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback: Free user (no subscription)
-    return okJson({
+    const response = okJson({
       planType: 'free',
       hasActiveSubscription: false,
       isScheduledForCancellation: false,
       nextBillingDate: null,
       wasDowngradedFromPro: planRow.current_period_end ? true : false,
     }, request);
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
 
   } catch (error) {
     console.error('Error fetching billing info:', error);
-    return errJson(
+    const response = errJson(
       ApiErrors.internalError('An unexpected error occurred'),
       request
     );
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
   }
 }
-

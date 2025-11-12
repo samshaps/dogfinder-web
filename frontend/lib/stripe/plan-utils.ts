@@ -27,8 +27,10 @@ export async function getUserPlan(userIdOrEmail: string): Promise<{
   try {
     if (typeof window !== 'undefined') {
       try {
-        const response = await fetch('/api/stripe/plan-info', {
+        const response = await fetch(`/api/stripe/plan-info?ts=${Date.now()}`, {
           credentials: 'include',
+          cache: 'no-store',
+          next: { revalidate: 0 },
         });
 
         if (!response.ok) {
