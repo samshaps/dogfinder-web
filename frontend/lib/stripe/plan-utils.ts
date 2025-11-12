@@ -81,7 +81,7 @@ export async function getUserPlan(userIdOrEmail: string): Promise<{
     }
     
     const rawType = (data?.plan_type ?? 'free') as string;
-    const normalized = rawType.toLowerCase() === 'pro' ? 'PRO' : 'FREE';
+    const normalized = rawType.toLowerCase().includes('pro') ? 'PRO' : 'FREE';
     const planType = normalized as PlanId;
     const plan = PLANS[planType];
     
