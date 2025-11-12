@@ -437,7 +437,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, request
 
     // Auto-enable email alerts when upgrading to Pro
     if (planType === 'pro' && (planStatus === 'active' || planStatus === 'trialing')) {
-      await enableEmailAlertsForUser(userId, requestId);
+      await enableEmailAlertsForUser(userId, requestId, { force: true });
     }
   } catch (error) {
     console.error(`❌ [${requestId}] Failed to update user plan:`, error);
@@ -483,8 +483,6 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, requ
     });
 
     // Auto-enable email alerts when creating Pro subscription
-    if (planStatus === 'active' || planStatus === 'trialing') {
-      await enableEmailAlertsForUser(userId, requestId, { force: true });
     if (planStatus === 'active' || planStatus === 'trialing') {
       await enableEmailAlertsForUser(userId, requestId, { force: true });
     }
