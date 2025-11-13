@@ -5,11 +5,20 @@ import { RATE_LIMITS } from '@/lib/email/config';
 import { appConfig } from '@/lib/config';
 import crypto from 'crypto';
 
-// POST /api/cron/email-alerts - Cron job to send email alerts
-export async function POST(request: NextRequest) {
+/**
+ * Shared function to handle cron job execution
+ * Used by both GET (Vercel automatic) and POST (manual triggers)
+ */
+async function handleCronJob(request: NextRequest) {
   try {
-    // Verify this is a legitimate cron request with constant-time comparison
+    // Verify this is a legitimate cron request
     const authHeader = request.headers.get('authorization');
+    const userAgent = request.headers.get('user-agent') || '';
+    
+    // Check if this is a Vercel automatic cron trigger
+    // Vercel cron jobs send GET requests with user-agent: "vercel-cron/1.0"
+    const isVercelCron = userAgent.includes('vercel-cron') || 
+                        request.headers.get('x-vercel-cron') === '1';
     
     // Get the appropriate cron secret based on environment
     // VERCEL_ENV: 'development' (local), 'preview' (staging), 'production' (prod)
@@ -22,6 +31,8 @@ export async function POST(request: NextRequest) {
       vercelEnv: process.env.VERCEL_ENV,
       nodeEnv: process.env.NODE_ENV,
       isProduction,
+      isVercelCron,
+      userAgent,
       hasCronSecretProd: !!appConfig.cronSecretProd,
       hasCronSecretStaging: !!appConfig.cronSecretStaging,
       hasCronSecret: !!cronSecret,
@@ -29,14 +40,23 @@ export async function POST(request: NextRequest) {
       cronSecretLength: cronSecret?.length || 0
     });
     
-    if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
-      console.error('❌ Invalid cron authentication attempt');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Authenticate: 
+    // 1. Vercel automatic cron triggers are trusted (user-agent: vercel-cron)
+    // 2. Manual POST requests require CRON_SECRET authentication
+    if (!isVercelCron) {
+      // For manual triggers, require CRON_SECRET authentication
+      if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
+        console.error('❌ Invalid cron authentication attempt (not Vercel cron and no valid secret)');
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    } else {
+      console.log('✅ Verified Vercel automatic cron trigger');
     }
 
+    
     console.log('🔄 Starting email alerts cron job...');
     
     const client = getSupabaseClient();
@@ -435,6 +455,7 @@ export async function POST(request: NextRequest) {
       debug: {
         vercelEnv: process.env.VERCEL_ENV,
         isProduction,
+        isVercelCron,
         hasCronSecret: !!cronSecret,
         authHeaderPresent: !!authHeader,
         cronSecretLength: cronSecret?.length || 0
@@ -448,6 +469,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// GET /api/cron/email-alerts - Vercel automatic cron job trigger
+// Vercel cron jobs send GET requests with user-agent: "vercel-cron/1.0"
+export async function GET(request: NextRequest) {
+  return handleCronJob(request);
+}
+
+// POST /api/cron/email-alerts - Manual cron job trigger (requires CRON_SECRET)
+export async function POST(request: NextRequest) {
+  return handleCronJob(request);
 }
 
 // Rate limiting is now simplified to daily emails only
