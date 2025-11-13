@@ -1,0 +1,255 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1rem; /* 16px base */
+  line-height: 1.5;
+}
+
+.skip-link {
+  position: absolute;
+  top: -3rem;
+  left: 1rem;
+  background: #111827;
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.2);
+  transition: top 0.2s ease, transform 0.2s ease;
+  z-index: 1000;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  transform: translateY(0);
+  outline: 3px solid #38bdf8;
+}
+
+/* Utility: balanced heading wrapping */
+.text-balance { text-wrap: balance; }
+
+/* Force cache refresh - staging CSS fix */
+
+/* Fluid type for hero */
+.hero-title { font-size: clamp(2rem, 3.5vw + 1rem, 4.25rem); }
+.hero-copy { font-size: clamp(1rem, 0.7vw + 0.9rem, 1.25rem); }
+
+/* Global Design System */
+/* Container - Unified max-width across all pages */
+.container {
+  @apply mx-auto max-w-6xl lg:max-w-7xl px-3 sm:px-6 lg:px-8;
+}
+
+/* Page Section - Consistent vertical rhythm */
+.page-section {
+  @apply py-6 sm:py-8 lg:py-10;
+}
+
+/* Typography - Unified Scale */
+/* All H1s should be consistent across pages */
+h1 {
+  @apply text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900;
+  @apply mb-6;
+}
+
+/* Consistent H2 styling */
+h2 {
+  @apply text-xl sm:text-2xl font-semibold text-gray-900;
+  @apply mb-4;
+}
+
+/* Consistent H3 styling */
+h3 {
+  @apply text-lg font-semibold text-gray-900;
+  @apply mb-3;
+}
+
+/* Lead text - unified subheading style */
+.lead {
+  @apply text-lg text-slate-600 leading-relaxed;
+}
+
+/* Display/Headline/Subhead tokens for hero and sections */
+.display {
+  @apply text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900;
+}
+
+.headline {
+  @apply text-3xl sm:text-4xl font-bold text-gray-900;
+}
+
+.subhead {
+  @apply text-xl text-slate-600 leading-relaxed;
+}
+
+/* Body text - consistent base size */
+.body-text {
+  @apply text-base text-slate-600 leading-7;
+}
+
+/* Caption/Small text */
+.caption {
+  @apply text-sm text-slate-500;
+}
+
+/* Semantic Color Tokens */
+.bg-surface {
+  @apply bg-white shadow-none;
+}
+
+.bg-surface-tinted {
+  @apply bg-slate-50;
+}
+
+.bg-surface-gradient {
+  @apply bg-gradient-to-b from-blue-50 to-white;
+}
+
+.text-primary {
+  @apply text-blue-600;
+}
+
+.text-primary-hover {
+  @apply hover:text-blue-700;
+}
+
+/* Section spacing - consistent rhythm */
+.section-gap {
+  @apply space-y-8;
+}
+
+.section-gap-lg {
+  @apply space-y-12;
+}
+
+/* Consistent spacing between major sections */
+.hero-to-content {
+  @apply mb-8;
+}
+
+.content-to-content {
+  @apply mb-12;
+}
+
+/* Line length constraints for readability */
+.text-measure {
+  @apply max-w-2xl;
+}
+
+.text-measure-wide {
+  @apply max-w-3xl;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply inline-flex items-center justify-center text-center rounded-xl bg-blue-600 px-5 py-3 text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-primary-sm {
+  @apply inline-flex items-center justify-center text-center rounded-xl bg-blue-600 px-4 py-2 text-sm text-white font-semibold shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center text-center rounded-xl border border-slate-300 px-5 py-3 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+.btn-ghost-sm {
+  @apply inline-flex items-center justify-center text-center rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-600 transition-colors;
+}
+
+/* Large button variant for hero CTAs */
+.btn-lg {
+  @apply px-8 py-4 text-lg rounded-xl;
+}
+
+/* Cards - Unified styling */
+.card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+.card-padding {
+  @apply p-6 sm:p-8;
+}
+
+/* Number badge used in how-it-works cards */
+.number-badge {
+  @apply w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6;
+}
+
+.number-badge__text {
+  @apply text-2xl font-bold text-blue-600;
+}
+
+/* Card variants for different contexts */
+.card-elevated {
+  @apply card shadow-lg;
+}
+
+.card-interactive {
+  @apply card hover:shadow-md transition-shadow;
+}
+
+/* Badges */
+.badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
+}
+
+.badge-success {
+  @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200;
+}
+
+.badge-warning {
+  @apply badge bg-amber-50 text-amber-700 ring-1 ring-amber-200;
+}
+
+/* Links */
+.link {
+  @apply text-blue-600 hover:text-blue-700 underline underline-offset-2;
+}
+
+/* Form Inputs - Unified styling */
+.form-input {
+  @apply rounded-xl border-slate-300 text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition-colors;
+}
+
+.form-input-lg {
+  @apply form-input px-4 py-3 text-base;
+}
+
+.form-input-sm {
+  @apply form-input px-3 py-2 text-sm;
+}
+
+/* Eyebrow/caption label */
+.eyebrow {
+  @apply text-xs font-medium uppercase tracking-wider text-slate-500;
+}
+
+/* Optional: hero-specific spacing adjustments */
+.hero-grid {
+  @apply gap-8 lg:gap-12;
+}
