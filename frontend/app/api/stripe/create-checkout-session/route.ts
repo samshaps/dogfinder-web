@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${request.nextUrl.origin}/pricing?upgrade=cancelled`,
       customer_email: session.user.email,
       client_reference_id: userId, // Backup way to pass user ID
+      allow_promotion_codes: true, // Enable coupon/promotion code input on checkout page
       metadata: {
         user_id: userId,
         plan_type: 'pro',
