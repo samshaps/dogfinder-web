@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -275,6 +275,34 @@ function ResultsPageContent() {
     page: currentPage,
     limit: 20
   }), [searchParams, currentPage]);
+
+  // Track page view (only once on mount)
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (hasTrackedView.current) return;
+    hasTrackedView.current = true;
+    
+    // Extract values directly from searchParams for initial tracking
+    const zip = searchParams.get('zip') || '';
+    const age = searchParams.get('age')?.split(',') || [];
+    const size = searchParams.get('size')?.split(',') || [];
+    const includeBreeds = searchParams.get('includeBreeds')?.split(',') || [];
+    const excludeBreeds = searchParams.get('excludeBreeds')?.split(',') || [];
+    const temperament = searchParams.get('temperament')?.split(',') || [];
+    const energy = searchParams.get('energy') || '';
+    const guidance = searchParams.get('guidance') || '';
+    
+    trackEvent('results_viewed', {
+      has_zip: !!zip,
+      has_age: age.length > 0,
+      has_size: size.length > 0,
+      has_breeds_include: includeBreeds.length > 0,
+      has_breeds_exclude: excludeBreeds.length > 0,
+      has_temperament: temperament.length > 0,
+      has_energy: !!energy,
+      has_guidance: !!guidance
+    });
+  }, [searchParams]);
 
   // Ensure URL contains default radius=100 if not provided
   useEffect(() => {
