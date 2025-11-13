@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!userData || !userData.id) {
+    if (!userData) {
       console.error('User not found for email:', userEmail, 'session email:', session.user.email);
       return NextResponse.json(
         { error: 'User not found', email: userEmail },
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = (userData as any).id;
+    const userId = userData.id;
 
     // Get user plan information
     const planInfo = await getUserPlan(userId);
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!userData || !userData.id) {
+    if (!userData) {
       console.error('User not found for email:', userEmail, 'session email:', session.user.email);
       return NextResponse.json(
         { error: 'User not found', email: userEmail },
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = (userData as any).id;
+    const userId = userData.id;
 
     // Get user plan information to validate Pro status
     const planInfo = await getUserPlan(userId);
@@ -285,7 +285,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!userData || !userData.id) {
+    if (!userData) {
       console.error('User not found for email:', userEmail, 'session email:', session.user.email);
       return NextResponse.json(
         { error: 'User not found', email: userEmail },
@@ -293,7 +293,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const userId = (userData as any).id;
+    const userId = userData.id;
 
     // Disable alerts by setting enabled to false
     const { data, error } = await (client as any)
