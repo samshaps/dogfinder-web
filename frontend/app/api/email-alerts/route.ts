@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as { id: string; email: string }).id;
 
     // Get user plan information
     const planInfo = await getUserPlan(userId);
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as { id: string; email: string }).id;
 
     // Get user plan information to validate Pro status
     const planInfo = await getUserPlan(userId);
@@ -293,7 +293,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const userId = userData.id;
+    const userId = (userData as { id: string; email: string }).id;
 
     // Disable alerts by setting enabled to false
     const { data, error } = await (client as any)
