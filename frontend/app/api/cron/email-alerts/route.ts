@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase-auth';
 import { sendDogMatchAlert } from '@/lib/email/service';
 import { RATE_LIMITS } from '@/lib/email/config';
 import { appConfig } from '@/lib/config';
@@ -61,34 +61,90 @@ async function handleCronJob(request: NextRequest) {
     
     const client = getSupabaseClient();
     
+    // First, let's check if we can query alert_settings at all
+    console.log('🔍 Checking alert_settings table...');
+    
     // Get all users with enabled email alerts
-    // For now, we'll send to all users with enabled alerts regardless of cadence
-    // since we're simplifying to daily at 12pm Eastern
-    // Fetch alert settings with the related user only. We'll fetch
-    // preferences in a follow-up query per user to avoid FK join issues
-    const { data: alertSettings, error: alertError } = await client
+    // Use service role client to bypass RLS
+    // First, get alert_settings without join to see all records
+    const { data: alertSettingsRaw, error: alertSettingsError } = await client
       .from('alert_settings' as any)
-      .select(`
-        *,
-        users!inner(email, name)
-      `)
+      .select('*')
       .eq('enabled', true);
 
-    if (alertError) {
-      console.error('❌ Error fetching alert settings:', alertError);
+    if (alertSettingsError) {
+      console.error('❌ Error fetching alert settings:', alertSettingsError);
       return NextResponse.json(
-        { error: 'Failed to fetch alert settings' },
+        { error: 'Failed to fetch alert settings', details: alertSettingsError.message },
         { status: 500 }
       );
     }
 
-    if (!alertSettings || alertSettings.length === 0) {
-      console.log('ℹ️ No users with enabled email alerts found');
+    console.log('🔍 Raw alert_settings (enabled=true):', {
+      count: alertSettingsRaw?.length || 0,
+      user_ids: alertSettingsRaw?.map((as: any) => as.user_id) || []
+    });
+
+    if (!alertSettingsRaw || alertSettingsRaw.length === 0) {
+      console.log('ℹ️ No alert_settings with enabled=true found');
+      // Check all alert_settings for debugging
+      const { data: allAlertSettings } = await client
+        .from('alert_settings' as any)
+        .select('user_id, enabled, cadence')
+        .limit(10);
+      console.log('🔍 All alert_settings (first 10):', allAlertSettings);
       return NextResponse.json({
         message: 'No users with enabled email alerts',
         processed: 0,
         sent: 0,
         errors: 0,
+        debug: { totalAlertSettings: allAlertSettings?.length || 0 }
+      });
+    }
+
+    // Now fetch users for each alert_setting
+    // Filter out any alert_settings where the user doesn't exist
+    const alertSettings: Array<any> = [];
+    for (const alertSetting of alertSettingsRaw) {
+      const { data: user, error: userError } = await client
+        .from('users' as any)
+        .select('email, name')
+        .eq('id', alertSetting.user_id)
+        .single();
+
+      if (userError || !user) {
+        console.warn(`⚠️ User not found for alert_setting user_id: ${alertSetting.user_id}`, userError?.message);
+        continue;
+      }
+
+      alertSettings.push({
+        ...alertSetting,
+        users: user
+      });
+    }
+
+    console.log('🔍 Alert settings with users:', {
+      alertSettingsCount: alertSettings.length,
+      alertSettings: alertSettings.map((as: any) => ({
+        user_id: as.user_id,
+        enabled: as.enabled,
+        hasUser: !!as.users,
+        userEmail: as.users?.email,
+        userName: as.users?.name
+      }))
+    });
+
+    if (!alertSettings || alertSettings.length === 0) {
+      console.log('ℹ️ No users with enabled email alerts found (after user lookup)');
+      return NextResponse.json({
+        message: 'No users with enabled email alerts',
+        processed: 0,
+        sent: 0,
+        errors: 0,
+        debug: {
+          rawAlertSettingsCount: alertSettingsRaw?.length || 0,
+          alertSettingsWithUsers: 0
+        }
       });
     }
 
