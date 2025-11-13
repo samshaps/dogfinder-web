@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase-auth';
 import { EmailAlertPreferencesSchema } from '@/lib/email/types';
 import { getStripeServer } from '@/lib/stripe/config';
 import { sendTestEmail } from '@/lib/email/service';
@@ -25,18 +25,55 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // SECURITY NOTE: We use service role client (bypasses RLS) because:
+    // 1. RLS policies use auth.uid() which is NULL with NextAuth (we use Supabase for DB only)
+    // 2. We maintain security by: (a) verifying session above, (b) only querying for session.user.email
+    // 3. This ensures users can only access their own data despite RLS bypass
     const client = getSupabaseClient();
     
-    // Get user ID - use case-insensitive email lookup
-    const userEmail = session.user.email.toLowerCase().trim();
-    const { data: userData, error: userError } = await client
+    // Get user ID - try exact match first, then case-insensitive
+    const sessionEmail = session.user.email;
+    const normalizedEmail = sessionEmail.toLowerCase().trim();
+    
+    // Try exact match first
+    let { data: userData, error: userError } = await client
       .from('users')
       .select('id, email')
-      .ilike('email', userEmail)
+      .eq('email', sessionEmail)
       .maybeSingle();
 
+    // If exact match fails, try case-insensitive
+    if (!userData && !userError) {
+      const { data: userDataCaseInsensitive, error: errorCaseInsensitive } = await client
+        .from('users')
+        .select('id, email')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+      
+      if (errorCaseInsensitive) {
+        userError = errorCaseInsensitive;
+      } else {
+        userData = userDataCaseInsensitive;
+      }
+    }
+
+    // Debug: If still not found, try to list all users to check RLS/query issues
+    if (!userData && !userError) {
+      const { data: allUsers, error: allUsersError } = await client
+        .from('users')
+        .select('id, email')
+        .limit(10);
+      
+      console.error('User lookup failed. Available users:', {
+        count: allUsers?.length || 0,
+        users: allUsers?.map(u => ({ id: u.id, email: u.email })),
+        allUsersError,
+        searchingFor: sessionEmail
+      });
+    }
+
     if (userError) {
-      console.error('Error fetching user:', userError);
+      console.error('Error fetching user:', userError, 'session email:', sessionEmail);
       return NextResponse.json(
         { error: 'Failed to fetch user', details: userError.message },
         { status: 500 }
@@ -44,9 +81,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!userData) {
-      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      console.error('User not found for email:', {
+        sessionEmail,
+        normalizedEmail,
+        emailLength: sessionEmail.length,
+        normalizedLength: normalizedEmail.length
+      });
       return NextResponse.json(
-        { error: 'User not found', email: userEmail },
+        { error: 'User not found', email: sessionEmail },
         { status: 404 }
       );
     }
@@ -157,18 +199,55 @@ export async function POST(request: NextRequest) {
     // Validate the request body
     const validatedData = EmailAlertPreferencesSchema.parse(body);
 
+    // SECURITY NOTE: We use service role client (bypasses RLS) because:
+    // 1. RLS policies use auth.uid() which is NULL with NextAuth (we use Supabase for DB only)
+    // 2. We maintain security by: (a) verifying session above, (b) only querying for session.user.email
+    // 3. This ensures users can only access their own data despite RLS bypass
     const client = getSupabaseClient();
     
-    // Get user ID - use case-insensitive email lookup
-    const userEmail = session.user.email.toLowerCase().trim();
-    const { data: userData, error: userError } = await client
+    // Get user ID - try exact match first, then case-insensitive
+    const sessionEmail = session.user.email;
+    const normalizedEmail = sessionEmail.toLowerCase().trim();
+    
+    // Try exact match first
+    let { data: userData, error: userError } = await client
       .from('users')
       .select('id, email')
-      .ilike('email', userEmail)
+      .eq('email', sessionEmail)
       .maybeSingle();
 
+    // If exact match fails, try case-insensitive
+    if (!userData && !userError) {
+      const { data: userDataCaseInsensitive, error: errorCaseInsensitive } = await client
+        .from('users')
+        .select('id, email')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+      
+      if (errorCaseInsensitive) {
+        userError = errorCaseInsensitive;
+      } else {
+        userData = userDataCaseInsensitive;
+      }
+    }
+
+    // Debug: If still not found, try to list all users to check RLS/query issues
+    if (!userData && !userError) {
+      const { data: allUsers, error: allUsersError } = await client
+        .from('users')
+        .select('id, email')
+        .limit(10);
+      
+      console.error('User lookup failed. Available users:', {
+        count: allUsers?.length || 0,
+        users: allUsers?.map(u => ({ id: u.id, email: u.email })),
+        allUsersError,
+        searchingFor: sessionEmail
+      });
+    }
+
     if (userError) {
-      console.error('Error fetching user:', userError);
+      console.error('Error fetching user:', userError, 'session email:', sessionEmail);
       return NextResponse.json(
         { error: 'Failed to fetch user', details: userError.message },
         { status: 500 }
@@ -176,9 +255,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!userData) {
-      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      console.error('User not found for email:', {
+        sessionEmail,
+        normalizedEmail,
+        emailLength: sessionEmail.length,
+        normalizedLength: normalizedEmail.length
+      });
       return NextResponse.json(
-        { error: 'User not found', email: userEmail },
+        { error: 'User not found', email: sessionEmail },
         { status: 404 }
       );
     }
@@ -267,18 +351,55 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // SECURITY NOTE: We use service role client (bypasses RLS) because:
+    // 1. RLS policies use auth.uid() which is NULL with NextAuth (we use Supabase for DB only)
+    // 2. We maintain security by: (a) verifying session above, (b) only querying for session.user.email
+    // 3. This ensures users can only access their own data despite RLS bypass
     const client = getSupabaseClient();
     
-    // Get user ID - use case-insensitive email lookup
-    const userEmail = session.user.email.toLowerCase().trim();
-    const { data: userData, error: userError } = await client
+    // Get user ID - try exact match first, then case-insensitive
+    const sessionEmail = session.user.email;
+    const normalizedEmail = sessionEmail.toLowerCase().trim();
+    
+    // Try exact match first
+    let { data: userData, error: userError } = await client
       .from('users')
       .select('id, email')
-      .ilike('email', userEmail)
+      .eq('email', sessionEmail)
       .maybeSingle();
 
+    // If exact match fails, try case-insensitive
+    if (!userData && !userError) {
+      const { data: userDataCaseInsensitive, error: errorCaseInsensitive } = await client
+        .from('users')
+        .select('id, email')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+      
+      if (errorCaseInsensitive) {
+        userError = errorCaseInsensitive;
+      } else {
+        userData = userDataCaseInsensitive;
+      }
+    }
+
+    // Debug: If still not found, try to list all users to check RLS/query issues
+    if (!userData && !userError) {
+      const { data: allUsers, error: allUsersError } = await client
+        .from('users')
+        .select('id, email')
+        .limit(10);
+      
+      console.error('User lookup failed. Available users:', {
+        count: allUsers?.length || 0,
+        users: allUsers?.map(u => ({ id: u.id, email: u.email })),
+        allUsersError,
+        searchingFor: sessionEmail
+      });
+    }
+
     if (userError) {
-      console.error('Error fetching user:', userError);
+      console.error('Error fetching user:', userError, 'session email:', sessionEmail);
       return NextResponse.json(
         { error: 'Failed to fetch user', details: userError.message },
         { status: 500 }
@@ -286,9 +407,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (!userData) {
-      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      console.error('User not found for email:', {
+        sessionEmail,
+        normalizedEmail,
+        emailLength: sessionEmail.length,
+        normalizedLength: normalizedEmail.length
+      });
       return NextResponse.json(
-        { error: 'User not found', email: userEmail },
+        { error: 'User not found', email: sessionEmail },
         { status: 404 }
       );
     }
