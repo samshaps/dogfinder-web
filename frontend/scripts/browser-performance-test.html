@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Performance Test - Results Page</title>
+  <script>
+    // Test the actual results page load in browser
+    async function testResultsPageLoad() {
+      const urlParams = new URLSearchParams({
+        zip: '11211',
+        radius: '50',
+        age: 'baby,young',
+        size: 'medium',
+        temperament: 'focused,playful',
+        energy: 'high',
+        guidance: 'we live in a small apartment with no yard',
+        t_age: '1',
+        t_size: '1',
+        t_energy: '1',
+        t_temperament: '1'
+      });
+      
+      const testUrl = `https://staging.dogyenta.com/results?${urlParams.toString()}`;
+      
+      console.log('Testing:', testUrl);
+      console.log('\nOpening page in new window...');
+      window.open(testUrl, '_blank');
+      
+      // Instructions
+      document.getElementById('instructions').innerHTML = `
+        <h2>Instructions:</h2>
+        <ol>
+          <li>A new window has opened with the results page</li>
+          <li>Open DevTools (F12) in that window</li>
+          <li>Go to the <strong>Network</strong> tab</li>
+          <li>Reload the page (Cmd+R / Ctrl+R)</li>
+          <li>Check the <strong>Performance</strong> tab for page load timing</li>
+          <li>Filter network requests by "api" to see all API calls</li>
+          <li>Look at timing for each API call:
+            <ul>
+              <li>Waiting (TTFB)</li>
+              <li>Content Download</li>
+              <li>Total Duration</li>
+            </ul>
+          </li>
+        </ol>
+        <h2>What to Report:</h2>
+        <ul>
+          <li>Total page load time (from Performance tab)</li>
+          <li>Each API call duration (/api/dogs, /api/match-dogs, /api/ai-reasoning)</li>
+          <li>Any errors or failed requests</li>
+        </ul>
+      `;
+      
+      // Also provide direct API call measurement
+      testAPIcallsDirectly();
+    }
+    
+    async function testAPIcallsDirectly() {
+      const results = [];
+      const testParams = new URLSearchParams({
+        zip: '11211',
+        radius: '50',
+        age: 'baby,young',
+        size: 'medium',
+        temperament: 'focused,playful',
+        energy: 'high',
+        guidance: 'we live in a small apartment with no yard',
+        page: '1',
+        limit: '20'
+      });
+      
+      console.log('\n=== Direct API Call Measurements ===\n');
+      
+      // Test 1: /api/dogs with guidance
+      const dogsUrl = `https://staging.dogyenta.com/api/dogs?${testParams.toString()}`;
+      console.log('1. Testing /api/dogs WITH guidance...');
+      const dogsStart = performance.now();
+      try {
+        const dogsRes = await fetch(dogsUrl);
+        const dogsTime = performance.now() - dogsStart;
+        const dogsData = await dogsRes.json();
+        const backendDur = dogsRes.headers.get('X-Backend-Duration');
+        console.log(`   ✅ Duration: ${dogsTime.toFixed(0)}ms`);
+        console.log(`   📡 Backend: ${backendDur || 'N/A'}ms`);
+        console.log(`   📊 Dogs: ${dogsData.items?.length || 0}`);
+        results.push({ name: '/api/dogs (with guidance)', time: dogsTime, backend: backendDur });
+      } catch (e) {
+        console.log(`   ❌ Error: ${e.message}`);
+      }
+      
+      // Test 2: /api/dogs WITHOUT guidance
+      testParams.delete('guidance');
+      const dogsUrlNoGuidance = `https://staging.dogyenta.com/api/dogs?${testParams.toString()}`;
+      console.log('\n2. Testing /api/dogs WITHOUT guidance...');
+      const dogs2Start = performance.now();
+      try {
+        const dogsRes2 = await fetch(dogsUrlNoGuidance);
+        const dogs2Time = performance.now() - dogs2Start;
+        const dogs2Data = await dogsRes2.json();
+        const backendDur2 = dogsRes2.headers.get('X-Backend-Duration');
+        console.log(`   ✅ Duration: ${dogs2Time.toFixed(0)}ms`);
+        console.log(`   📡 Backend: ${backendDur2 || 'N/A'}ms`);
+        console.log(`   📊 Dogs: ${dogs2Data.items?.length || 0}`);
+        results.push({ name: '/api/dogs (no guidance)', time: dogs2Time, backend: backendDur2 });
+        
+        const speedup = ((dogsTime - dogs2Time) / dogsTime * 100).toFixed(1);
+        console.log(`\n   📈 Speedup: ${speedup}% faster without guidance`);
+      } catch (e) {
+        console.log(`   ❌ Error: ${e.message}`);
+      }
+      
+      console.log('\n=== Summary ===');
+      results.forEach(r => {
+        console.log(`${r.name}: ${r.time.toFixed(0)}ms (backend: ${r.backend || 'N/A'}ms)`);
+      });
+      
+      document.getElementById('apiResults').innerHTML = `
+        <h3>API Test Results:</h3>
+        <pre>${JSON.stringify(results, null, 2)}</pre>
+      `;
+    }
+    
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      setTimeout(testResultsPageLoad, 500);
+    });
+  </script>
+</head>
+<body style="font-family: monospace; padding: 20px;">
+  <h1>🔍 Results Page Performance Test</h1>
+  <div id="instructions"></div>
+  <div id="apiResults" style="margin-top: 20px;"></div>
+  <div style="margin-top: 20px; padding: 10px; background: #f0f0f0;">
+    <strong>Note:</strong> Check the browser console (F12 → Console) for detailed timing measurements.
+  </div>
+</body>
+</html>
+

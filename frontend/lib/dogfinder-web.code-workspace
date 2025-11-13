@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../../dogfinder-web"
+		},
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../dogfinder-web/.git"
+		},
+		{
+			"path": "../../../dogfinder-web/.github"
+		}
+	]
+}
