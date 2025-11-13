@@ -255,10 +255,16 @@ export default function FindPage() {
       // Validate zip code (5 digits)
       if (/^\d{5}$/.test(zipCode)) {
         if (!formData.zipCodes.includes(zipCode)) {
-          setFormData(prev => ({
-            ...prev,
-            zipCodes: [...prev.zipCodes, zipCode]
-          }));
+          setFormData(prev => {
+            const newZipCodes = [...prev.zipCodes, zipCode];
+            trackEvent('preference_zip_code_added', {
+              zip_code_count: newZipCodes.length
+            });
+            return {
+              ...prev,
+              zipCodes: newZipCodes
+            };
+          });
         }
         setNewZipCode('');
       }
@@ -266,52 +272,86 @@ export default function FindPage() {
   };
 
   const handleRemoveZipCode = (zipCode: string) => {
-    setFormData(prev => ({
-      ...prev,
-      zipCodes: prev.zipCodes.filter(z => z !== zipCode)
-    }));
+    setFormData(prev => {
+      const newZipCodes = prev.zipCodes.filter(z => z !== zipCode);
+      trackEvent('preference_zip_code_removed', {
+        zip_code_count: newZipCodes.length
+      });
+      return {
+        ...prev,
+        zipCodes: newZipCodes
+      };
+    });
   };
 
   // Handle adding include breeds
   const handleAddIncludeBreed = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && newIncludeBreed.trim()) {
       e.preventDefault();
-      if (!formData.includeBreeds.includes(newIncludeBreed.trim())) {
-        setFormData(prev => ({
-          ...prev,
-          includeBreeds: [...prev.includeBreeds, newIncludeBreed.trim()]
-        }));
+      const breed = newIncludeBreed.trim();
+      if (!formData.includeBreeds.includes(breed)) {
+        setFormData(prev => {
+          const newBreeds = [...prev.includeBreeds, breed];
+          trackEvent('preference_breed_included', {
+            breed_count: newBreeds.length
+          });
+          return {
+            ...prev,
+            includeBreeds: newBreeds
+          };
+        });
       }
       setNewIncludeBreed('');
     }
   };
 
   const handleRemoveIncludeBreed = (breed: string) => {
-    setFormData(prev => ({
-      ...prev,
-      includeBreeds: prev.includeBreeds.filter(b => b !== breed)
-    }));
+    setFormData(prev => {
+      const newBreeds = prev.includeBreeds.filter(b => b !== breed);
+      trackEvent('preference_breed_removed', {
+        type: 'include',
+        breed_count: newBreeds.length
+      });
+      return {
+        ...prev,
+        includeBreeds: newBreeds
+      };
+    });
   };
 
   // Handle adding exclude breeds
   const handleAddExcludeBreed = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && newExcludeBreed.trim()) {
       e.preventDefault();
-      if (!formData.excludeBreeds.includes(newExcludeBreed.trim())) {
-        setFormData(prev => ({
-          ...prev,
-          excludeBreeds: [...prev.excludeBreeds, newExcludeBreed.trim()]
-        }));
+      const breed = newExcludeBreed.trim();
+      if (!formData.excludeBreeds.includes(breed)) {
+        setFormData(prev => {
+          const newBreeds = [...prev.excludeBreeds, breed];
+          trackEvent('preference_breed_excluded', {
+            breed_count: newBreeds.length
+          });
+          return {
+            ...prev,
+            excludeBreeds: newBreeds
+          };
+        });
       }
       setNewExcludeBreed('');
     }
   };
 
   const handleRemoveExcludeBreed = (breed: string) => {
-    setFormData(prev => ({
-      ...prev,
-      excludeBreeds: prev.excludeBreeds.filter(b => b !== breed)
-    }));
+    setFormData(prev => {
+      const newBreeds = prev.excludeBreeds.filter(b => b !== breed);
+      trackEvent('preference_breed_removed', {
+        type: 'exclude',
+        breed_count: newBreeds.length
+      });
+      return {
+        ...prev,
+        excludeBreeds: newBreeds
+      };
+    });
   };
 
 
@@ -596,7 +636,13 @@ export default function FindPage() {
               <PillControl
                 options={ageOptions}
                 selectedValues={formData.age}
-                onChange={(values) => setFormData(prev => ({ ...prev, age: values, touched: { ...prev.touched, age: true } }))}
+                onChange={(values) => {
+                  setFormData(prev => ({ ...prev, age: values, touched: { ...prev.touched, age: true } }));
+                  trackEvent('preference_age_set', {
+                    age_count: values.length,
+                    ages: values.join(',')
+                  });
+                }}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={true}
@@ -609,7 +655,13 @@ export default function FindPage() {
               <PillControl
                 options={sizeOptions}
                 selectedValues={formData.size}
-                onChange={(values) => setFormData(prev => ({ ...prev, size: values, touched: { ...prev.touched, size: true } }))}
+                onChange={(values) => {
+                  setFormData(prev => ({ ...prev, size: values, touched: { ...prev.touched, size: true } }));
+                  trackEvent('preference_size_set', {
+                    size_count: values.length,
+                    sizes: values.join(',')
+                  });
+                }}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={true}
@@ -622,7 +674,13 @@ export default function FindPage() {
               <PillControl
                 options={energyOptions}
                 selectedValues={formData.energy ? [formData.energy] : []}
-                onChange={(values) => setFormData(prev => ({ ...prev, energy: values[0] || '', touched: { ...prev.touched, energy: true } }))}
+                onChange={(values) => {
+                  const energyValue = values[0] || '';
+                  setFormData(prev => ({ ...prev, energy: energyValue, touched: { ...prev.touched, energy: true } }));
+                  trackEvent('preference_energy_set', {
+                    energy: energyValue
+                  });
+                }}
                 multiSelect={false}
                 showDescriptions={false}
                 cardStyle={true}
@@ -635,7 +693,13 @@ export default function FindPage() {
               <PillControl
                 options={temperamentOptions}
                 selectedValues={formData.temperament}
-                onChange={(values) => setFormData(prev => ({ ...prev, temperament: values, touched: { ...prev.touched, temperament: true } }))}
+                onChange={(values) => {
+                  setFormData(prev => ({ ...prev, temperament: values, touched: { ...prev.touched, temperament: true } }));
+                  trackEvent('preference_temperament_set', {
+                    temperament_count: values.length,
+                    temperaments: values.join(',')
+                  });
+                }}
                 multiSelect={true}
                 showDescriptions={false}
                 cardStyle={false}

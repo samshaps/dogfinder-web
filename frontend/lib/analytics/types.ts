@@ -30,7 +30,16 @@ export type IntakeEvent =
   | 'find_started'
   | 'find_location_set'
   | 'find_preferences_saved'
-  | 'find_submitted';
+  | 'find_submitted'
+  | 'preference_zip_code_added'
+  | 'preference_zip_code_removed'
+  | 'preference_breed_included'
+  | 'preference_breed_excluded'
+  | 'preference_breed_removed'
+  | 'preference_age_set'
+  | 'preference_size_set'
+  | 'preference_temperament_set'
+  | 'preference_energy_set';
 
 // Results page events
 export type ResultsEvent =
