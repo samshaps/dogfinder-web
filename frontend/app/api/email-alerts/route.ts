@@ -7,6 +7,9 @@ import { sendTestEmail } from '@/lib/email/service';
 import { appConfig } from '@/lib/config';
 import { getUserPlan } from '@/lib/stripe/plan-utils';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET /api/email-alerts - Get user's email alert settings
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
       paused_until: null,
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       settings: {
         enabled: settings.enabled,
         frequency: settings.cadence,
@@ -82,6 +85,10 @@ export async function GET(request: NextRequest) {
       },
       isPro
     });
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
 
   } catch (error) {
     console.error('Error fetching email alert settings:', error);
