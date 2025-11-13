@@ -7,9 +7,10 @@ type CopyLinkButtonProps = {
   text: string;
   className?: string;
   iconClassName?: string;
+  onCopy?: () => void;
 };
 
-export default function CopyLinkButton({ text, className = '', iconClassName = 'w-4 h-4' }: CopyLinkButtonProps) {
+export default function CopyLinkButton({ text, className = '', iconClassName = 'w-4 h-4', onCopy }: CopyLinkButtonProps) {
   const [canCopy, setCanCopy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -23,6 +24,7 @@ export default function CopyLinkButton({ text, className = '', iconClassName = '
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+      onCopy?.();
     } catch (error) {
       console.error('Failed to copy URL:', error);
     }

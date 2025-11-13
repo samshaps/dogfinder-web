@@ -11,6 +11,7 @@ import PreferencesSummary from '@/components/PreferencesSummary';
 import { COPY_MAX } from '@/lib/constants/copyLimits';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import { normalizeDogGender } from '@/lib/utils/pronouns';
+import { trackEvent } from '@/lib/analytics/tracking';
 
 // Convert API Dog to schemas Dog
 function mapAPIDogToDog(apiDog: APIDog): Dog {
@@ -131,6 +132,11 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary-sm whitespace-nowrap"
+            onClick={() => trackEvent('results_petfinder_link_clicked', {
+              dog_id: dog.id,
+              dog_name: dog.name,
+              source: 'top_pick'
+            })}
           >
             View on Petfinder
           </a>
@@ -138,6 +144,11 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             text={dog.url}
             className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
             iconClassName="w-4 h-4 text-gray-700"
+            onCopy={() => trackEvent('results_dog_link_copied', {
+              dog_id: dog.id,
+              dog_name: dog.name,
+              source: 'top_pick'
+            })}
           />
         </div>
       </div>
@@ -207,6 +218,11 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 btn-primary text-sm"
+            onClick={() => trackEvent('results_petfinder_link_clicked', {
+              dog_id: dog.id,
+              dog_name: dog.name,
+              source: 'all_matches'
+            })}
           >
             View on Petfinder
           </a>
@@ -214,6 +230,11 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             text={dog.url}
             className="btn-ghost text-sm flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300"
             iconClassName="w-4 h-4"
+            onCopy={() => trackEvent('results_dog_link_copied', {
+              dog_id: dog.id,
+              dog_name: dog.name,
+              source: 'all_matches'
+            })}
           />
         </div>
       </div>
