@@ -27,16 +27,26 @@ export async function GET(request: NextRequest) {
 
     const client = getSupabaseClient();
     
-    // Get user ID
+    // Get user ID - use case-insensitive email lookup
+    const userEmail = session.user.email.toLowerCase().trim();
     const { data: userData, error: userError } = await client
       .from('users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single();
+      .select('id, email')
+      .ilike('email', userEmail)
+      .maybeSingle();
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error('Error fetching user:', userError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Failed to fetch user', details: userError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!userData || !userData.id) {
+      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      return NextResponse.json(
+        { error: 'User not found', email: userEmail },
         { status: 404 }
       );
     }
@@ -149,16 +159,26 @@ export async function POST(request: NextRequest) {
 
     const client = getSupabaseClient();
     
-    // Get user ID
+    // Get user ID - use case-insensitive email lookup
+    const userEmail = session.user.email.toLowerCase().trim();
     const { data: userData, error: userError } = await client
       .from('users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single();
+      .select('id, email')
+      .ilike('email', userEmail)
+      .maybeSingle();
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error('Error fetching user:', userError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Failed to fetch user', details: userError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!userData || !userData.id) {
+      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      return NextResponse.json(
+        { error: 'User not found', email: userEmail },
         { status: 404 }
       );
     }
@@ -249,16 +269,26 @@ export async function DELETE(request: NextRequest) {
 
     const client = getSupabaseClient();
     
-    // Get user ID
+    // Get user ID - use case-insensitive email lookup
+    const userEmail = session.user.email.toLowerCase().trim();
     const { data: userData, error: userError } = await client
       .from('users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single();
+      .select('id, email')
+      .ilike('email', userEmail)
+      .maybeSingle();
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error('Error fetching user:', userError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Failed to fetch user', details: userError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!userData || !userData.id) {
+      console.error('User not found for email:', userEmail, 'session email:', session.user.email);
+      return NextResponse.json(
+        { error: 'User not found', email: userEmail },
         { status: 404 }
       );
     }
