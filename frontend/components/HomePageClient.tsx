@@ -152,7 +152,7 @@ export default function HomePageClient() {
       <div className="bg-blue-600 page-section">
         <div className="container mx-auto">
           <div className="text-center text-white">
-            <h2 className="mb-4">
+            <h2 className="mb-4 text-white">
               Ready to find your perfect match?
             </h2>
             <p className="mb-8 text-measure mx-auto text-white">
