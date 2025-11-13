@@ -1147,7 +1147,7 @@ function generateEmailHTML(data: EmailTemplateData): string {
                                     Or <a href="${findUrl}" style="color:#90cdf4;text-decoration:underline;">manage your preferences</a> to customize your alerts
                                 </p>
                                 <p style="margin:12px 0 0 0;opacity:0.7;font-size:12px;line-height:1.6;">
-                                    You received this email because you opted in at dogyenta.com. Questions? Email <a href="mailto:${supportEmail}" style="color:#90cdf4;text-decoration:underline;">${supportEmail}</a> or visit <a href="${supportUrl}" style="color:#90cdf4;text-decoration:underline;">our support center</a>.
+                                    You received this email because you opted in at dogyenta.com.
                                 </p>
                                 <p style="margin:8px 0 0 0;opacity:0.7;font-size:12px;line-height:1.6;">
                                     ${companyName} · ${physicalAddress}
@@ -1207,7 +1207,6 @@ function generateEmailText(data: EmailTemplateData): string {
   text += `Happy dog hunting! 🐕\n`;
   text += `The DogYenta Team\n`;
   text += `\nYou received this email because you opted in at dogyenta.com.\n`;
-  text += `Contact us: ${supportEmail} · ${supportUrl}\n`;
   text += `${companyName}\n${physicalAddress}\n`;
   text += `Privacy: ${privacyUrl}\n`;
   text += `Terms: ${termsUrl}\n`;

@@ -22,7 +22,7 @@ export const EMAIL_CONFIG = {
   companyName: process.env.EMAIL_COMPANY_NAME || 'DogYenta',
   physicalAddress:
     process.env.EMAIL_PHYSICAL_ADDRESS ||
-    'DogYenta LLC · 548 Market St #12345 · San Francisco, CA 94104',
+    'Dogyenta · Brooklyn, NY 11211',
   supportUrl: process.env.EMAIL_SUPPORT_URL || 'https://dogyenta.com/support',
   privacyUrl: process.env.EMAIL_PRIVACY_URL || 'https://dogyenta.com/privacy',
   termsUrl: process.env.EMAIL_TERMS_URL || 'https://dogyenta.com/terms',
