@@ -313,6 +313,13 @@ export class RescueGroupsDogProvider implements DogProvider {
     const body: any = {
       data: {
         page: { limit, current: page },
+        // Sort by most recently updated/published (descending)
+        sort: [
+          {
+            fieldName: 'animals.publishedDate',
+            direction: 'desc',
+          },
+        ],
       },
     };
 
