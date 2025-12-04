@@ -142,14 +142,14 @@ export class RescueGroupsDogProvider implements DogProvider {
     const filters: any[] = [];
     if (params.zip) {
       filters.push({
-        fieldName: 'locationPostalcode',
+        fieldName: 'animals.locationPostalcode',
         operation: 'equals',
         criteria: params.zip,
       });
     }
     if (params.radius) {
       filters.push({
-        fieldName: 'locationDistance',
+        fieldName: 'animals.locationDistance',
         operation: 'lessthanorequal',
         criteria: params.radius,
       });
@@ -157,7 +157,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     if (params.age) {
       const ages = Array.isArray(params.age) ? params.age : String(params.age).split(',');
       filters.push({
-        fieldName: 'ageGroup',
+        fieldName: 'animals.ageGroup',
         operation: 'in',
         criteria: ages,
       });
@@ -165,7 +165,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     if (params.size) {
       const sizes = Array.isArray(params.size) ? params.size : String(params.size).split(',');
       filters.push({
-        fieldName: 'sizeGroup',
+        fieldName: 'animals.sizeGroup',
         operation: 'in',
         criteria: sizes,
       });
@@ -174,7 +174,6 @@ export class RescueGroupsDogProvider implements DogProvider {
     const body = {
       data: {
         filters,
-        filterRadius: params.radius,
         page: { limit, current: page },
       },
     };
@@ -222,7 +221,7 @@ export class RescueGroupsDogProvider implements DogProvider {
       data: {
         filters: [
           {
-            fieldName: 'id',
+            fieldName: 'animals.id',
             operation: 'equals',
             criteria: id,
           },
