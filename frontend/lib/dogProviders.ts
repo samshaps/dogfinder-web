@@ -339,7 +339,6 @@ export class RescueGroupsDogProvider implements DogProvider {
               : 0,
             hasOrgRel: !!animals[0].relationships?.organization?.data,
             orgRelId: animals[0].relationships?.organization?.data?.id,
-            orgRelType: animals[0].relationships?.organization?.data?.type,
           }
         : null,
     });
