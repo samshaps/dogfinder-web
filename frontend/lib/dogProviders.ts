@@ -65,6 +65,7 @@ type RescueGroupsAnimal = {
     orgs?: { data?: RescueGroupsRef[] }; // Plural form (actual relationship name)
     pictures?: { data?: RescueGroupsRef[] };
     location?: { data?: RescueGroupsRef };
+    locations?: { data?: RescueGroupsRef[] }; // Plural form (actual relationship name)
   };
 };
 
@@ -150,8 +151,16 @@ function mapRescueGroupsAnimalToDog(
 
   let city = 'Unknown';
   let state = 'Unknown';
-  if (rel.location?.data?.id && indexes?.locationsById) {
-    const loc = indexes.locationsById.get(String(rel.location.data.id));
+  // Use locations relationship (plural, array) - same pattern as orgs
+  let locationId: string | undefined;
+  if (rel.locations?.data && Array.isArray(rel.locations.data) && rel.locations.data.length > 0 && rel.locations.data[0]?.id) {
+    locationId = String(rel.locations.data[0].id);
+  } else if (rel.location?.data?.id) {
+    locationId = String(rel.location.data.id);
+  }
+  
+  if (locationId && indexes?.locationsById) {
+    const loc = indexes.locationsById.get(locationId);
     if (loc) {
       city = loc.city || city;
       state = loc.state || state;
