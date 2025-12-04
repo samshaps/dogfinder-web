@@ -171,23 +171,33 @@ function mapRescueGroupsAnimalToDog(
     const normalizedId = String(locationId);
     let loc = indexes.locationsById.get(normalizedId);
     
+    // Debug: log the lookup attempt
+    if (!loc) {
+      console.log(`[RescueGroups] Direct lookup failed for location ${normalizedId}, trying alternatives...`);
+    }
+    
     if (!loc) {
       // Try with "100000" prefix if it doesn't have it
       if (!normalizedId.startsWith('100000')) {
         const withPrefix = `100000${normalizedId.padStart(4, '0')}`; // Pad to 4 digits
         loc = indexes.locationsById.get(withPrefix);
+        if (loc) console.log(`[RescueGroups] Found location with padded prefix: ${withPrefix}`);
         if (!loc) {
           // Also try without padding
-          loc = indexes.locationsById.get(`100000${normalizedId}`);
+          const withPrefixNoPad = `100000${normalizedId}`;
+          loc = indexes.locationsById.get(withPrefixNoPad);
+          if (loc) console.log(`[RescueGroups] Found location with prefix (no pad): ${withPrefixNoPad}`);
         }
       } else {
         // Try without "100000" prefix
         const shortId = normalizedId.replace(/^100000/, '');
         loc = indexes.locationsById.get(shortId);
+        if (loc) console.log(`[RescueGroups] Found location without prefix: ${shortId}`);
         // Also try with leading zeros removed
         const numericId = shortId.replace(/^0+/, '');
         if (!loc && numericId !== shortId) {
           loc = indexes.locationsById.get(numericId);
+          if (loc) console.log(`[RescueGroups] Found location with leading zeros removed: ${numericId}`);
         }
       }
     }
@@ -200,9 +210,10 @@ function mapRescueGroupsAnimalToDog(
         console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} missing city/state. Location data:`, loc);
       }
     } else {
-      // More detailed error logging
+      // More detailed error logging - check if it exists at all
       const availableIds = Array.from(indexes.locationsById.keys());
-      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} (normalized: ${normalizedId}) not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
+      const exists = availableIds.includes(normalizedId);
+      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} (normalized: ${normalizedId}, exists: ${exists}) not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
     }
   } else {
     console.warn(`[RescueGroups] Animal ${animal.id} has no locationId or locationsById index. Available relationships:`, Object.keys(rel || {}));
