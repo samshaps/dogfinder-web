@@ -140,20 +140,6 @@ export class RescueGroupsDogProvider implements DogProvider {
     const limit = Math.min(params.limit || 20, 50);
 
     const filters: any[] = [];
-    if (params.zip) {
-      filters.push({
-        fieldName: 'animals.locationPostalcode',
-        operation: 'equals',
-        criteria: params.zip,
-      });
-    }
-    if (params.radius) {
-      filters.push({
-        fieldName: 'animals.locationDistance',
-        operation: 'lessthanorequal',
-        criteria: params.radius,
-      });
-    }
     if (params.age) {
       const ages = Array.isArray(params.age) ? params.age : String(params.age).split(',');
       filters.push({
@@ -171,12 +157,20 @@ export class RescueGroupsDogProvider implements DogProvider {
       });
     }
 
-    const body = {
+    const body: any = {
       data: {
         filters,
         page: { limit, current: page },
       },
     };
+
+    // Use dedicated radius search helper when we have a ZIP code.
+    if (params.zip) {
+      body.data.filterRadius = {
+        miles: params.radius || 50,
+        postalcode: params.zip,
+      };
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
