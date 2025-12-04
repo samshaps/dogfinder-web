@@ -993,12 +993,12 @@ function generateDogCard(dog: EmailDogMatch, preferences: EmailTemplateData['pre
         <h3 style="margin:0 0 12px 0;font-size:20px;line-height:1.2;color:#1f2937;font-weight:700;">${dog.name}</h3>
         <div style="margin:0 0 12px 0;">
           <span style="color:#6b7280;font-size:13px;">
-            ${dog.location.city}, ${dog.location.state}${distance}${timeAgo ? ' · ' + timeAgo : ''}
+            ${distance}${timeAgo ? ' · ' + timeAgo : ''}
           </span>
         </div>
         ${dog.shelter.name ? `
         <div style="color:#9ca3af;font-size:12px;margin-bottom:12px;">
-          From: ${dog.shelter.name} · ${dog.location.city}, ${dog.location.state}
+          From: ${dog.shelter.name}${distance ? ' · ' + distance.trim() : ''}
         </div>` : ''}
         ${dog.reasons?.primary150 ? `
         <div style="background:#f3f4f6;border-radius:8px;padding:12px;margin:12px 0;color:#374151;font-size:14px;line-height:1.5;">
@@ -1191,9 +1191,9 @@ function generateEmailText(data: EmailTemplateData): string {
     
     text += `${i+1}. ${dog.name}\n`;
     text += `   ${dog.breeds && dog.breeds.length ? dog.breeds.join(', ') : 'Mixed Breed'}\n`;
-    text += `   ${dog.location.city}, ${dog.location.state}${dist}${timeAgo ? ' · ' + timeAgo : ''}\n`;
+    text += `   ${dist}${timeAgo ? ' · ' + timeAgo : ''}\n`;
     if (dog.shelter.name) {
-      text += `   From: ${dog.shelter.name} · ${dog.location.city}, ${dog.location.state}\n`;
+      text += `   From: ${dog.shelter.name}${dist ? ' · ' + dist.trim() : ''}\n`;
     }
     if (dog.reasons?.primary150) {
       text += `   Why: ${dog.reasons.primary150}\n`;

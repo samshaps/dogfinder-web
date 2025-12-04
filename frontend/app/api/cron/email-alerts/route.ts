@@ -386,9 +386,7 @@ async function handleCronJob(request: NextRequest) {
             energy: 'medium',
             temperament: Array.isArray(dog.tags) ? dog.tags : [],
             location: {
-              city: dog.location?.city || 'Unknown',
-              state: dog.location?.state || 'Unknown',
-              distanceMi: dog.location?.distanceMi,
+              distanceMi: dog.location?.distanceMi || 0,
             },
             photos,
             matchScore: Math.floor(Math.random() * 30) + 70,

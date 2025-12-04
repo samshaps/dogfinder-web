@@ -96,7 +96,6 @@ function mapRescueGroupsAnimalToDog(
   animal: RescueGroupsAnimal,
   indexes?: {
     picturesById?: Map<string, any>;
-    locationsById?: Map<string, any>;
     orgsById?: Map<string, any>;
   }
 ): Dog {
@@ -149,84 +148,7 @@ function mapRescueGroupsAnimalToDog(
     );
   }
 
-  let city = 'Unknown';
-  let state = 'Unknown';
-  // Use locations relationship (plural, array) - same pattern as orgs
-  let locationId: string | undefined;
-  if (rel.locations?.data && Array.isArray(rel.locations.data) && rel.locations.data.length > 0 && rel.locations.data[0]?.id) {
-    // Ensure it's a string and handle both string and number IDs
-    const rawId = rel.locations.data[0].id;
-    locationId = String(rawId);
-    // Debug: log the raw ID type and value
-    if (typeof rawId !== 'string') {
-      console.log(`[RescueGroups] Animal ${animal.id} location ID is ${typeof rawId}: ${rawId}, normalized to: ${locationId}`);
-    }
-  } else if (rel.location?.data?.id) {
-    const rawId = rel.location.data.id;
-    locationId = String(rawId);
-  }
-  
-  if (locationId && indexes?.locationsById) {
-    // Normalize locationId to string and try multiple formats
-    const normalizedId = String(locationId);
-    
-    // Use Map.has() to check if key exists (more reliable than array includes)
-    const mapHasKey = indexes.locationsById.has(normalizedId);
-    let loc = mapHasKey ? indexes.locationsById.get(normalizedId) : undefined;
-    
-    // Debug: log the lookup attempt
-    if (!loc) {
-      console.log(`[RescueGroups] Direct lookup failed for location ${normalizedId} (Map.has: ${mapHasKey}), trying alternatives...`);
-    }
-    
-    if (!loc) {
-      // Try with "100000" prefix if it doesn't have it
-      if (!normalizedId.startsWith('100000')) {
-        const withPrefix = `100000${normalizedId.padStart(4, '0')}`; // Pad to 4 digits
-        if (indexes.locationsById.has(withPrefix)) {
-          loc = indexes.locationsById.get(withPrefix);
-          if (loc) console.log(`[RescueGroups] Found location with padded prefix: ${withPrefix}`);
-        }
-        if (!loc) {
-          // Also try without padding
-          const withPrefixNoPad = `100000${normalizedId}`;
-          if (indexes.locationsById.has(withPrefixNoPad)) {
-            loc = indexes.locationsById.get(withPrefixNoPad);
-            if (loc) console.log(`[RescueGroups] Found location with prefix (no pad): ${withPrefixNoPad}`);
-          }
-        }
-      } else {
-        // Try without "100000" prefix
-        const shortId = normalizedId.replace(/^100000/, '');
-        if (indexes.locationsById.has(shortId)) {
-          loc = indexes.locationsById.get(shortId);
-          if (loc) console.log(`[RescueGroups] Found location without prefix: ${shortId}`);
-        }
-        // Also try with leading zeros removed
-        const numericId = shortId.replace(/^0+/, '');
-        if (!loc && numericId !== shortId && indexes.locationsById.has(numericId)) {
-          loc = indexes.locationsById.get(numericId);
-          if (loc) console.log(`[RescueGroups] Found location with leading zeros removed: ${numericId}`);
-        }
-      }
-    }
-    
-    if (loc) {
-      city = loc.city || city;
-      state = loc.state || state;
-      // Debug logging if location data is missing
-      if (city === 'Unknown' || state === 'Unknown') {
-        console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} missing city/state. Location data:`, loc);
-      }
-    } else {
-      // More detailed error logging - check if it exists using Map.has()
-      const mapHas = indexes.locationsById.has(normalizedId);
-      const availableIds = Array.from(indexes.locationsById.keys());
-      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} (normalized: ${normalizedId}, Map.has: ${mapHas}) not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
-    }
-  } else {
-    console.warn(`[RescueGroups] Animal ${animal.id} has no locationId or locationsById index. Available relationships:`, Object.keys(rel || {}));
-  }
+  // Only use distance - no city/state lookup needed
 
   const sanitizedDescription = sanitizeDescription(attrs.descriptionText);
 
@@ -244,8 +166,6 @@ function mapRescueGroupsAnimalToDog(
     photos,
     publishedAt: attrs.publishedDate || new Date().toISOString(),
     location: {
-      city,
-      state,
       distanceMi: attrs.distance || 0,
     },
     tags: [],
@@ -400,10 +320,10 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,locations,orgs');
+    url.searchParams.set('include', 'pictures,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
-    url.searchParams.set('fields[locations]', 'city,state'); // Request city and state for locations
+    // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
@@ -428,26 +348,14 @@ export class RescueGroupsDogProvider implements DogProvider {
     const animals = Array.isArray(json.data) ? json.data : [];
 
     const picturesById = new Map<string, any>();
-    const locationsById = new Map<string, any>();
     const orgsById = new Map<string, any>();
     if (Array.isArray(json.included)) {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
-        else if (inc.type === 'locations') {
-          locationsById.set(id, inc.attributes);
-          // Also index by the numeric ID without leading zeros if it's a long ID
-          // Some location IDs are like "1000003433" but might be stored as "3433" in relationships
-          const numericId = id.replace(/^100000/, ''); // Remove "100000" prefix if present
-          if (numericId !== id) {
-            locationsById.set(numericId, inc.attributes);
-          }
-        } else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
       }
     }
-    
-    // Debug: log location indexing
-    console.log(`[RescueGroups] Indexed ${locationsById.size} locations. Sample location IDs:`, Array.from(locationsById.keys()).slice(0, 5));
 
     // Debug logging to diagnose photo mapping issues
     const sampleAnimal = animals[0];
@@ -478,7 +386,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     });
 
     const mapped = animals.map((animal) =>
-      mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById })
+      mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById })
     );
     const total = json.meta?.pagination?.total ?? mapped.length;
     const count = json.meta?.pagination?.count ?? mapped.length;
@@ -512,10 +420,10 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,locations,orgs');
+    url.searchParams.set('include', 'pictures,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
-    url.searchParams.set('fields[locations]', 'city,state'); // Request city and state for locations
+    // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
@@ -544,28 +452,16 @@ export class RescueGroupsDogProvider implements DogProvider {
     if (!animal) return null;
 
     const picturesById = new Map<string, any>();
-    const locationsById = new Map<string, any>();
     const orgsById = new Map<string, any>();
     if (Array.isArray(json.included)) {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
-        else if (inc.type === 'locations') {
-          locationsById.set(id, inc.attributes);
-          // Also index by the numeric ID without leading zeros if it's a long ID
-          // Some location IDs are like "1000003433" but might be stored as "3433" in relationships
-          const numericId = id.replace(/^100000/, ''); // Remove "100000" prefix if present
-          if (numericId !== id) {
-            locationsById.set(numericId, inc.attributes);
-          }
-        } else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
       }
     }
-    
-    // Debug: log location indexing
-    console.log(`[RescueGroups] Indexed ${locationsById.size} locations. Sample location IDs:`, Array.from(locationsById.keys()).slice(0, 5));
 
-    return mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById });
+    return mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById });
   }
 }
 

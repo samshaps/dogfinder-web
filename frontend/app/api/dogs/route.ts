@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
               energy: 'medium', // Default, will be inferred
               temperament: [],
               location: {
-                zip: `${dog.location?.city || 'Unknown'}, ${dog.location?.state || 'Unknown'}`,
                 distanceMi: dog.location?.distanceMi || 0
               },
               gender: dog.gender || 'Unknown',

@@ -17,8 +17,6 @@ export interface Dog {
   photos: string[];
   publishedAt: string;
   location: {
-    city: string;
-    state: string;
     distanceMi: number;
   };
   tags: string[];
@@ -252,12 +250,9 @@ export function formatDogBreeds(dog: Dog): string {
 
 // Helper function to format location
 export function formatDogLocation(dog: Dog): string {
-  if (!dog.location) return 'Location unknown';
+  if (!dog.location || !dog.location.distanceMi) return 'Location unknown';
   
-  const { city, state } = dog.location;
-  if (city && state) return `${city}, ${state}`;
-  if (city) return city;
-  if (state) return state;
+  return `${Math.round(dog.location.distanceMi)} miles away`;
   
   return 'Location unknown';
 }

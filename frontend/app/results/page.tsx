@@ -28,7 +28,6 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
       ['affectionate', 'playful', 'calm', 'quiet', 'kid-friendly', 'cat-friendly', 'low-maintenance'].includes(tag.toLowerCase())
     ),
     location: { 
-      zip: `${apiDog.location.city}, ${apiDog.location.state}`, 
       distanceMi: apiDog.location.distanceMi 
     },
     hypoallergenic: apiDog.tags.some(tag => tag.toLowerCase().includes('hypoallergenic')),
@@ -41,8 +40,8 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
     gender: genderLabel,
     photos: apiDog.photos,
     publishedAt: apiDog.publishedAt,
-    city: apiDog.location.city,
-    state: apiDog.location.state,
+    city: '',
+    state: '',
     tags: apiDog.tags,
     url: apiDog.url,
     shelter: apiDog.shelter
@@ -113,11 +112,13 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
           </div>
         </div>
         
-        {/* Location */}
-        <div className="flex items-center gap-2 mt-4 text-[14px] text-gray-600">
-          <MapPin className="w-4 h-4 text-gray-500" />
-          <span>{dog.location.city}, {dog.location.state}</span>
-        </div>
+        {/* Distance */}
+        {dog.location.distanceMi > 0 && (
+          <div className="flex items-center gap-2 mt-4 text-[14px] text-gray-600">
+            <MapPin className="w-4 h-4 text-gray-500" />
+            <span>{Math.round(dog.location.distanceMi)} miles away</span>
+          </div>
+        )}
         
         {/* Location and Distance */}
         <div className="flex items-center gap-2 mb-4 text-[14px] text-gray-600">
@@ -197,13 +198,14 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
           {/* Removed tag bubbles for cleaner UI */}
         </div>
         
-        <div className="flex items-center gap-1 mb-3">
-          <MapPin className="w-4 h-4 text-gray-500" />
-          <span className="text-[12px] text-gray-600">
-            {dog.location.city}, {dog.location.state}
-          </span>
-          <span className="text-[12px] text-gray-400">({Math.round(dog.location.distanceMi)} miles)</span>
-        </div>
+        {dog.location.distanceMi > 0 && (
+          <div className="flex items-center gap-1 mb-3">
+            <MapPin className="w-4 h-4 text-gray-500" />
+            <span className="text-[12px] text-gray-600">
+              {Math.round(dog.location.distanceMi)} miles away
+            </span>
+          </div>
+        )}
         
         <div className="flex items-center gap-1">
           <ExternalLink className="w-4 h-4 text-gray-500" />

@@ -65,7 +65,7 @@ export type Dog = {
   size: string;
   energy: string;
   temperament: string[];
-  location: { zip: string; distanceMi?: number };
+  location: { distanceMi?: number };
   hypoallergenic?: boolean;
   shedLevel?: "low"|"med"|"high";
   groomingLoad?: "low"|"med"|"high";
