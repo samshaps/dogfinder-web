@@ -173,10 +173,13 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const body: any = {
       data: {
-        filters,
         page: { limit, current: page },
       },
     };
+
+    if (filters.length > 0) {
+      body.data.filters = filters;
+    }
 
     // Use dedicated radius search helper when we have a ZIP code.
     if (params.zip) {
@@ -192,7 +195,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     const resp = await fetch(`${baseUrl}/public/animals/search/available/dogs`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/vnd.api+json',
         Authorization: apiKey,
       },
       body: JSON.stringify(body),
