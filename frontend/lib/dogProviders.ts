@@ -40,6 +40,8 @@ export interface DogProvider {
  * We keep this self‑contained here and normalize the result into our Dog type.
  */
 
+type RescueGroupsRef = { id: number | string } | null | undefined;
+
 type RescueGroupsAnimal = {
   id: number | string;
   attributes: {
@@ -53,16 +55,23 @@ type RescueGroupsAnimal = {
     adoptionUrl?: string;
   };
   relationships?: {
-    breedPrimary?: { data?: { attributes?: { name?: string } } };
-    breedSecondary?: { data?: { attributes?: { name?: string } } };
-    organization?: { data?: { attributes?: { name?: string } } };
-    pictures?: { data?: Array<{ attributes?: { large?: string; medium?: string; small?: string } }> };
-    location?: { data?: { attributes?: { city?: string; state?: string } } };
+    breedPrimary?: { data?: RescueGroupsRef };
+    breedSecondary?: { data?: RescueGroupsRef };
+    organization?: { data?: RescueGroupsRef };
+    pictures?: { data?: RescueGroupsRef[] };
+    location?: { data?: RescueGroupsRef };
   };
+};
+
+type RescueGroupsIncluded = {
+  type: string;
+  id: number | string;
+  attributes: any;
 };
 
 interface RescueGroupsSearchResponse {
   data?: RescueGroupsAnimal[];
+  included?: RescueGroupsIncluded[];
   meta?: { pagination?: { total?: number; count?: number; current_page?: number } };
 }
 
@@ -77,27 +86,44 @@ function getRescueGroupsConfig() {
   return { apiKey, baseUrl };
 }
 
-function mapRescueGroupsAnimalToDog(animal: RescueGroupsAnimal): Dog {
+function mapRescueGroupsAnimalToDog(
+  animal: RescueGroupsAnimal,
+  indexes?: {
+    picturesById?: Map<string, any>;
+    locationsById?: Map<string, any>;
+    orgsById?: Map<string, any>;
+  }
+): Dog {
   const attrs = animal.attributes || {};
   const rel = animal.relationships || {};
 
   const breeds: string[] = [];
-  const primaryBreed = rel.breedPrimary?.data?.attributes?.name;
-  const secondaryBreed = rel.breedSecondary?.data?.attributes?.name;
-  if (primaryBreed) breeds.push(primaryBreed);
-  if (secondaryBreed) breeds.push(secondaryBreed);
+  const primaryBreedId = rel.breedPrimary?.data?.id;
+  const secondaryBreedId = rel.breedSecondary?.data?.id;
+  if (primaryBreedId) breeds.push(String(primaryBreedId));
+  if (secondaryBreedId) breeds.push(String(secondaryBreedId));
 
   const photos: string[] = [];
-  if (Array.isArray(rel.pictures?.data)) {
-    rel.pictures!.data.forEach((p) => {
-      if (p.attributes?.large) photos.push(p.attributes.large);
-      else if (p.attributes?.medium) photos.push(p.attributes.medium);
-      else if (p.attributes?.small) photos.push(p.attributes.small);
+  if (Array.isArray(rel.pictures?.data) && indexes?.picturesById) {
+    rel.pictures.data.forEach((ref) => {
+      if (!ref?.id) return;
+      const pic = indexes.picturesById!.get(String(ref.id));
+      if (!pic) return;
+      if (pic.large?.url) photos.push(pic.large.url);
+      else if (pic.original?.url) photos.push(pic.original.url);
+      else if (pic.small?.url) photos.push(pic.small.url);
     });
   }
 
-  const city = rel.location?.data?.attributes?.city || 'Unknown';
-  const state = rel.location?.data?.attributes?.state || 'Unknown';
+  let city = 'Unknown';
+  let state = 'Unknown';
+  if (rel.location?.data?.id && indexes?.locationsById) {
+    const loc = indexes.locationsById.get(String(rel.location.data.id));
+    if (loc) {
+      city = loc.city || city;
+      state = loc.state || state;
+    }
+  }
 
   const sanitizedDescription = sanitizeDescription(attrs.descriptionText);
 
@@ -121,11 +147,20 @@ function mapRescueGroupsAnimalToDog(animal: RescueGroupsAnimal): Dog {
     },
     tags: [],
     url: attrs.adoptionUrl || '#',
-    shelter: {
-      name: rel.organization?.data?.attributes?.name || 'Unknown Shelter',
-      email: '',
-      phone: '',
-    },
+    shelter: (() => {
+      let name = 'Unknown Shelter';
+      if (rel.organization?.data?.id && indexes?.orgsById) {
+        const org = indexes.orgsById.get(String(rel.organization.data.id));
+        if (org) {
+          name = org.name || name;
+        }
+      }
+      return {
+        name,
+        email: '',
+        phone: '',
+      };
+    })(),
     description: sanitizedDescription || undefined,
   };
 }
@@ -192,7 +227,10 @@ export class RescueGroupsDogProvider implements DogProvider {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    const resp = await fetch(`${baseUrl}/public/animals/search/available/dogs`, {
+    const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
+    url.searchParams.set('include', 'pictures,locations,orgs');
+
+    const resp = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/vnd.api+json',
@@ -212,7 +250,22 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const json = (await resp.json()) as RescueGroupsSearchResponse;
     const animals = Array.isArray(json.data) ? json.data : [];
-    const mapped = animals.map(mapRescueGroupsAnimalToDog);
+
+    const picturesById = new Map<string, any>();
+    const locationsById = new Map<string, any>();
+    const orgsById = new Map<string, any>();
+    if (Array.isArray(json.included)) {
+      for (const inc of json.included) {
+        const id = String(inc.id);
+        if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
+        else if (inc.type === 'locations') locationsById.set(id, inc.attributes);
+        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+      }
+    }
+
+    const mapped = animals.map((animal) =>
+      mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById })
+    );
     const total = json.meta?.pagination?.total ?? mapped.length;
     const count = json.meta?.pagination?.count ?? mapped.length;
     const currentPage = json.meta?.pagination?.current_page ?? page;
@@ -244,10 +297,13 @@ export class RescueGroupsDogProvider implements DogProvider {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    const resp = await fetch(`${baseUrl}/public/animals/search/available/dogs`, {
+    const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
+    url.searchParams.set('include', 'pictures,locations,orgs');
+
+    const resp = await fetch(url.toString(), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/vnd.api+json',
         Authorization: apiKey,
       },
       body: JSON.stringify(body),
@@ -268,7 +324,20 @@ export class RescueGroupsDogProvider implements DogProvider {
     const json = (await resp.json()) as RescueGroupsSearchResponse;
     const animal = Array.isArray(json.data) && json.data.length > 0 ? json.data[0] : null;
     if (!animal) return null;
-    return mapRescueGroupsAnimalToDog(animal);
+
+    const picturesById = new Map<string, any>();
+    const locationsById = new Map<string, any>();
+    const orgsById = new Map<string, any>();
+    if (Array.isArray(json.included)) {
+      for (const inc of json.included) {
+        const id = String(inc.id);
+        if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
+        else if (inc.type === 'locations') locationsById.set(id, inc.attributes);
+        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+      }
+    }
+
+    return mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById });
   }
 }
 
