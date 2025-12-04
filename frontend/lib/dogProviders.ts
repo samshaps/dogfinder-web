@@ -156,10 +156,14 @@ function mapRescueGroupsAnimalToDog(
   if (rel.locations?.data && Array.isArray(rel.locations.data) && rel.locations.data.length > 0 && rel.locations.data[0]?.id) {
     // Ensure it's a string and handle both string and number IDs
     const rawId = rel.locations.data[0].id;
-    locationId = typeof rawId === 'number' ? String(rawId) : String(rawId);
+    locationId = String(rawId);
+    // Debug: log the raw ID type and value
+    if (typeof rawId !== 'string') {
+      console.log(`[RescueGroups] Animal ${animal.id} location ID is ${typeof rawId}: ${rawId}, normalized to: ${locationId}`);
+    }
   } else if (rel.location?.data?.id) {
     const rawId = rel.location.data.id;
-    locationId = typeof rawId === 'number' ? String(rawId) : String(rawId);
+    locationId = String(rawId);
   }
   
   if (locationId && indexes?.locationsById) {
