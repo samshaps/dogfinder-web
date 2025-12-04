@@ -160,16 +160,28 @@ function mapRescueGroupsAnimalToDog(
   }
   
   if (locationId && indexes?.locationsById) {
-    // Try multiple ID formats for lookup
-    let loc = indexes.locationsById.get(locationId);
+    // Normalize locationId to string and try multiple formats
+    const normalizedId = String(locationId);
+    let loc = indexes.locationsById.get(normalizedId);
+    
     if (!loc) {
       // Try with "100000" prefix if it doesn't have it
-      if (!locationId.startsWith('100000')) {
-        loc = indexes.locationsById.get(`100000${locationId}`);
+      if (!normalizedId.startsWith('100000')) {
+        const withPrefix = `100000${normalizedId.padStart(4, '0')}`; // Pad to 4 digits
+        loc = indexes.locationsById.get(withPrefix);
+        if (!loc) {
+          // Also try without padding
+          loc = indexes.locationsById.get(`100000${normalizedId}`);
+        }
       } else {
         // Try without "100000" prefix
-        const shortId = locationId.replace(/^100000/, '');
+        const shortId = normalizedId.replace(/^100000/, '');
         loc = indexes.locationsById.get(shortId);
+        // Also try with leading zeros removed
+        const numericId = shortId.replace(/^0+/, '');
+        if (!loc && numericId !== shortId) {
+          loc = indexes.locationsById.get(numericId);
+        }
       }
     }
     
@@ -183,7 +195,7 @@ function mapRescueGroupsAnimalToDog(
     } else {
       // More detailed error logging
       const availableIds = Array.from(indexes.locationsById.keys());
-      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
+      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} (normalized: ${normalizedId}) not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
     }
   } else {
     console.warn(`[RescueGroups] Animal ${animal.id} has no locationId or locationsById index. Available relationships:`, Object.keys(rel || {}));
