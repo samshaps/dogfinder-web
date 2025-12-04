@@ -268,10 +268,15 @@ export class RescueGroupsDogProvider implements DogProvider {
             .map((a) => a.trim())
             .filter(Boolean);
       if (ages.length > 0) {
-        filters.push({
-          fieldName: 'animals.ageGroup',
-          operation: 'in',
-          criteria: ages,
+        // RescueGroups API doesn't support 'in' operation
+        // Create separate 'equals' filters for each age value
+        // Most APIs interpret multiple filters on the same field as OR
+        ages.forEach((age) => {
+          filters.push({
+            fieldName: 'animals.ageGroup',
+            operation: 'equals',
+            criteria: age,
+          });
         });
       }
     }
@@ -283,10 +288,15 @@ export class RescueGroupsDogProvider implements DogProvider {
             .map((s) => s.trim())
             .filter(Boolean);
       if (sizes.length > 0) {
-        filters.push({
-          fieldName: 'animals.sizeGroup',
-          operation: 'in',
-          criteria: sizes,
+        // RescueGroups API doesn't support 'in' operation
+        // Create separate 'equals' filters for each size value
+        // Most APIs interpret multiple filters on the same field as OR
+        sizes.forEach((size) => {
+          filters.push({
+            fieldName: 'animals.sizeGroup',
+            operation: 'equals',
+            criteria: size,
+          });
         });
       }
     }
