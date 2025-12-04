@@ -53,12 +53,15 @@ type RescueGroupsAnimal = {
     publishedDate?: string;
     distance?: number;
     adoptionUrl?: string;
+    organizationId?: number | string; // Check if org ID is in attributes
+    orgId?: number | string; // Alternative field name
   };
   relationships?: {
     breedPrimary?: { data?: RescueGroupsRef };
     breedSecondary?: { data?: RescueGroupsRef };
     organization?: { data?: RescueGroupsRef };
     org?: { data?: RescueGroupsRef }; // Alternative relationship name
+    orgs?: { data?: RescueGroupsRef[] }; // Plural form (actual relationship name)
     pictures?: { data?: RescueGroupsRef[] };
     location?: { data?: RescueGroupsRef };
   };
@@ -184,31 +187,51 @@ function mapRescueGroupsAnimalToDog(
       }
       
       // Try to find organization relationship - check multiple possible field names
-      const orgRef = rel.organization?.data || rel.org?.data;
-      if (orgRef?.id && indexes?.orgsById) {
-        const org = indexes.orgsById.get(String(orgRef.id));
-        if (org?.adoptionUrl) {
-          console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id}:`, org.adoptionUrl);
-          return org.adoptionUrl;
-        }
-        console.log(`[RescueGroups] Org ${orgRef.id} has no adoptionUrl, org data:`, org);
-      } else {
-        // Log available relationships for debugging
-        const availableRels = Object.keys(rel || {});
-        console.log(`[RescueGroups] Animal ${animal.id} has no org relationship. Available relationships:`, availableRels);
-        console.log(`[RescueGroups] Full relationships object:`, JSON.stringify(rel, null, 2));
+      // The actual relationship name is "orgs" (plural) and it's an array
+      let orgId: string | undefined;
+      
+      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0) {
+        // orgs.data is an array, take the first one
+        orgId = String(rel.orgs.data[0].id);
+      } else if (rel.organization?.data?.id) {
+        orgId = String(rel.organization.data.id);
+      } else if (rel.org?.data?.id) {
+        orgId = String(rel.org.data.id);
+      } else if (attrs.organizationId) {
+        orgId = String(attrs.organizationId);
+      } else if (attrs.orgId) {
+        orgId = String(attrs.orgId);
       }
       
-      // Fallback: construct RescueGroups.org animal detail URL
-      // Format: https://www.rescuegroups.org/animals/detail/?AnimalID={id}
-      const fallbackUrl = `https://www.rescuegroups.org/animals/detail/?AnimalID=${animal.id}`;
-      console.log(`[RescueGroups] Using fallback URL for animal ${animal.id}:`, fallbackUrl);
-      return fallbackUrl;
+      if (orgId && indexes?.orgsById) {
+        const org = indexes.orgsById.get(orgId);
+        if (org?.adoptionUrl) {
+          console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id} (org ${orgId}):`, org.adoptionUrl);
+          return org.adoptionUrl;
+        }
+        console.log(`[RescueGroups] Org ${orgId} has no adoptionUrl, org data:`, org);
+      } else {
+        console.error(`[RescueGroups] ERROR: No org ID found for animal ${animal.id}. Available relationships:`, Object.keys(rel || {}));
+      }
+      
+      // No valid URL found - return empty string (will need to be handled by frontend)
+      console.error(`[RescueGroups] ERROR: No adoption URL found for animal ${animal.id}`);
+      return '';
     })(),
     shelter: (() => {
       let name = 'Unknown Shelter';
-      if (rel.organization?.data?.id && indexes?.orgsById) {
-        const org = indexes.orgsById.get(String(rel.organization.data.id));
+      // Use orgs relationship (plural, array)
+      let orgId: string | undefined;
+      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0) {
+        orgId = String(rel.orgs.data[0].id);
+      } else if (rel.organization?.data?.id) {
+        orgId = String(rel.organization.data.id);
+      } else if (rel.org?.data?.id) {
+        orgId = String(rel.org.data.id);
+      }
+      
+      if (orgId && indexes?.orgsById) {
+        const org = indexes.orgsById.get(orgId);
         if (org) {
           name = org.name || name;
         }
