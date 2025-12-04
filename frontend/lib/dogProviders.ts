@@ -160,7 +160,19 @@ function mapRescueGroupsAnimalToDog(
   }
   
   if (locationId && indexes?.locationsById) {
-    const loc = indexes.locationsById.get(locationId);
+    // Try multiple ID formats for lookup
+    let loc = indexes.locationsById.get(locationId);
+    if (!loc) {
+      // Try with "100000" prefix if it doesn't have it
+      if (!locationId.startsWith('100000')) {
+        loc = indexes.locationsById.get(`100000${locationId}`);
+      } else {
+        // Try without "100000" prefix
+        const shortId = locationId.replace(/^100000/, '');
+        loc = indexes.locationsById.get(shortId);
+      }
+    }
+    
     if (loc) {
       city = loc.city || city;
       state = loc.state || state;
@@ -169,7 +181,9 @@ function mapRescueGroupsAnimalToDog(
         console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} missing city/state. Location data:`, loc);
       }
     } else {
-      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} not found in locationsById map`);
+      // More detailed error logging
+      const availableIds = Array.from(indexes.locationsById.keys());
+      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} not found in locationsById map. Available location IDs:`, availableIds.slice(0, 10));
     }
   } else {
     console.warn(`[RescueGroups] Animal ${animal.id} has no locationId or locationsById index. Available relationships:`, Object.keys(rel || {}));
