@@ -108,11 +108,22 @@ function mapRescueGroupsAnimalToDog(
     rel.pictures.data.forEach((ref) => {
       if (!ref?.id) return;
       const pic = indexes.picturesById!.get(String(ref.id));
-      if (!pic) return;
-      if (pic.large?.url) photos.push(pic.large.url);
-      else if (pic.original?.url) photos.push(pic.original.url);
-      else if (pic.small?.url) photos.push(pic.small.url);
+      if (!pic) {
+        console.warn(`[RescueGroups] Picture ${ref.id} not found in included array`);
+        return;
+      }
+      // RescueGroups schema: pictures have large, original, small as direct attributes
+      if (pic.large) photos.push(pic.large);
+      else if (pic.original) photos.push(pic.original);
+      else if (pic.small) photos.push(pic.small);
+      else {
+        console.warn(`[RescueGroups] Picture ${ref.id} has no valid URL:`, pic);
+      }
     });
+  } else if (Array.isArray(rel.pictures?.data) && rel.pictures.data.length > 0) {
+    console.warn(
+      `[RescueGroups] Animal ${animal.id} has picture relationships but no picturesById index`,
+    );
   }
 
   let city = 'Unknown';
@@ -262,6 +273,28 @@ export class RescueGroupsDogProvider implements DogProvider {
         else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
       }
     }
+
+    // Debug logging to diagnose photo mapping issues
+    console.log('[RescueGroups] Response summary:', {
+      animalsCount: animals.length,
+      includedCount: Array.isArray(json.included) ? json.included.length : 0,
+      picturesIncluded: Array.isArray(json.included)
+        ? json.included.filter((i) => i.type === 'pictures').length
+        : 0,
+      picturesByIdSize: picturesById.size,
+      sampleAnimal: animals[0]
+        ? {
+            id: animals[0].id,
+            hasPicturesRel: !!animals[0].relationships?.pictures?.data,
+            picturesRelCount: Array.isArray(animals[0].relationships?.pictures?.data)
+              ? animals[0].relationships.pictures.data.length
+              : 0,
+            picturesRelIds: Array.isArray(animals[0].relationships?.pictures?.data)
+              ? animals[0].relationships.pictures.data.map((p: any) => p.id)
+              : [],
+          }
+        : null,
+    });
 
     const mapped = animals.map((animal) =>
       mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById })
