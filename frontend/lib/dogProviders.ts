@@ -113,9 +113,18 @@ function mapRescueGroupsAnimalToDog(
         return;
       }
       // RescueGroups schema: pictures have large, original, small as direct attributes
-      if (pic.large) photos.push(pic.large);
-      else if (pic.original) photos.push(pic.original);
-      else if (pic.small) photos.push(pic.small);
+      // Strip query params (like ?width=500) to avoid conflicts with Vercel image optimization
+      const stripQueryParams = (url: string) => {
+        try {
+          const parsed = new URL(url);
+          return parsed.origin + parsed.pathname;
+        } catch {
+          return url.split('?')[0];
+        }
+      };
+      if (pic.large) photos.push(stripQueryParams(pic.large));
+      else if (pic.original) photos.push(stripQueryParams(pic.original));
+      else if (pic.small) photos.push(stripQueryParams(pic.small));
       else {
         console.warn(`[RescueGroups] Picture ${ref.id} has no valid URL:`, pic);
       }
