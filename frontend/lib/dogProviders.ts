@@ -381,10 +381,20 @@ export class RescueGroupsDogProvider implements DogProvider {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
-        else if (inc.type === 'locations') locationsById.set(id, inc.attributes);
-        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'locations') {
+          locationsById.set(id, inc.attributes);
+          // Also index by the numeric ID without leading zeros if it's a long ID
+          // Some location IDs are like "1000003433" but might be stored as "3433" in relationships
+          const numericId = id.replace(/^100000/, ''); // Remove "100000" prefix if present
+          if (numericId !== id) {
+            locationsById.set(numericId, inc.attributes);
+          }
+        } else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
       }
     }
+    
+    // Debug: log location indexing
+    console.log(`[RescueGroups] Indexed ${locationsById.size} locations. Sample location IDs:`, Array.from(locationsById.keys()).slice(0, 5));
 
     // Debug logging to diagnose photo mapping issues
     const sampleAnimal = animals[0];
@@ -487,10 +497,20 @@ export class RescueGroupsDogProvider implements DogProvider {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
-        else if (inc.type === 'locations') locationsById.set(id, inc.attributes);
-        else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'locations') {
+          locationsById.set(id, inc.attributes);
+          // Also index by the numeric ID without leading zeros if it's a long ID
+          // Some location IDs are like "1000003433" but might be stored as "3433" in relationships
+          const numericId = id.replace(/^100000/, ''); // Remove "100000" prefix if present
+          if (numericId !== id) {
+            locationsById.set(numericId, inc.attributes);
+          }
+        } else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
       }
     }
+    
+    // Debug: log location indexing
+    console.log(`[RescueGroups] Indexed ${locationsById.size} locations. Sample location IDs:`, Array.from(locationsById.keys()).slice(0, 5));
 
     return mapRescueGroupsAnimalToDog(animal, { picturesById, locationsById, orgsById });
   }
