@@ -176,17 +176,28 @@ function mapRescueGroupsAnimalToDog(
     tags: [],
     url: (() => {
       // Try animal's direct adoption URL first
-      if (attrs.adoptionUrl) return attrs.adoptionUrl;
+      if (attrs.adoptionUrl) {
+        console.log(`[RescueGroups] Using animal adoptionUrl for ${animal.id}:`, attrs.adoptionUrl);
+        return attrs.adoptionUrl;
+      }
       
       // Then try organization's adoption URL
       if (rel.organization?.data?.id && indexes?.orgsById) {
         const org = indexes.orgsById.get(String(rel.organization.data.id));
-        if (org?.adoptionUrl) return org.adoptionUrl;
+        if (org?.adoptionUrl) {
+          console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id}:`, org.adoptionUrl);
+          return org.adoptionUrl;
+        }
+        console.log(`[RescueGroups] Org ${rel.organization.data.id} has no adoptionUrl, org data:`, org);
+      } else {
+        console.log(`[RescueGroups] Animal ${animal.id} has no org relationship or orgsById index`);
       }
       
       // Fallback: construct RescueGroups.org animal detail URL
       // Format: https://www.rescuegroups.org/animals/detail/?AnimalID={id}
-      return `https://www.rescuegroups.org/animals/detail/?AnimalID=${animal.id}`;
+      const fallbackUrl = `https://www.rescuegroups.org/animals/detail/?AnimalID=${animal.id}`;
+      console.log(`[RescueGroups] Using fallback URL for animal ${animal.id}:`, fallbackUrl);
+      return fallbackUrl;
     })(),
     shelter: (() => {
       let name = 'Unknown Shelter';
@@ -270,6 +281,9 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
+    // Explicitly request adoptionUrl fields for animals and organizations
+    url.searchParams.set('fields[animals]', 'adoptionUrl');
+    url.searchParams.set('fields[orgs]', 'adoptionUrl');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
@@ -362,6 +376,9 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
+    // Explicitly request adoptionUrl fields for animals and organizations
+    url.searchParams.set('fields[animals]', 'adoptionUrl');
+    url.searchParams.set('fields[orgs]', 'adoptionUrl');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
