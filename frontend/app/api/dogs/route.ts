@@ -2,34 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { inferDogTraitsBatch } from '@/lib/inference/trait-inference';
 import { storeInferredTraits, getInferredTraits } from '@/lib/inference/trait-storage';
 import { Dog as SchemaDog } from '@/lib/schemas';
-
-// Simple in-memory Petfinder token cache (scoped to the serverless instance)
-let pfToken: { accessToken: string; expiresAt: number } | null = null;
-
-async function getPetfinderAccessToken(requestId: string): Promise<string> {
-  const now = Date.now();
-  if (pfToken && pfToken.expiresAt - 60_000 > now) {
-    return pfToken.accessToken;
-  }
-  const clientId = process.env.PETFINDER_CLIENT_ID;
-  const clientSecret = process.env.PETFINDER_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error('Petfinder credentials missing');
-  }
-  const resp = await fetch('https://api.petfinder.com/v2/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret })
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => '');
-    throw new Error(`Failed to get Petfinder token: ${resp.status} ${resp.statusText} ${txt.substring(0,120)}`);
-  }
-  const data = await resp.json();
-  const expiresInMs = (data.expires_in || 3600) * 1000;
-  pfToken = { accessToken: data.access_token, expiresAt: now + expiresInMs };
-  return pfToken.accessToken;
-}
+import { getActiveDogProvider, type SearchDogsParams } from '@/lib/dogProviders';
+import type { Dog as ProviderDog } from '@/lib/api';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -52,69 +26,25 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
     
-    // Build Petfinder query
-    const normalized = new URLSearchParams();
+    // Normalize query for provider
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 20);
     const page = parseInt(searchParams.get('page') || '1', 10) || 1;
-    normalized.set('limit', String(limit));
-    normalized.set('page', String(page));
-    ['zip','radius','age','size','breed','sort'].forEach((k) => {
-      const v = searchParams.get(k);
-      if (v) normalized.set(k, v);
-    });
+    const providerParams: SearchDogsParams = {
+      zip: searchParams.get('zip') || undefined,
+      radius: searchParams.get('radius') ? parseInt(searchParams.get('radius') as string, 10) : undefined,
+      age: searchParams.get('age') || undefined,
+      size: searchParams.get('size') || undefined,
+      includeBreeds: searchParams.get('breed') || undefined,
+      sort: (searchParams.get('sort') as any) || 'freshness',
+      page,
+      limit,
+    };
 
-    const pfParams = new URLSearchParams();
-    pfParams.set('type', 'dog');
-    const zip = normalized.get('zip');
-    const radius = normalized.get('radius');
-    if (zip) pfParams.set('location', zip);
-    if (zip && radius) {
-      pfParams.set('distance', radius);
-    } else if (radius) {
-      console.warn(`[${requestId}] ⚠️ Skipping Petfinder distance param because no location was provided`);
-    }
-    if (normalized.get('age')) pfParams.set('age', normalized.get('age') as string);
-    if (normalized.get('size')) pfParams.set('size', normalized.get('size') as string);
-    if (normalized.get('breed')) pfParams.set('breed', normalized.get('breed') as string);
-    pfParams.set('sort', normalized.get('sort') === 'distance' ? 'distance' : 'recent');
-    pfParams.set('limit', String(limit));
-    pfParams.set('page', String(page));
+    const provider = getActiveDogProvider();
 
-    const pfUrl = `https://api.petfinder.com/v2/animals?${pfParams.toString()}`;
-    let backendDuration = 0;
-    let animals: any[] = [];
-    let total = 0;
-    let currentPage = page;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      const attemptStart = Date.now();
-      try {
-        const token = await getPetfinderAccessToken(requestId);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), attempt === 1 ? 20000 : 35000);
-        const resp = await fetch(pfUrl, {
-          headers: { 'Authorization': `Bearer ${token}` },
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        backendDuration = Date.now() - attemptStart;
-        if (resp.status === 401 && attempt === 1) { pfToken = null; continue; }
-        if (!resp.ok) {
-          const txt = await resp.text().catch(() => '');
-          throw new Error(`Petfinder error: ${resp.status} ${resp.statusText} ${txt.substring(0,120)}`);
-        }
-        const data = await resp.json();
-        animals = Array.isArray(data.animals) ? data.animals : [];
-        total = data.pagination?.total_count || animals.length;
-        currentPage = data.pagination?.current_page || currentPage;
-        break;
-      } catch (e) {
-        backendDuration = Date.now() - attemptStart;
-        console.warn(`[${requestId}] ⚠️ Petfinder attempt ${attempt} failed after ${backendDuration}ms:`, (e as Error)?.message);
-        if (attempt === 2) throw e;
-        await new Promise((r) => setTimeout(r, 1500));
-      }
-    }
+    const attemptStart = Date.now();
+    const { items: dogs, page: currentPage, pageSize, total } = await provider.searchDogs(providerParams);
+    const backendDuration = Date.now() - attemptStart;
 
     const totalDuration = Date.now() - startTime;
     const responseHeaders = new Headers();
@@ -126,44 +56,41 @@ export async function GET(request: NextRequest) {
     // Simple 60s in-memory cache per normalized query
     try {
       (globalThis as any).__DOGS_CACHE__ = (globalThis as any).__DOGS_CACHE__ || new Map<string, { data: any; exp: number }>();
-      const cacheKey = `q:${pfParams.toString()}`;
+      const cacheKey = `q:${JSON.stringify(providerParams)}`;
       const cache = (globalThis as any).__DOGS_CACHE__ as Map<string, { data: any; exp: number }>;
       const now = Date.now();
       // Write-through cache
-      const payload = { items: animals, page: currentPage, pageSize: animals.length, total };
+      const payload = { items: dogs, page: currentPage, pageSize, total };
       cache.set(cacheKey, { data: payload, exp: now + 60_000 });
       responseHeaders.set('X-Cache', 'MISS');
       
       // V2: Trigger batch inference asynchronously (don't block response)
-      if (animals.length > 0) {
+      if (dogs.length > 0) {
         // Fire and forget - run in background using Promise (works in both Node and Edge)
         Promise.resolve().then(async () => {
           try {
-            // Transform animals to SchemaDog format for inference
-            const dogsForInference: SchemaDog[] = animals.map((animal: any) => ({
-              id: String(animal.id || ''),
-              name: animal.name || 'Unknown',
-              breeds: animal.breeds ? [
-                animal.breeds.primary,
-                animal.breeds.secondary
-              ].filter(Boolean) : ['Mixed Breed'],
-              age: animal.age || 'Unknown',
-              size: animal.size || 'Unknown',
+            // Transform provider Dogs to SchemaDog format for inference
+            const dogsForInference: SchemaDog[] = (dogs as ProviderDog[]).map((dog) => ({
+              id: String(dog.id || ''),
+              name: dog.name || 'Unknown',
+              breeds: dog.breeds && dog.breeds.length > 0 ? dog.breeds : ['Mixed Breed'],
+              age: dog.age || 'Unknown',
+              size: dog.size || 'Unknown',
               energy: 'medium', // Default, will be inferred
               temperament: [],
               location: {
-                zip: `${animal.contact?.address?.city || 'Unknown'}, ${animal.contact?.address?.state || 'Unknown'}`,
-                distanceMi: animal.distance || 0
+                zip: `${dog.location?.city || 'Unknown'}, ${dog.location?.state || 'Unknown'}`,
+                distanceMi: dog.location?.distanceMi || 0
               },
-              gender: animal.gender || 'Unknown',
-              tags: animal.tags || [],
-              url: animal.url || '#',
+              gender: dog.gender || 'Unknown',
+              tags: dog.tags || [],
+              url: dog.url || '#',
               shelter: {
-                name: animal.organization?.name || 'Unknown Shelter',
-                email: animal.contact?.email || '',
-                phone: animal.contact?.phone || ''
+                name: dog.shelter?.name || 'Unknown Shelter',
+                email: dog.shelter?.email || '',
+                phone: dog.shelter?.phone || ''
               },
-              rawDescription: animal.description || undefined
+              rawDescription: dog.description || undefined
             }));
             
             // Filter dogs that need inference (have description, don't have cached traits)
@@ -202,7 +129,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(payload, { headers: responseHeaders });
     } catch {
       // If cache fails, still return the payload
-      const payload = { items: animals, page: currentPage, pageSize: animals.length, total };
+      const payload = { items: dogs, page: currentPage, pageSize, total };
       return NextResponse.json(payload, { headers: responseHeaders });
     }
   } catch (error) {

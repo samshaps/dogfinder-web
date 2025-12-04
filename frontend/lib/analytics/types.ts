@@ -47,7 +47,7 @@ export type ResultsEvent =
   | 'results_dog_clicked'
   | 'results_alert_toggled'
   | 'results_upgrade_clicked'
-  | 'results_petfinder_link_clicked'
+  | 'results_listing_link_clicked'
   | 'results_dog_link_copied';
 
 // Alert & Email events

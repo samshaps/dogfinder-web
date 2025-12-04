@@ -1,13 +1,12 @@
 // API utility functions for communicating with the FastAPI backend
 
-import { sanitizeDescription } from './utils/description-sanitizer';
-import { normalizeDogGender } from './utils/pronouns';
+// API utility functions for communicating with the Next.js backend
 
 // Prefer env base; in dev default to FastAPI backend directly
 const DEV_DEFAULT_BASE = 'http://127.0.0.1:8000';
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV !== 'production' ? DEV_DEFAULT_BASE : '');
 
-// Type definitions for our data (matching the FastAPI response)
+// Type definitions for our data (matching the backend /api/dogs response)
 export interface Dog {
   id: string;
   name: string;
@@ -54,29 +53,6 @@ export interface SearchParams {
   limit?: number;
 }
 
-// Narrowed type for raw API payload (Petfinder → backend passthrough)
-type RawDog = {
-  id: string;
-  name?: string;
-  breeds?: { primary?: string; secondary?: string };
-  age?: string;
-  size?: string;
-  gender?: string;
-  photos?: Array<{ large?: string; medium?: string; small?: string }>;
-  published_at?: string;
-  contact?: {
-    address?: { city?: string; state?: string };
-    email?: string;
-    phone?: string;
-  };
-  distance?: number;
-  url?: string;
-  organization?: { name?: string };
-  tags?: string[];
-  attributes?: Record<string, unknown>;
-  description?: string;
-};
-
 // Convert search parameters to URL query string
 function buildQueryString(params: SearchParams): string {
   const searchParams = new URLSearchParams();
@@ -107,60 +83,6 @@ function buildQueryString(params: SearchParams): string {
   
   const queryString = searchParams.toString();
   return queryString ? `?${queryString}` : '';
-}
-
-// Transform raw Petfinder data to our Dog interface
-function transformDogData(raw: RawDog): Dog {
-  const breeds: string[] = [];
-  if (raw.breeds?.primary) breeds.push(raw.breeds.primary);
-  if (raw.breeds?.secondary) breeds.push(raw.breeds.secondary);
-  
-  const photos: string[] = [];
-  if (raw.photos && raw.photos.length > 0) {
-    raw.photos.forEach((photo) => {
-      if (photo.large) photos.push(photo.large);
-      else if (photo.medium) photos.push(photo.medium);
-      else if (photo.small) photos.push(photo.small);
-    });
-  }
-  
-  const tags: string[] = [];
-  if (raw.tags) tags.push(...raw.tags);
-  if (raw.attributes) {
-    Object.entries(raw.attributes).forEach(([key, value]) => {
-      if (value === true) tags.push(key.replace(/_/g, ' '));
-    });
-  }
-  
-  // Sanitize description if present
-  const sanitizedDescription = sanitizeDescription(raw.description);
-  
-  return {
-    id: raw.id,
-    name: raw.name || 'Unknown',
-    breeds: breeds.length > 0 ? breeds : ['Mixed Breed'],
-    age: raw.age || 'Unknown',
-    size: raw.size || 'Unknown',
-    gender: (() => {
-      const normalized = normalizeDogGender(raw.gender);
-      return normalized === 'male' ? 'Male' : normalized === 'female' ? 'Female' : 'Unknown';
-    })(),
-    photos: photos,
-    publishedAt: raw.published_at || new Date().toISOString(),
-    location: {
-      city: raw.contact?.address?.city || 'Unknown',
-      state: raw.contact?.address?.state || 'Unknown',
-      distanceMi: raw.distance || 0
-    },
-    tags: tags,
-    url: raw.url || '#',
-    shelter: {
-      name: raw.organization?.name || 'Unknown Shelter',
-      email: raw.contact?.email || '',
-      phone: raw.contact?.phone || ''
-    },
-    description: sanitizedDescription || undefined
-  };
 }
 
 // Fetch dogs with search parameters
@@ -257,8 +179,9 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
       throw new Error(`API error: ${resp?.status} ${resp?.statusText}`);
     }
     const data = await resp.json();
+    // Backend already returns normalized Dog objects
     return {
-      items: data.items.map(transformDogData),
+      items: data.items as Dog[],
       page: data.page,
       pageSize: data.pageSize,
       total: data.total,

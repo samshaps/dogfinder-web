@@ -152,3 +152,6 @@ curl -X POST "https://dogyenta.com/api/trigger-cron" \
 
 That's it! No local setup needed, just your `ADMIN_SECRET` from Vercel! 🚀
 
+
+
+

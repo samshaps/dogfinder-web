@@ -12,3 +12,6 @@ ON dog_cache(petfinder_id);
 -- Add comment to column for documentation
 COMMENT ON COLUMN dog_cache.traits_inferred IS 'AI-inferred traits from PetFinder descriptions. Format: [{trait: string, value: any, probability: number, source: string, updated_at: timestamp}]';
 
+
+
+

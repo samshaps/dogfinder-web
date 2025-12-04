@@ -156,3 +156,6 @@ The `generateTop3Reasoning()` function runs on the server, so its `console.log` 
 2. Verify AI recommendations still generate
 3. Check that fallback logic works (breed characteristics)
 
+
+
+

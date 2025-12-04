@@ -102,8 +102,19 @@ EMAIL_TOKEN_SECRET=your-email-token-secret-here
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # ============================================
-# Petfinder (existing v1 integration)
+# Dog provider configuration
 # ============================================
+# Active dog provider: currently only 'rescuegroups' is supported in production.
+# Petfinder integration is deprecated but the code path is kept for potential future use.
+DOG_PROVIDER=rescuegroups
+
+# RescueGroups.org API (primary data source for adoptable dogs)
+# Docs: https://userguide.rescuegroups.org/display/APIDG/API+Developers+Guide
+RESCUEGROUPS_API_KEY=your-rescuegroups-api-key
+# Optional override, defaults to https://api.rescuegroups.org/v5
+RESCUEGROUPS_BASE_URL=https://api.rescuegroups.org/v5
+
+# Deprecated: Petfinder (legacy v1 integration - kept for possible future reactivation)
 PETFINDER_API_KEY=
 PETFINDER_SECRET=
 

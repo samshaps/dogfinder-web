@@ -103,3 +103,6 @@ Enhance `lib/explanation.ts` to log full prompts when debug mode is enabled.
 ### 3. Add Description Usage Tracking
 Track whether descriptions were actually included in the prompt sent to AI.
 
+
+
+

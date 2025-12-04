@@ -128,7 +128,7 @@ export default function HomePageClient() {
                 AI analysis
               </h3>
               <p className="body-text">
-                Our AI reviews each new Petfinder listing: tags, foster descriptions, and photos to understand the dog&apos;s personality and fit.
+                Our AI reviews each new rescue listing: tags, foster descriptions, and photos to understand the dog&apos;s personality and fit.
               </p>
             </div>
 

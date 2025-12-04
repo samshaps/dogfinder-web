@@ -362,7 +362,7 @@ async function handleCronJob(request: NextRequest) {
           console.warn(`⚠️ Failed to import fetchAIReasoningForDogs for ${userEmail}:`, importError instanceof Error ? importError.message : 'Unknown error');
         }
 
-        // Convert dogs to email format (Petfinder raw -> template)
+        // Convert dogs to email format (normalized Dog -> template)
         const emailMatches = dogsToSend.map((dog: any) => {
           const dogIdStr = String(dog.id);
           const aiReason = aiReasons[dogIdStr] || '';
@@ -370,21 +370,12 @@ async function handleCronJob(request: NextRequest) {
             console.log(`⚠️ No AI reasoning for dog ${dogIdStr} (${dog.name || 'unknown'}) - will be omitted from email`);
           }
 
-          // Breeds
-          const breeds: string[] = [];
-          if (dog.breeds?.primary) breeds.push(dog.breeds.primary);
-          if (dog.breeds?.secondary) breeds.push(dog.breeds.secondary);
-          if (breeds.length === 0) breeds.push('Mixed Breed');
+          // Breeds and photos from normalized Dog
+          const breeds: string[] = Array.isArray(dog.breeds) && dog.breeds.length > 0
+            ? dog.breeds
+            : ['Mixed Breed'];
 
-          // Photos -> array of URLs
-          const photos: string[] = Array.isArray(dog.photos)
-            ? dog.photos.reduce((acc: string[], p: any) => {
-                if (p?.large) acc.push(p.large);
-                else if (p?.medium) acc.push(p.medium);
-                else if (p?.small) acc.push(p.small);
-                return acc;
-              }, [])
-            : [];
+          const photos: string[] = Array.isArray(dog.photos) ? dog.photos : [];
 
           return {
             id: dogIdStr,
@@ -395,20 +386,20 @@ async function handleCronJob(request: NextRequest) {
             energy: 'medium',
             temperament: Array.isArray(dog.tags) ? dog.tags : [],
             location: {
-              city: dog.contact?.address?.city || 'Unknown',
-              state: dog.contact?.address?.state || 'Unknown',
-              distanceMi: dog.distance,
+              city: dog.location?.city || 'Unknown',
+              state: dog.location?.state || 'Unknown',
+              distanceMi: dog.location?.distanceMi,
             },
             photos,
             matchScore: Math.floor(Math.random() * 30) + 70,
             reasons: { primary150: aiReason, blurb50: '' },
             shelter: {
-              name: dog.organization?.name || 'Local Shelter',
-              email: dog.contact?.email || undefined,
-              phone: dog.contact?.phone || undefined,
+              name: dog.shelter?.name || 'Local Shelter',
+              email: dog.shelter?.email || undefined,
+              phone: dog.shelter?.phone || undefined,
             },
             url: dog.url || '#',
-            publishedAt: dog.published_at,
+            publishedAt: dog.publishedAt,
           };
         });
 

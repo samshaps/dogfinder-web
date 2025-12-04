@@ -47,7 +47,7 @@ export const PLANS = {
     features: [
       'Basic dog search',
       'Up to 10 results per search',
-      'Basic preferences saving'
+      'AI-powered matching'
     ],
     limits: {
       searchesPerDay: 10,

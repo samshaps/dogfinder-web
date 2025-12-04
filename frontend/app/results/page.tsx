@@ -132,13 +132,13 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary-sm whitespace-nowrap"
-            onClick={() => trackEvent('results_petfinder_link_clicked', {
+            onClick={() => trackEvent('results_listing_link_clicked', {
               dog_id: dog.id,
               dog_name: dog.name,
               source: 'top_pick'
             })}
           >
-            View on Petfinder
+            View full listing
           </a>
           <CopyLinkButton
             text={dog.url}
@@ -218,13 +218,13 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 btn-primary text-sm"
-            onClick={() => trackEvent('results_petfinder_link_clicked', {
+            onClick={() => trackEvent('results_listing_link_clicked', {
               dog_id: dog.id,
               dog_name: dog.name,
               source: 'all_matches'
             })}
           >
-            View on Petfinder
+            View full listing
           </a>
           <CopyLinkButton
             text={dog.url}

@@ -168,3 +168,6 @@ Once you've verified the cron job works:
 
 **Note**: The easiest way is definitely using Vercel's dashboard if it has a "Trigger Now" button. If not, use the `/api/trigger-cron` endpoint or Vercel CLI.
 
+
+
+

@@ -55,3 +55,6 @@ After deployment, check:
 - Manual POST requests still require CRON_SECRET for security
 - Both methods now work correctly
 
+
+
+
