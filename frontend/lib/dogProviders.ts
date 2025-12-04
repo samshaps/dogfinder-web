@@ -259,7 +259,114 @@ export class RescueGroupsDogProvider implements DogProvider {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = Math.min(params.limit || 20, 50);
 
+    // Parse age and size parameters
+    const ages = params.age
+      ? (Array.isArray(params.age)
+          ? params.age.filter((a) => !!a)
+          : String(params.age)
+              .split(',')
+              .map((a) => a.trim())
+              .filter(Boolean))
+      : [];
+    
+    const sizes = params.size
+      ? (Array.isArray(params.size)
+          ? params.size.filter((s) => !!s)
+          : String(params.size)
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean))
+      : [];
+
+    // If we have multiple values for age or size, make separate API calls
+    // and merge results, since RescueGroups API doesn't support OR operations natively
+    const hasMultipleAges = ages.length > 1;
+    const hasMultipleSizes = sizes.length > 1;
+
+    if (hasMultipleAges || hasMultipleSizes) {
+      const allResults: Dog[] = [];
+      const seenIds = new Set<string>();
+
+      let calls: Promise<DogsPage>[] = [];
+
+      if (hasMultipleAges && hasMultipleSizes) {
+        // Both have multiple values - iterate over ages, then sizes for each age
+        // This creates age.length calls, each with a single size value
+        for (const age of ages) {
+          for (const size of sizes) {
+            calls.push(this.makeSingleSearchCall({
+              ...params,
+              age: [age],
+              size: [size],
+            }, apiKey, baseUrl, 1, limit * 2));
+          }
+        }
+      } else if (hasMultipleAges) {
+        // Only age has multiple values - one call per age, keep size constant
+        calls = ages.map((age) => 
+          this.makeSingleSearchCall({
+            ...params,
+            age: [age],
+            // size stays as-is (single value or undefined)
+          }, apiKey, baseUrl, 1, limit * 2)
+        );
+      } else {
+        // Only size has multiple values - one call per size, keep age constant
+        calls = sizes.map((size) => 
+          this.makeSingleSearchCall({
+            ...params,
+            size: [size],
+            // age stays as-is (single value or undefined)
+          }, apiKey, baseUrl, 1, limit * 2)
+        );
+      }
+
+      const results = await Promise.allSettled(calls);
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          for (const dog of result.value.items) {
+            // Deduplicate by ID to handle any overlap between calls
+            if (!seenIds.has(dog.id)) {
+              seenIds.add(dog.id);
+              allResults.push(dog);
+            }
+          }
+        }
+      }
+
+      // Sort by published date (most recent first)
+      allResults.sort((a, b) => {
+        const dateA = new Date(a.publishedAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      // Apply pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedResults = allResults.slice(startIndex, endIndex);
+
+      return {
+        items: paginatedResults,
+        page,
+        pageSize: paginatedResults.length,
+        total: allResults.length,
+      };
+    }
+
+    // Single API call path (no multiple values)
+    return this.makeSingleSearchCall(params, apiKey, baseUrl, page, limit);
+  }
+
+  private async makeSingleSearchCall(
+    params: SearchDogsParams,
+    apiKey: string,
+    baseUrl: string,
+    page: number,
+    limit: number
+  ): Promise<DogsPage> {
     const filters: any[] = [];
+    
     if (params.age) {
       const ages = Array.isArray(params.age)
         ? params.age.filter((a) => !!a)
@@ -268,18 +375,14 @@ export class RescueGroupsDogProvider implements DogProvider {
             .map((a) => a.trim())
             .filter(Boolean);
       if (ages.length > 0) {
-        // RescueGroups API doesn't support 'in' operation
-        // Create separate 'equals' filters for each age value
-        // Most APIs interpret multiple filters on the same field as OR
-        ages.forEach((age) => {
-          filters.push({
-            fieldName: 'animals.ageGroup',
-            operation: 'equals',
-            criteria: age,
-          });
+        filters.push({
+          fieldName: 'animals.ageGroup',
+          operation: 'equals',
+          criteria: ages[0], // Single value only in this path
         });
       }
     }
+    
     if (params.size) {
       const sizes = Array.isArray(params.size)
         ? params.size.filter((s) => !!s)
@@ -288,15 +391,10 @@ export class RescueGroupsDogProvider implements DogProvider {
             .map((s) => s.trim())
             .filter(Boolean);
       if (sizes.length > 0) {
-        // RescueGroups API doesn't support 'in' operation
-        // Create separate 'equals' filters for each size value
-        // Most APIs interpret multiple filters on the same field as OR
-        sizes.forEach((size) => {
-          filters.push({
-            fieldName: 'animals.sizeGroup',
-            operation: 'equals',
-            criteria: size,
-          });
+        filters.push({
+          fieldName: 'animals.sizeGroup',
+          operation: 'equals',
+          criteria: sizes[0], // Single value only in this path
         });
       }
     }
