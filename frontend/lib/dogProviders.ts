@@ -154,9 +154,12 @@ function mapRescueGroupsAnimalToDog(
   // Use locations relationship (plural, array) - same pattern as orgs
   let locationId: string | undefined;
   if (rel.locations?.data && Array.isArray(rel.locations.data) && rel.locations.data.length > 0 && rel.locations.data[0]?.id) {
-    locationId = String(rel.locations.data[0].id);
+    // Ensure it's a string and handle both string and number IDs
+    const rawId = rel.locations.data[0].id;
+    locationId = typeof rawId === 'number' ? String(rawId) : String(rawId);
   } else if (rel.location?.data?.id) {
-    locationId = String(rel.location.data.id);
+    const rawId = rel.location.data.id;
+    locationId = typeof rawId === 'number' ? String(rawId) : String(rawId);
   }
   
   if (locationId && indexes?.locationsById) {
