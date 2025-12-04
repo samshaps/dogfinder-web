@@ -325,7 +325,11 @@ export class RescueGroupsDogProvider implements DogProvider {
       picturesIncluded: Array.isArray(json.included)
         ? json.included.filter((i) => i.type === 'pictures').length
         : 0,
+      orgsIncluded: Array.isArray(json.included)
+        ? json.included.filter((i) => i.type === 'orgs').length
+        : 0,
       picturesByIdSize: picturesById.size,
+      orgsByIdSize: orgsById.size,
       sampleAnimal: animals[0]
         ? {
             id: animals[0].id,
@@ -333,9 +337,9 @@ export class RescueGroupsDogProvider implements DogProvider {
             picturesRelCount: Array.isArray(animals[0].relationships?.pictures?.data)
               ? animals[0].relationships.pictures.data.length
               : 0,
-            picturesRelIds: Array.isArray(animals[0].relationships?.pictures?.data)
-              ? animals[0].relationships.pictures.data.map((p: any) => p.id)
-              : [],
+            hasOrgRel: !!animals[0].relationships?.organization?.data,
+            orgRelId: animals[0].relationships?.organization?.data?.id,
+            orgRelType: animals[0].relationships?.organization?.data?.type,
           }
         : null,
     });
