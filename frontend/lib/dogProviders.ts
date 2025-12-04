@@ -164,7 +164,15 @@ function mapRescueGroupsAnimalToDog(
     if (loc) {
       city = loc.city || city;
       state = loc.state || state;
+      // Debug logging if location data is missing
+      if (city === 'Unknown' || state === 'Unknown') {
+        console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} missing city/state. Location data:`, loc);
+      }
+    } else {
+      console.warn(`[RescueGroups] Animal ${animal.id} location ${locationId} not found in locationsById map`);
     }
+  } else {
+    console.warn(`[RescueGroups] Animal ${animal.id} has no locationId or locationsById index. Available relationships:`, Object.keys(rel || {}));
   }
 
   const sanitizedDescription = sanitizeDescription(attrs.descriptionText);
