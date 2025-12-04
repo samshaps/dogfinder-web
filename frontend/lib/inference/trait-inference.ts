@@ -51,7 +51,11 @@ export async function inferDogTraitsBatch(
         
         // Resolve API URL for server-side calls
         const apiUrl = typeof window === 'undefined' 
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/infer-traits`
+          ? (() => {
+              const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+              const normalized = String(base).startsWith('http') ? String(base) : `https://${base}`;
+              return `${normalized}/api/infer-traits`;
+            })()
           : '/api/infer-traits';
         
         const response = await fetch(apiUrl, {
