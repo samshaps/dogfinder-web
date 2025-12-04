@@ -190,7 +190,7 @@ function mapRescueGroupsAnimalToDog(
       // The actual relationship name is "orgs" (plural) and it's an array
       let orgId: string | undefined;
       
-      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0) {
+      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0 && rel.orgs.data[0]?.id) {
         // orgs.data is an array, take the first one
         orgId = String(rel.orgs.data[0].id);
       } else if (rel.organization?.data?.id) {
@@ -222,7 +222,7 @@ function mapRescueGroupsAnimalToDog(
       let name = 'Unknown Shelter';
       // Use orgs relationship (plural, array)
       let orgId: string | undefined;
-      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0) {
+      if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0 && rel.orgs.data[0]?.id) {
         orgId = String(rel.orgs.data[0].id);
       } else if (rel.organization?.data?.id) {
         orgId = String(rel.organization.data.id);
