@@ -141,20 +141,34 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const filters: any[] = [];
     if (params.age) {
-      const ages = Array.isArray(params.age) ? params.age : String(params.age).split(',');
-      filters.push({
-        fieldName: 'animals.ageGroup',
-        operation: 'in',
-        criteria: ages,
-      });
+      const ages = Array.isArray(params.age)
+        ? params.age.filter((a) => !!a)
+        : String(params.age)
+            .split(',')
+            .map((a) => a.trim())
+            .filter(Boolean);
+      if (ages.length > 0) {
+        filters.push({
+          fieldName: 'animals.ageGroup',
+          operation: 'in',
+          criteria: ages,
+        });
+      }
     }
     if (params.size) {
-      const sizes = Array.isArray(params.size) ? params.size : String(params.size).split(',');
-      filters.push({
-        fieldName: 'animals.sizeGroup',
-        operation: 'in',
-        criteria: sizes,
-      });
+      const sizes = Array.isArray(params.size)
+        ? params.size.filter((s) => !!s)
+        : String(params.size)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+      if (sizes.length > 0) {
+        filters.push({
+          fieldName: 'animals.sizeGroup',
+          operation: 'in',
+          criteria: sizes,
+        });
+      }
     }
 
     const body: any = {
