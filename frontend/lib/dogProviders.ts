@@ -205,11 +205,19 @@ function mapRescueGroupsAnimalToDog(
       
       if (orgId && indexes?.orgsById) {
         const org = indexes.orgsById.get(orgId);
-        if (org?.adoptionUrl) {
-          console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id} (org ${orgId}):`, org.adoptionUrl);
-          return org.adoptionUrl;
+        if (org) {
+          // Try adoptionUrl first
+          if (org.adoptionUrl) {
+            console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id} (org ${orgId}):`, org.adoptionUrl);
+            return org.adoptionUrl;
+          }
+          // Fallback to org's general website URL
+          if (org.url) {
+            console.log(`[RescueGroups] Using org website URL for animal ${animal.id} (org ${orgId}):`, org.url);
+            return org.url;
+          }
+          console.log(`[RescueGroups] Org ${orgId} has no adoptionUrl or url, org data:`, org);
         }
-        console.log(`[RescueGroups] Org ${orgId} has no adoptionUrl, org data:`, org);
       } else {
         console.error(`[RescueGroups] ERROR: No org ID found for animal ${animal.id}. Available relationships:`, Object.keys(rel || {}));
       }
