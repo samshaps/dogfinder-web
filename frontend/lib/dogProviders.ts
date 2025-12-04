@@ -281,9 +281,9 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
-    // Explicitly request adoptionUrl fields for animals and organizations
-    url.searchParams.set('fields[animals]', 'adoptionUrl');
-    url.searchParams.set('fields[orgs]', 'adoptionUrl');
+    // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl');
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
@@ -376,9 +376,9 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
-    // Explicitly request adoptionUrl fields for animals and organizations
-    url.searchParams.set('fields[animals]', 'adoptionUrl');
-    url.searchParams.set('fields[orgs]', 'adoptionUrl');
+    // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl');
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
