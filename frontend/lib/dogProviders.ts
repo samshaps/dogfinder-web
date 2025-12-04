@@ -350,6 +350,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     url.searchParams.set('include', 'pictures,locations,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[locations]', 'city,state'); // Request city and state for locations
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
@@ -451,6 +452,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     url.searchParams.set('include', 'pictures,locations,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[locations]', 'city,state'); // Request city and state for locations
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
