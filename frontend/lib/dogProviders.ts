@@ -53,6 +53,7 @@ type RescueGroupsAnimal = {
     publishedDate?: string;
     distance?: number;
     adoptionUrl?: string;
+    url?: string; // Animal's general URL field
     organizationId?: number | string; // Check if org ID is in attributes
     orgId?: number | string; // Alternative field name
   };
@@ -180,10 +181,15 @@ function mapRescueGroupsAnimalToDog(
     tags: [],
     url: (() => {
       // Try animal's direct adoption URL first
-      console.log(`[RescueGroups] Animal ${animal.id} attrs.adoptionUrl:`, attrs.adoptionUrl);
+      console.log(`[RescueGroups] Animal ${animal.id} attrs.adoptionUrl:`, attrs.adoptionUrl, 'attrs.url:', attrs.url);
       if (attrs.adoptionUrl) {
         console.log(`[RescueGroups] Using animal adoptionUrl for ${animal.id}:`, attrs.adoptionUrl);
         return attrs.adoptionUrl;
+      }
+      // Try animal's general URL field
+      if (attrs.url) {
+        console.log(`[RescueGroups] Using animal url for ${animal.id}:`, attrs.url);
+        return attrs.url;
       }
       
       // Try to find organization relationship - check multiple possible field names
@@ -319,8 +325,8 @@ export class RescueGroupsDogProvider implements DogProvider {
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
-    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl');
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl');
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
@@ -420,8 +426,8 @@ export class RescueGroupsDogProvider implements DogProvider {
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,locations,orgs');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
-    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl');
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl');
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
