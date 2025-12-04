@@ -58,6 +58,7 @@ type RescueGroupsAnimal = {
     breedPrimary?: { data?: RescueGroupsRef };
     breedSecondary?: { data?: RescueGroupsRef };
     organization?: { data?: RescueGroupsRef };
+    org?: { data?: RescueGroupsRef }; // Alternative relationship name
     pictures?: { data?: RescueGroupsRef[] };
     location?: { data?: RescueGroupsRef };
   };
@@ -182,15 +183,27 @@ function mapRescueGroupsAnimalToDog(
         return attrs.adoptionUrl;
       }
       
-      // Then try organization's adoption URL
-      if (rel.organization?.data?.id && indexes?.orgsById) {
-        const org = indexes.orgsById.get(String(rel.organization.data.id));
+      // Try to find organization relationship - check multiple possible field names
+      const orgRef = rel.organization?.data || rel.org?.data;
+      if (orgRef?.id && indexes?.orgsById) {
+        const org = indexes.orgsById.get(String(orgRef.id));
         if (org?.adoptionUrl) {
           console.log(`[RescueGroups] Using org adoptionUrl for animal ${animal.id}:`, org.adoptionUrl);
           return org.adoptionUrl;
         }
-        console.log(`[RescueGroups] Org ${rel.organization.data.id} has no adoptionUrl, org data:`, org);
+        console.log(`[RescueGroups] Org ${orgRef.id} has no adoptionUrl, org data:`, org);
       } else {
+        // If no relationship, try to find org by matching all orgs (last resort)
+        // This is inefficient but might work if relationship is missing
+        if (indexes?.orgsById && indexes.orgsById.size > 0) {
+          console.log(`[RescueGroups] Animal ${animal.id} has no org relationship, but ${indexes.orgsById.size} orgs available. Checking all...`);
+          // Try first org as fallback (not ideal, but better than nothing)
+          const firstOrg = Array.from(indexes.orgsById.values())[0];
+          if (firstOrg?.adoptionUrl) {
+            console.log(`[RescueGroups] Using first available org adoptionUrl for animal ${animal.id}:`, firstOrg.adoptionUrl);
+            return firstOrg.adoptionUrl;
+          }
+        }
         console.log(`[RescueGroups] Animal ${animal.id} has no org relationship or orgsById index`);
       }
       
@@ -320,6 +333,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     }
 
     // Debug logging to diagnose photo mapping issues
+    const sampleAnimal = animals[0];
     console.log('[RescueGroups] Response summary:', {
       animalsCount: animals.length,
       includedCount: Array.isArray(json.included) ? json.included.length : 0,
@@ -331,15 +345,17 @@ export class RescueGroupsDogProvider implements DogProvider {
         : 0,
       picturesByIdSize: picturesById.size,
       orgsByIdSize: orgsById.size,
-      sampleAnimal: animals[0]
+      sampleAnimal: sampleAnimal
         ? {
-            id: animals[0].id,
-            hasPicturesRel: !!animals[0].relationships?.pictures?.data,
-            picturesRelCount: Array.isArray(animals[0].relationships?.pictures?.data)
-              ? animals[0].relationships.pictures.data.length
+            id: sampleAnimal.id,
+            hasPicturesRel: !!sampleAnimal.relationships?.pictures?.data,
+            picturesRelCount: Array.isArray(sampleAnimal.relationships?.pictures?.data)
+              ? sampleAnimal.relationships.pictures.data.length
               : 0,
-            hasOrgRel: !!animals[0].relationships?.organization?.data,
-            orgRelId: animals[0].relationships?.organization?.data?.id,
+            hasOrgRel: !!sampleAnimal.relationships?.organization?.data,
+            orgRelId: sampleAnimal.relationships?.organization?.data?.id,
+            allRelationships: Object.keys(sampleAnimal.relationships || {}),
+            relationshipsFull: sampleAnimal.relationships,
           }
         : null,
     });
