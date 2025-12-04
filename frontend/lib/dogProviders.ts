@@ -193,18 +193,10 @@ function mapRescueGroupsAnimalToDog(
         }
         console.log(`[RescueGroups] Org ${orgRef.id} has no adoptionUrl, org data:`, org);
       } else {
-        // If no relationship, try to find org by matching all orgs (last resort)
-        // This is inefficient but might work if relationship is missing
-        if (indexes?.orgsById && indexes.orgsById.size > 0) {
-          console.log(`[RescueGroups] Animal ${animal.id} has no org relationship, but ${indexes.orgsById.size} orgs available. Checking all...`);
-          // Try first org as fallback (not ideal, but better than nothing)
-          const firstOrg = Array.from(indexes.orgsById.values())[0];
-          if (firstOrg?.adoptionUrl) {
-            console.log(`[RescueGroups] Using first available org adoptionUrl for animal ${animal.id}:`, firstOrg.adoptionUrl);
-            return firstOrg.adoptionUrl;
-          }
-        }
-        console.log(`[RescueGroups] Animal ${animal.id} has no org relationship or orgsById index`);
+        // Log available relationships for debugging
+        const availableRels = Object.keys(rel || {});
+        console.log(`[RescueGroups] Animal ${animal.id} has no org relationship. Available relationships:`, availableRels);
+        console.log(`[RescueGroups] Full relationships object:`, JSON.stringify(rel, null, 2));
       }
       
       // Fallback: construct RescueGroups.org animal detail URL
