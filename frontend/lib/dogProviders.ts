@@ -112,7 +112,7 @@ function mapRescueGroupsAnimalToDog(
         console.warn(`[RescueGroups] Picture ${ref.id} not found in included array`);
         return;
       }
-      // RescueGroups schema: pictures have large, original, small as direct attributes
+      // RescueGroups schema: pictures have large, original, small as objects with url property
       // Strip query params (like ?width=500) to avoid conflicts with Vercel image optimization
       const stripQueryParams = (url: string) => {
         try {
@@ -122,9 +122,17 @@ function mapRescueGroupsAnimalToDog(
           return url.split('?')[0];
         }
       };
-      if (pic.large) photos.push(stripQueryParams(pic.large));
-      else if (pic.original) photos.push(stripQueryParams(pic.original));
-      else if (pic.small) photos.push(stripQueryParams(pic.small));
+      const getUrl = (sizeObj: any) => {
+        if (!sizeObj) return null;
+        const url = typeof sizeObj === 'string' ? sizeObj : sizeObj.url;
+        return url ? stripQueryParams(url) : null;
+      };
+      const largeUrl = getUrl(pic.large);
+      const originalUrl = getUrl(pic.original);
+      const smallUrl = getUrl(pic.small);
+      if (largeUrl) photos.push(largeUrl);
+      else if (originalUrl) photos.push(originalUrl);
+      else if (smallUrl) photos.push(smallUrl);
       else {
         console.warn(`[RescueGroups] Picture ${ref.id} has no valid URL:`, pic);
       }
