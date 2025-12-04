@@ -347,9 +347,10 @@ function ResultsPageContent() {
   });
   console.log('🔍 RESULTS PAGE DEBUG: userPreferences for AI:', userPreferences);
   
-  // Filter dogs to only include those with photos
+  // Filter dogs to only include those with photos (but fall back to all dogs if none have photos)
   const filterDogsWithPhotos = (dogs: APIDog[]) => {
-    return dogs.filter(dog => dog.photos && dog.photos.length > 0);
+    const withPhotos = dogs.filter(dog => dog.photos && dog.photos.length > 0);
+    return withPhotos.length > 0 ? withPhotos : dogs;
   };
 
   // Modal handlers
