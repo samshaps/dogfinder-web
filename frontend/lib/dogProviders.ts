@@ -176,6 +176,7 @@ function mapRescueGroupsAnimalToDog(
     tags: [],
     url: (() => {
       // Try animal's direct adoption URL first
+      console.log(`[RescueGroups] Animal ${animal.id} attrs.adoptionUrl:`, attrs.adoptionUrl);
       if (attrs.adoptionUrl) {
         console.log(`[RescueGroups] Using animal adoptionUrl for ${animal.id}:`, attrs.adoptionUrl);
         return attrs.adoptionUrl;
