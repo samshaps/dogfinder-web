@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from '@/lib/auth/server-session';
+import { getServerSession } from 'next-auth';
 import { getSupabaseClient } from '@/lib/supabase-auth';
 import { getUserPlan } from '@/lib/stripe/plan-utils';
 
