@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Creating Stripe checkout session...');
     
+    // Parse request body for optional return URL
+    let returnUrl: string | undefined;
+    try {
+      const body = await request.json();
+      returnUrl = body.returnUrl;
+    } catch {
+      // Body might be empty, that's okay
+    }
+    
     // Check authentication
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -136,12 +145,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server not configured for payments' }, { status: 500 });
     }
 
+    // Determine success URL - use returnUrl if provided, otherwise default to profile
+    const successUrl = returnUrl 
+      ? `${request.nextUrl.origin}${returnUrl}${returnUrl.includes('?') ? '&' : '?'}upgrade=success`
+      : `${request.nextUrl.origin}/profile?upgrade=success`;
+    
     const checkoutSession = await stripe.checkout.sessions.create({
       line_items: [
         { price: proPriceId, quantity: 1 },
       ],
       mode: 'subscription',
-      success_url: `${request.nextUrl.origin}/profile?upgrade=success`,
+      success_url: successUrl,
       cancel_url: `${request.nextUrl.origin}/pricing?upgrade=cancelled`,
       customer_email: session.user.email,
       client_reference_id: userId, // Backup way to pass user ID

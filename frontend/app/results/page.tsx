@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { listDogs, type Dog as APIDog } from '@/lib/api';
 import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/schemas';
 import PhotoCarousel from '@/components/PhotoCarousel';
@@ -262,6 +262,7 @@ function ResultsPageContent() {
   const [selectedDog, setSelectedDog] = useState<APIDog | null>(null);
   const [planInfo, setPlanInfo] = useState<{ planType?: string; isPro?: boolean } | null>(null);
   const hasTriggeredAutoCheckout = useRef(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   
   // Extract search parameters
   const searchQuery = useMemo(() => ({
@@ -343,6 +344,19 @@ function ResultsPageContent() {
 
     loadPlanInfo();
   }, [user]);
+
+  // Check for upgrade success parameter and show success message
+  useEffect(() => {
+    const upgradeSuccess = searchParams.get('upgrade');
+    if (upgradeSuccess === 'success') {
+      setShowSuccessMessage(true);
+      // Remove upgrade param from URL
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('upgrade');
+      const newUrl = `${window.location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [searchParams]);
 
   // Auto-trigger checkout after sign-in if user wants to upgrade
   useEffect(() => {
@@ -434,9 +448,12 @@ function ResultsPageContent() {
           current_plan: planInfo?.planType || 'free'
         });
 
+        // Pass current results page URL as return URL
+        const currentUrl = window.location.pathname + window.location.search;
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ returnUrl: currentUrl }),
         });
 
         if (!response.ok) {
@@ -619,6 +636,30 @@ function ResultsPageContent() {
             Found {dogs.length} dogs
           </h1>
         </div>
+
+        {/* Success Message - Dismissible */}
+        {showSuccessMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-green-900 mb-1">
+                  Email alerts turned on!
+                </h3>
+                <p className="text-sm text-green-700">
+                  We'll send you an email whenever new dogs matching your preferences become available.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSuccessMessage(false)}
+              className="text-green-600 hover:text-green-800 flex-shrink-0"
+              aria-label="Dismiss success message"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Above-the-fold CTA - Show only for free/signed-out users */}
         {!canViewPrefs(planInfo) && dogs.length > 0 && (
