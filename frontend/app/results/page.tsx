@@ -355,6 +355,46 @@ function ResultsPageContent() {
     const upgradeSuccess = searchParams.get('upgrade');
     if (upgradeSuccess === 'success') {
       setShowSuccessMessage(true);
+      
+      // Call backend endpoint to verify checkout completion
+      const verifyCheckout = async () => {
+        try {
+          const response = await fetch('/api/analytics/checkout-success', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.verified) {
+              // Backend verified checkout - track the event
+              trackEvent('checkout_success', {
+                source: 'results_page',
+                plan: data.plan || 'pro',
+                verified: true,
+              });
+            }
+          } else {
+            console.warn('⚠️ Checkout verification failed:', response.status);
+            // Still track the event even if verification fails (user might have just upgraded)
+            trackEvent('checkout_success', {
+              source: 'results_page',
+              verified: false,
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error verifying checkout:', error);
+          // Still track the event
+          trackEvent('checkout_success', {
+            source: 'results_page',
+            verified: false,
+            error: 'verification_failed',
+          });
+        }
+      };
+
+      verifyCheckout();
+      
       // Remove upgrade param from URL
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete('upgrade');
