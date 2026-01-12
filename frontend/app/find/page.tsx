@@ -717,10 +717,12 @@ export default function FindPage() {
 
             {/* What happens next - Informational copy */}
             <div className="pt-4 pb-2">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">What happens next</h3>
-              <p className="text-sm text-gray-600">
-                We'll show you dogs available right now that match your preferences. You'll also have the option to save your preferences and get alerts when new matches appear.
-              </p>
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-base font-semibold text-gray-900 mb-2">What happens next</h3>
+                <p className="text-sm text-gray-600">
+                  We'll show you dogs available right now that match your preferences. You'll also have the option to save your preferences and get alerts when new matches appear.
+                </p>
+              </div>
             </div>
 
             {/* Submit Button */}

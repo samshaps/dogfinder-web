@@ -261,6 +261,7 @@ function ResultsPageContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedDog, setSelectedDog] = useState<APIDog | null>(null);
   const [planInfo, setPlanInfo] = useState<{ planType?: string; isPro?: boolean } | null>(null);
+  const hasTriggeredAutoCheckout = useRef(false);
   
   // Extract search parameters
   const searchQuery = useMemo(() => ({
@@ -343,6 +344,23 @@ function ResultsPageContent() {
     loadPlanInfo();
   }, [user]);
 
+  // Auto-trigger checkout after sign-in if user wants to upgrade
+  useEffect(() => {
+    const upgradeParam = searchParams.get('upgrade');
+    if (upgradeParam === 'true' && user && planInfo && !canViewPrefs(planInfo) && !hasTriggeredAutoCheckout.current) {
+      hasTriggeredAutoCheckout.current = true;
+      
+      // Remove upgrade param from URL
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('upgrade');
+      const newUrl = `${window.location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`;
+      window.history.replaceState(null, '', newUrl);
+      
+      // Auto-trigger checkout
+      handleAlertsCTA('top');
+    }
+  }, [user, planInfo, searchParams]);
+
   // Extract user preferences for AI reasoning (memoized to prevent infinite loops)
   const userPreferences: UserPreferences = useMemo(() => ({
     zipCodes: [searchQuery.zip].filter(Boolean),
@@ -401,7 +419,8 @@ function ResultsPageContent() {
     // If user is not authenticated, redirect to sign-in with callback
     if (!user) {
       const currentUrl = window.location.pathname + window.location.search;
-      const callbackUrl = encodeURIComponent(currentUrl);
+      // Add upgrade=true parameter to indicate user wants to upgrade
+      const callbackUrl = encodeURIComponent(`${currentUrl}${currentUrl.includes('?') ? '&' : '?'}upgrade=true`);
       window.location.href = `/auth/signin?callbackUrl=${callbackUrl}`;
       return;
     }
@@ -608,7 +627,7 @@ function ResultsPageContent() {
               You're seeing dogs available right now
             </h2>
             <p className="text-gray-700 mb-4">
-              New rescue dogs that match your preferences appear unpredictably and are adopted fast. Pro keeps watching and alerts you the moment the next match shows up.
+              You're seeing dogs available right now. Pro keeps watching and alerts you when the next match appears.
             </p>
             <button
               onClick={() => handleAlertsCTA('top')}
@@ -616,9 +635,6 @@ function ResultsPageContent() {
             >
               Turn on alerts – $9.99/month
             </button>
-            <p className="text-sm text-gray-600 mt-3">
-              You're seeing dogs available right now. Pro keeps watching and alerts you when the next match appears.
-            </p>
           </div>
         )}
 
