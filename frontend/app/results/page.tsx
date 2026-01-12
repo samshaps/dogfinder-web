@@ -750,32 +750,17 @@ function ResultsPageContent() {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
           <div className="grid gap-y-10 gap-x-10 md:gap-x-12 xl:gap-x-16 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
-            {dogs.map((dog, index) => {
+            {dogs.map((dog) => {
               // Find the analysis for this dog from matching results
               const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
               return (
-                <React.Fragment key={dog.id}>
-                  <DogCard 
-                    dog={dog}
-                    onPhotoClick={handlePhotoClick}
-                    userPreferences={userPreferences}
-                    analysis={analysis}
-                  />
-                  {/* Inline Reminder CTA - Show after 3rd dog card for free/signed-out users */}
-                  {index === 2 && !canViewPrefs(planInfo) && dogs.length >= 3 && (
-                    <div className="col-span-full w-full max-w-2xl mx-auto mt-4 mb-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 text-center">
-                      <p className="text-gray-700 mb-3">
-                        These dogs are available now. New matches appear every week.
-                      </p>
-                      <button
-                        onClick={() => handleAlertsCTA('inline')}
-                        className="btn-primary"
-                      >
-                        Get alerts for new matches
-                      </button>
-                    </div>
-                  )}
-                </React.Fragment>
+                <DogCard 
+                  key={dog.id}
+                  dog={dog}
+                  onPhotoClick={handlePhotoClick}
+                  userPreferences={userPreferences}
+                  analysis={analysis}
+                />
               );
             })}
           </div>
