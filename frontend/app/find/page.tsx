@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Ruler, X, Info, Save, Check, Crown } from 'lucide-react';
+import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { trackEvent } from '@/lib/analytics/tracking';
 import { validateFormData, getExpectedApiPayload, logValidationResults } from '@/lib/validation/preferences-mapping';
@@ -487,36 +487,6 @@ export default function FindPage() {
               <p className="mt-2 lead text-measure mx-auto">Tell us about your lifestyle and preferences. Fill out as many or as few as you want.</p>
             </div>
 
-          {/* Pro Feature Callout for Free Users */}
-          {user && !canViewPrefs(planInfo) && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-              <div className="flex items-start gap-3">
-                <Crown className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 mb-1">
-                    Pro Feature: Auto-Saved Preferences
-                  </p>
-                  <p className="text-sm text-blue-700 mb-3">
-                    Your preferences are being saved automatically. Upgrade to Pro to have them auto-fill on your next visit and access all premium features.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      trackEvent("pricing_cta_pro", {
-                        source: "find_page_preferences"
-                      });
-                      router.push('/pricing');
-                    }}
-                    className="btn-primary-sm flex items-center justify-center gap-2"
-                  >
-                    <Crown className="w-4 h-4" aria-hidden="true" />
-                    Upgrade to Pro
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Preferences Saved Indicator */}
           {user && preferencesSaved && (
             <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
@@ -743,6 +713,14 @@ export default function FindPage() {
                 rows={4}
                 className="form-input-lg w-full border"
               />
+            </div>
+
+            {/* What happens next - Informational copy */}
+            <div className="pt-4 pb-2">
+              <h3 className="text-sm font-medium text-gray-900 mb-2">What happens next</h3>
+              <p className="text-sm text-gray-600">
+                We'll show you dogs available right now that match your preferences. You'll also have the option to save your preferences and get alerts when new matches appear.
+              </p>
             </div>
 
             {/* Submit Button */}

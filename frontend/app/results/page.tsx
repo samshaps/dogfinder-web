@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listDogs, type Dog as APIDog } from '@/lib/api';
@@ -12,6 +12,8 @@ import { COPY_MAX } from '@/lib/constants/copyLimits';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import { normalizeDogGender } from '@/lib/utils/pronouns';
 import { trackEvent } from '@/lib/analytics/tracking';
+import { useUser } from '@/lib/auth/user-context';
+import { getUserPlan, canViewPrefs } from '@/lib/stripe/plan-utils';
 
 // Convert API Dog to schemas Dog
 function mapAPIDogToDog(apiDog: APIDog): Dog {
@@ -246,6 +248,8 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
 
 function ResultsPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user } = useUser();
   const [dogs, setDogs] = useState<APIDog[]>([]);
   const [topPicks, setTopPicks] = useState<APIDog[]>([]);
   const [matchingResults, setMatchingResults] = useState<MatchingResults | null>(null);
@@ -256,6 +260,7 @@ function ResultsPageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedDog, setSelectedDog] = useState<APIDog | null>(null);
+  const [planInfo, setPlanInfo] = useState<{ planType?: string; isPro?: boolean } | null>(null);
   
   // Extract search parameters
   const searchQuery = useMemo(() => ({
@@ -318,6 +323,26 @@ function ResultsPageContent() {
     }
   }, [searchParams]);
 
+  // Load plan info when user is authenticated
+  useEffect(() => {
+    const loadPlanInfo = async () => {
+      if (!user) {
+        setPlanInfo(null);
+        return;
+      }
+
+      try {
+        const plan = await getUserPlan(user.id);
+        setPlanInfo(plan);
+      } catch (error) {
+        console.error('❌ Failed to load plan info:', error);
+        setPlanInfo(null);
+      }
+    };
+
+    loadPlanInfo();
+  }, [user]);
+
   // Extract user preferences for AI reasoning (memoized to prevent infinite loops)
   const userPreferences: UserPreferences = useMemo(() => ({
     zipCodes: [searchQuery.zip].filter(Boolean),
@@ -362,6 +387,60 @@ function ResultsPageContent() {
 
   const handleCloseModal = () => {
     setSelectedDog(null);
+  };
+
+  // Handle upgrade/checkout flow
+  const handleAlertsCTA = async (location: 'top' | 'inline') => {
+    // Track CTA click
+    trackEvent('alerts_cta_clicked', {
+      location,
+      user_authenticated: !!user,
+      current_plan: planInfo?.planType || 'free'
+    });
+
+    // If user is not authenticated, redirect to sign-in with callback
+    if (!user) {
+      const currentUrl = window.location.pathname + window.location.search;
+      const callbackUrl = encodeURIComponent(currentUrl);
+      window.location.href = `/auth/signin?callbackUrl=${callbackUrl}`;
+      return;
+    }
+
+    // If user is authenticated but not Pro, trigger Stripe checkout
+    if (!canViewPrefs(planInfo)) {
+      try {
+        trackEvent('stripe_checkout_started', {
+          source: 'results_page',
+          location,
+          current_plan: planInfo?.planType || 'free'
+        });
+
+        const response = await fetch('/api/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create checkout session');
+        }
+
+        const responseData = await response.json();
+        const { url, reactivated } = responseData;
+        
+        if (reactivated) {
+          // Subscription was reactivated - redirect to profile page
+          window.location.href = url || '/profile?upgrade=success&reactivated=true';
+        } else if (url) {
+          // New subscription - redirect to Stripe checkout
+          window.location.href = url;
+        } else {
+          throw new Error('No URL returned from API');
+        }
+      } catch (error) {
+        console.error('Error starting checkout:', error);
+        alert('Failed to start upgrade process. Please try again.');
+      }
+    }
   };
 
   // Create a fingerprint for de-duplication (frontend safety net)
@@ -522,6 +601,27 @@ function ResultsPageContent() {
           </h1>
         </div>
 
+        {/* Above-the-fold CTA - Show only for free/signed-out users */}
+        {!canViewPrefs(planInfo) && dogs.length > 0 && (
+          <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              You're seeing dogs available right now
+            </h2>
+            <p className="text-gray-700 mb-4">
+              New rescue dogs that match your preferences appear unpredictably and are adopted fast. Pro keeps watching and alerts you the moment the next match shows up.
+            </p>
+            <button
+              onClick={() => handleAlertsCTA('top')}
+              className="btn-primary flex items-center justify-center gap-2"
+            >
+              Turn on alerts – $9.99/month
+            </button>
+            <p className="text-sm text-gray-600 mt-3">
+              You're seeing dogs available right now. Pro keeps watching and alerts you when the next match appears.
+            </p>
+          </div>
+        )}
+
         {/* AI Matching Status Banner */}
         {matchingLoading && (
           <div className="mb-6 rounded-lg border border-blue-300 bg-blue-50 p-4 text-blue-800">
@@ -634,17 +734,32 @@ function ResultsPageContent() {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
           <div className="grid gap-y-10 gap-x-10 md:gap-x-12 xl:gap-x-16 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
-            {dogs.map((dog) => {
+            {dogs.map((dog, index) => {
               // Find the analysis for this dog from matching results
               const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
               return (
-                <DogCard 
-                  key={dog.id}
-                  dog={dog}
-                  onPhotoClick={handlePhotoClick}
-                  userPreferences={userPreferences}
-                  analysis={analysis}
-                />
+                <React.Fragment key={dog.id}>
+                  <DogCard 
+                    dog={dog}
+                    onPhotoClick={handlePhotoClick}
+                    userPreferences={userPreferences}
+                    analysis={analysis}
+                  />
+                  {/* Inline Reminder CTA - Show after 3rd dog card for free/signed-out users */}
+                  {index === 2 && !canViewPrefs(planInfo) && dogs.length >= 3 && (
+                    <div className="col-span-full w-full max-w-2xl mx-auto mt-4 mb-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 text-center">
+                      <p className="text-gray-700 mb-3">
+                        These dogs are available now. New matches appear every week.
+                      </p>
+                      <button
+                        onClick={() => handleAlertsCTA('inline')}
+                        className="btn-primary"
+                      >
+                        Get alerts for new matches
+                      </button>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>

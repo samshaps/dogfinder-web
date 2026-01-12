@@ -48,7 +48,8 @@ export type ResultsEvent =
   | 'results_alert_toggled'
   | 'results_upgrade_clicked'
   | 'results_listing_link_clicked'
-  | 'results_dog_link_copied';
+  | 'results_dog_link_copied'
+  | 'alerts_cta_clicked';
 
 // Alert & Email events
 export type AlertEvent =
@@ -65,7 +66,9 @@ export type PaymentEvent =
   | 'checkout_success'
   | 'checkout_canceled'
   | 'subscription_canceled'
-  | 'subscription_reactivated';
+  | 'subscription_reactivated'
+  | 'stripe_checkout_started'
+  | 'stripe_checkout_completed';
 
 // Profile events
 export type ProfileEvent =
