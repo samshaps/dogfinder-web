@@ -285,6 +285,11 @@ function ResultsPageContent() {
     limit: 20
   }), [searchParams, currentPage]);
 
+  // Scroll to top when page loads or search params change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [searchParams]);
+
   // Track page view (only once on mount)
   const hasTrackedView = useRef(false);
   useEffect(() => {
