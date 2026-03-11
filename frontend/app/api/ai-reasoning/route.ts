@@ -95,8 +95,8 @@ export async function POST(request: NextRequest) {
       }
       // Plain text mode for free-form generation
       const reasoning = await runTextResponse(messages, {
-        max_tokens: Math.min(Number(max_tokens || 60), 80),
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
+        max_tokens: Math.min(Number(max_tokens || 100), 120),
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.6)) : 0.4,
       });
       const openaiDuration = Date.now() - openaiStartTime;
       const totalDuration = Date.now() - startTime;
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
     } else if (type === 'top-pick') {
       // Structured response for top picks with JSON schema validation
       const reasoning = await runStructuredResponse(messages, {
-        max_tokens: 150,
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
+        max_tokens: 220,
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.6)) : 0.4,
       });
       const openaiDuration = Date.now() - openaiStartTime;
       const totalDuration = Date.now() - startTime;
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       // Short response for all matches
       const reasoning = await runTextResponse(messages, {
         max_tokens: 50,
-        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.3)) : 0.1,
+        temperature: typeof temperature === 'number' ? Math.max(0, Math.min(temperature, 0.6)) : 0.4,
       });
       const openaiDuration = Date.now() - openaiStartTime;
       const totalDuration = Date.now() - startTime;

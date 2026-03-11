@@ -217,7 +217,7 @@ export async function runTextResponse(
     model: options.model || 'gpt-4o-mini',
     messages,
     max_tokens: options.max_tokens || 200,
-    temperature: options.temperature || 0.2,
+    temperature: options.temperature || 0.4,
   });
 
   return response.output_text;

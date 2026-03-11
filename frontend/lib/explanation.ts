@@ -119,26 +119,20 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
   const hasDescription = sanitizedDescription.length > 0;
 
   const header = [
-    `Write a detailed description of ${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} characters using OR-based matching logic. Aim for the upper end of this range to provide comprehensive information.`,
-    `Address the reader only as "you". No names/PII.`,
-    `"You" refers ONLY to the adopter; never address the dog as "you".`,
+    `Write a warm, natural recommendation about this dog for a potential adopter. Be enthusiastic but grounded — like a knowledgeable friend, not a checklist. Aim for ${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} characters.`,
+    `Address the reader as "you" (the adopter only — never address the dog as "you"). No names or PII.`,
     hasPrefs
-      ? `ONLY cite user preferences that are explicitly listed in the "User preferences" section below. Do NOT invent or assume any user preferences. Highlight which actual user preferences were satisfied with supportive citations (e.g., "Matches your requested calm temperament"). Note any gaps without discarding the option (e.g., "Doesn't meet the low-shedding request but excels in other areas"). Emphasize that partial matches are acceptable and valuable.`
-      : `Do NOT mention user preferences, desires, or wants. Do NOT mention size (small, medium, large, xl) unless explicitly provided by the user. Focus on highlighting the breed's most positive and appealing characteristics that make them wonderful companions. Emphasize what makes this breed special - their unique personality, temperament, intelligence, loyalty, or other notable traits. Use engaging phrases like "known for", "renowned for", "famous for", "typically", or "often" when describing breed characteristics. Make it feel personal and compelling by highlighting why this breed could be a wonderful addition to someone's life. Focus on positive attributes that would appeal to potential adopters. Examples: "A gentle Great Pyrenees known for being protective and loyal" or "A highly intelligent Australian Shepherd renowned for being energetic and great with active families".`,
+      ? `Naturally weave in which user preferences were satisfied, using brief parenthetical citations (e.g., "(requested: calm temperament)"). Acknowledge any gaps positively without discarding the dog. Only cite preferences explicitly listed below — do not invent any.`
+      : `No user preferences were provided. Focus entirely on the dog's personality, charm, and what makes this breed special. Do not mention size unless it appears in the dog facts below. Use engaging language like "known for", "thrives on", "excels at".`,
     hasDescription
-      ? `Use the shelter description below as evidence source. Do NOT copy verbatim - summarize relevant facts (training cues, demeanor, compatibility). Ground claims in the description or structured traits. Prefer concrete facts that matter for adoption decisions.`
+      ? `Use the shelter description below as an evidence source — summarize relevant facts in your own words (training, demeanor, compatibility). Do not copy verbatim.`
       : '',
-    `Do not introduce attributes not present in the lists below.`,
-    `Use only the info below; no assumptions.`,
+    `Use only the information provided below. Do not assume or introduce attributes not listed.`,
     pronounInstruction,
-    `If matched_facets.size=true, you must cite the dog's size bucket (Small/Medium/Large/XL).`,
-    `If matched_facets.breed_exact=true, explicitly cite the exact breed (e.g., "${breed_label}").`,
-    `For temperament traits:`,
-    `  - If temperament_evidence[trait]="proven": use definitive phrasing ("is kid-friendly")`,
-    `  - If temperament_evidence[trait]="likely": use tendency phrasing ("tends to be kid-friendly")`,
-    `Never mention UI terms like "included breeds" or "filters"; refer to breed concepts instead (e.g., "Labrador mix").`,
-    `Use OR-based matching to reward overlap rather than requiring all facets to match.`,
-    `Return JSON exactly as: {"text":"${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} chars","cited":["..."]}. Aim for the upper end of the range. No extra text.`,
+    `For temperament traits: if temperament_evidence is "proven", use definitive phrasing ("is kid-friendly"). If "likely", use tendency phrasing ("tends to be kid-friendly").`,
+    `If size or breed is a matched facet, mention it naturally in your description.`,
+    `Avoid internal UI terms like "included breeds" or "filters" — use breed names directly.`,
+    `Return JSON exactly as: {"text":"your recommendation text","cited":["matched preference 1","matched preference 2"]}. No extra text outside the JSON.`,
   ].filter(Boolean).join('\n');
 
   const body = [
@@ -273,8 +267,9 @@ export async function generateTop3Reasoning(
         dogName: dog.name
       });
       raw = await runTextResponse(messages, {
-        max_tokens: 160,
-        temperature: 0.1,
+        model: 'gpt-5',
+        max_tokens: 220,
+        temperature: 0.4,
       });
     } else {
       // HTTP API call (client-side or fallback)
@@ -296,11 +291,11 @@ export async function generateTop3Reasoning(
         const response = await fetch(resolveApiUrl('/api/ai-reasoning'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            prompt, 
-            type: 'free', 
-            max_tokens: 160, 
-            temperature: 0.1,
+          body: JSON.stringify({
+            prompt,
+            type: 'free',
+            max_tokens: 220,
+            temperature: 0.4,
             pronouns: pronounPayload,
             dogName: dog.name
           }),
@@ -323,11 +318,14 @@ export async function generateTop3Reasoning(
     }
     // Minimal post-processing
     let processed = scrubPII(text);
-    processed = sanitizePerspective(processed);
+    // Only rewrite perspective if the text actually addresses the dog as "you"
+    if (/^you[,\s]+(?:are\s+)?an?\s+/i.test(processed)) {
+      processed = sanitizePerspective(processed);
+    }
     if (!hasPrefs) processed = sanitizeNoPreferenceClaims(processed);
     processed = applyDogPronouns(processed, pronouns);
     // Verification and tighten pass (with temperament checking)
-    const v = verifyBlurbWithTemperament(processed, facts, dog, { lengthCap: BODY_CAP });
+    const v = verifyBlurbWithTemperament(processed, facts, dog, { lengthCap: BODY_CAP, hasDescription });
     processed = v.fixed;
     const primaryFinal = finalClamp(processed, COPY_MAX.TOP);
     if (debug) {
@@ -359,7 +357,8 @@ export async function generateTop3Reasoning(
     fbProcessed = sanitizeNoPreferenceClaims(fbProcessed);
   }
   fbProcessed = applyDogPronouns(fbProcessed, pronouns);
-  const v2 = verifyBlurbWithTemperament(fbProcessed, buildFactPack(effectivePrefs, dog), dog, { lengthCap: BODY_CAP });
+  const hasDescFallback = (dog.rawDescription && sanitizeDescription(dog.rawDescription).length > 0) || false;
+  const v2 = verifyBlurbWithTemperament(fbProcessed, buildFactPack(effectivePrefs, dog), dog, { lengthCap: BODY_CAP, hasDescription: hasDescFallback });
   return { ...fb, primary: finalClamp(v2.fixed, COPY_MAX.TOP) };
 }
 
@@ -547,17 +546,19 @@ export function finalClamp(text: string, max: number): string {
 export function sanitizeNoPreferenceClaims(text: string): string {
   let s = String(text || '').trim();
   if (!s) return s;
-  // Remove "You, as an X,"
+  // Remove "You, as an X," constructs
   s = s.replace(/^you,?\s+as\s+an?\s+[^,]+,\s*/i, '');
-  // Remove constructions like: you would enjoy/love/like/prefer/want/need (the) companionship of
-  s = s.replace(/\byou(?:'d)?\s+(?:would\s+|will\s+|might\s+|could\s+)?(?:enjoy|love|like|prefer|want|need)\s+(?:the\s+)?(?:companionship\s+of\s+)?/gi, '');
-  // Remove "for someone like you ..."
-  s = s.replace(/\bfor\s+someone\s+like\s+you(?:\s+who\s+prefers[^.,!?]*)?/gi, '');
-  // Remove "you who prefer ..."
+  // Remove ONLY explicit preference-referencing language
+  s = s.replace(/\byour\s+preferences?\b[^,.!?]*/gi, '');
+  s = s.replace(/\byour\s+requirements?\b[^,.!?]*/gi, '');
+  s = s.replace(/\bmatches\s+your\s+(?:desired|requested|stated)\b[^,.!?]*/gi, '');
+  s = s.replace(/\bfits\s+your\s+(?:desired|requested|stated)\b[^,.!?]*/gi, '');
   s = s.replace(/\byou\s+who\s+prefer[^.,!?]*/gi, '');
-  // Remove leading filler like "that is", "who is" if sentence starts with a noun phrase
+  // Keep natural "you" language like "you'll love", "perfect for you", "great for you"
+  // Only strip the "for someone like you who prefers X" pattern
+  s = s.replace(/\bfor\s+someone\s+like\s+you(?:\s+who\s+prefers[^.,!?]*)?/gi, '');
+  // Clean up leading filler
   s = s.replace(/^that\s+is\s+/i, '').replace(/^who\s+is\s+/i, '');
-  // Normalize casing of initial article
   s = s.replace(/^a\s+/i, (m) => m[0] === 'A' ? m : 'A ');
   // Clean up spaces and dangling punctuation
   s = s.replace(/\s{2,}/g, ' ').replace(/^,\s*/g, '').replace(/\s*,\s*,/g, ', ').trim();

@@ -9,9 +9,20 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').replac
 
 // Lightweight synonym support
 const SYNONYMS: Record<string, string[]> = {
-  'medium energy': ['moderate energy', 'moderate activity'],
-  'low energy': ['calm energy', 'laid back energy', 'chill energy'],
-  'quiet': ['calm', 'low noise', 'not barky'],
+  'medium energy': ['moderate energy', 'moderate activity', 'balanced energy'],
+  'low energy': ['calm energy', 'laid back energy', 'chill energy', 'relaxed energy', 'mellow energy'],
+  'high energy': ['active', 'energetic', 'lively', 'spirited'],
+  'quiet': ['calm', 'low noise', 'not barky', 'minimal barking'],
+  'eager-to-please': ['eager to please', 'wants to please', 'people-pleasing'],
+  'kid-friendly': ['great with kids', 'good with children', 'loves kids', 'gentle with children'],
+  'cat-friendly': ['good with cats', 'cat-safe', 'lives with cats'],
+  'calm': ['calm-indoors', 'laid back', 'mellow', 'peaceful', 'relaxed'],
+  'loyal': ['devoted', 'faithful', 'dedicated'],
+  'gentle': ['tender', 'soft', 'mild-mannered'],
+  'playful': ['fun-loving', 'spirited', 'loves to play'],
+  'protective': ['watchful', 'guardian', 'alert'],
+  'intelligent': ['smart', 'clever', 'bright', 'sharp'],
+  'low maintenance': ['easy-going', 'low-key', 'easy to care for'],
 };
 
 function clampToLength(text: string, max: number): string {
@@ -286,9 +297,11 @@ export function verifyBlurbWithFacets(text: string, facts: FactPack): VerifyResu
 export function verifyBlurbWithTemperament(text: string, facts: FactPack, dog: Dog, {
   minPrefHit = 1,
   lengthCap = COPY_MAX.TOP,
-}: { minPrefHit?: number; lengthCap?: number } = {}): VerifyResult {
-  // First run standard verification
-  const baseResult = verifyBlurb(text, facts, { minPrefHit, lengthCap });
+  hasDescription = false,
+}: { minPrefHit?: number; lengthCap?: number; hasDescription?: boolean } = {}): VerifyResult {
+  // First run standard verification — relax pref hit if shelter description provides context
+  const effectiveMinPrefHit = hasDescription ? 0 : minPrefHit;
+  const baseResult = verifyBlurb(text, facts, { minPrefHit: effectiveMinPrefHit, lengthCap });
   
   // Then check temperament claims
   const tempResult = verifyTemperamentClaims(baseResult.fixed, dog, facts);
