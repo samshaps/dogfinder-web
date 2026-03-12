@@ -267,7 +267,7 @@ export async function generateTop3Reasoning(
         dogName: dog.name
       });
       raw = await runTextResponse(messages, {
-        model: 'gpt-5',
+        model: 'gpt-5.4',
         max_tokens: 220,
         temperature: 0.4,
       });
