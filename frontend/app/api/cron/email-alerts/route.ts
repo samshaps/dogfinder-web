@@ -487,8 +487,6 @@ async function handleCronJob(request: NextRequest) {
       results,
       debug: {
         vercelEnv: process.env.VERCEL_ENV,
-        isProduction,
-        isVercelCron,
         hasCronSecret: !!cronSecret,
         authHeaderPresent: !!authHeader,
         cronSecretLength: cronSecret?.length || 0
