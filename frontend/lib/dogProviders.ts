@@ -475,7 +475,7 @@ export class RescueGroupsDogProvider implements DogProvider {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
         else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
-        else if (inc.type === 'breeds') breedsById.set(id, inc.attributes);
+        else if (inc.type === 'breeds' || inc.type === 'breed') breedsById.set(id, inc.attributes);
       }
     }
 
@@ -582,7 +582,7 @@ export class RescueGroupsDogProvider implements DogProvider {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
         else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
-        else if (inc.type === 'breeds') breedsById.set(id, inc.attributes);
+        else if (inc.type === 'breeds' || inc.type === 'breed') breedsById.set(id, inc.attributes);
       }
     }
 
