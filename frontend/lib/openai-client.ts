@@ -112,7 +112,7 @@ export async function runResponse(options: ResponseOptions): Promise<NormalizedR
   const response = await client.chat.completions.create({
     model: options.model || 'gpt-4o-mini',
     messages: options.messages,
-    max_tokens: maxTokens,
+    max_completion_tokens: maxTokens,
     temperature,
     response_format: options.response_format,
     // Optimize for speed
