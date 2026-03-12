@@ -186,17 +186,18 @@ export function verifyBlurb(text: string, facts: FactPack, {
   }
 
   // 3) Simple risky claims scan
+  // Note: 'quiet', 'kid-friendly', 'cat-friendly' intentionally excluded from static whitelist —
+  // they should only be allowed when present in prefsSet or traitsSet (i.e. grounded in data).
   const whitelist = new Set<string>([
     ...prefsSet,
     ...traitsSet,
-    'dog','fit','match','energy','friendly','young','adult','senior','small','medium','large','xl','kid-friendly','cat-friendly','quiet','low maintenance'
+    'dog','fit','match','energy','friendly','young','adult','senior','small','medium','large','xl','low maintenance'
   ]);
   const risky = ['service', 'therapy', 'purebred', 'certified', 'house trained', 'crate trained', 'rare', 'papered'];
   for (const r of risky) {
     const rn = norm(r);
-    if (rn && s.includes(rn)) {
-      const justified = [...whitelist].some(w => w && s.includes(w));
-      if (!justified) errors.push(`Unsupported claim: ${r}`);
+    if (rn && s.includes(rn) && !whitelist.has(rn)) {
+      errors.push(`Unsupported claim: ${r}`);
     }
   }
 

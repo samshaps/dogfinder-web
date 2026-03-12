@@ -1,4 +1,5 @@
 import { EffectivePreferences, Dog, Origin } from './schemas';
+import { getMultiBreedTemperaments } from './breedTemperaments';
 
 export type FactPack = {
   prefs: string[];
@@ -14,6 +15,41 @@ export function buildFactPack(eff: EffectivePreferences, dog: Dog): FactPack {
     'house-trained', 'crate-trained', 'purebred', 'service dog',
     'rare', 'hypoallergenic'
   ];
+
+  // Use breed temperament data to gate behavioral claims — score >= 2 means the breed
+  // is moderately/strongly known for that trait, so the claim is fair game.
+  const breedTemps = getMultiBreedTemperaments(dog.breeds ?? []);
+  const breedQuietScore = breedTemps['quiet'] ?? 0;
+  const breedEagerScore = breedTemps['eager-to-please'] ?? 0;
+
+  // Ban quiet/not-barky claims unless the breed is known for it OR dog is explicitly quiet
+  if (dog.barky !== false && breedQuietScore < 2) {
+    banned.push('not barky', 'not especially barky', 'minimal barking', 'low noise', 'rarely barks', 'seldom barks', 'doesn\'t bark much');
+  }
+
+  // Ban shedding claims — no breed-level shedding data in the system, so only allow
+  // if dog.shedLevel is explicitly set by inferred traits
+  if (dog.shedLevel !== 'low') {
+    banned.push('low shedding', 'minimal shedding', 'doesn\'t shed', 'light shedder', 'low shed', 'barely sheds', 'hypoallergenic-friendly');
+  }
+
+  // Ban training ease claims unless the breed is known for eagerness to please
+  if (breedEagerScore < 2) {
+    banned.push('easy to train', 'highly trainable', 'quick learner', 'easily trained', 'trains easily');
+  }
+
+  // Ban kid/cat compatibility claims unless grounded in inferred traits or user flags.
+  // These are too individual to generalize from breed alone.
+  const dogTraitsLower = (dog.temperament ?? []).map(t => t.toLowerCase());
+  const hasKidEvidence = dogTraitsLower.includes('kid-friendly') || eff.flags.kidFriendly;
+  const hasCatEvidence = dogTraitsLower.includes('cat-friendly') || eff.flags.catFriendly;
+
+  if (!hasKidEvidence) {
+    banned.push('kid-friendly', 'great with kids', 'good with kids', 'good with children', 'loves kids', 'loves children', 'gentle with children', 'great with children');
+  }
+  if (!hasCatEvidence) {
+    banned.push('cat-friendly', 'good with cats', 'great with cats', 'lives with cats');
+  }
 
   const addMulti = (vals: string[] | undefined, origin: Origin) => {
     if (!vals?.length) return;
