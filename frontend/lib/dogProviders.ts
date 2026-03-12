@@ -56,6 +56,8 @@ type RescueGroupsAnimal = {
     url?: string; // Animal's general URL field
     organizationId?: number | string; // Check if org ID is in attributes
     orgId?: number | string; // Alternative field name
+    breedPrimary?: string; // Direct breed name attribute
+    breedSecondary?: string; // Direct secondary breed name attribute
   };
   relationships?: {
     breedPrimary?: { data?: RescueGroupsRef };
@@ -104,20 +106,9 @@ function mapRescueGroupsAnimalToDog(
   const rel = animal.relationships || {};
 
   const breeds: string[] = [];
-  const primaryBreedId = rel.breedPrimary?.data?.id;
-  const secondaryBreedId = rel.breedSecondary?.data?.id;
-  if (primaryBreedId && indexes?.breedsById) {
-    const breed = indexes.breedsById.get(String(primaryBreedId));
-    if (breed?.name) breeds.push(breed.name);
-  } else if (primaryBreedId) {
-    breeds.push(String(primaryBreedId));
-  }
-  if (secondaryBreedId && indexes?.breedsById) {
-    const breed = indexes.breedsById.get(String(secondaryBreedId));
-    if (breed?.name) breeds.push(breed.name);
-  } else if (secondaryBreedId) {
-    breeds.push(String(secondaryBreedId));
-  }
+  // breedPrimary and breedSecondary are direct string attributes on the animal
+  if (attrs.breedPrimary) breeds.push(attrs.breedPrimary);
+  if (attrs.breedSecondary) breeds.push(attrs.breedSecondary);
 
   const photos: string[] = [];
   if (Array.isArray(rel.pictures?.data) && indexes?.picturesById) {
@@ -441,7 +432,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,orgs,breeds');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
-    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
     url.searchParams.set('fields[breeds]', 'name');
@@ -544,7 +535,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
     url.searchParams.set('include', 'pictures,orgs,breeds');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
-    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
+    url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
     url.searchParams.set('fields[breeds]', 'name');
