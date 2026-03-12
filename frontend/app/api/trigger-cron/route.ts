@@ -11,15 +11,21 @@ import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
-    // Simple auth check - allow in dev mode without auth, require ADMIN_SECRET or CRON_SECRET in production
-    const authHeader = request.headers.get('authorization');
     const isProduction = process.env.VERCEL_ENV === 'production';
     // Try ADMIN_SECRET first, fall back to appropriate CRON_SECRET for convenience
-    const adminSecret = process.env.ADMIN_SECRET 
-      || (isProduction ? appConfig.cronSecretProd : appConfig.cronSecretStaging)
-      || 'admin-secret';
+    const adminSecret = process.env.ADMIN_SECRET
+      || (isProduction ? appConfig.cronSecretProd : appConfig.cronSecretStaging);
     const isDev = process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'development';
-    
+
+    if (!isDev && !adminSecret) {
+      console.error('No auth secret configured: ADMIN_SECRET, CRON_SECRET_PROD, or CRON_SECRET_STAGING must be set');
+      return NextResponse.json(
+        { error: 'Server misconfiguration: required environment variable is not set' },
+        { status: 500 }
+      );
+    }
+
+    const authHeader = request.headers.get('authorization');
     if (!isDev && (!authHeader || authHeader !== `Bearer ${adminSecret}`)) {
       const secretName = process.env.ADMIN_SECRET ? 'ADMIN_SECRET' : (isProduction ? 'CRON_SECRET_PROD' : 'CRON_SECRET_STAGING');
       return NextResponse.json(

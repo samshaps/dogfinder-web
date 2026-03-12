@@ -9,10 +9,16 @@ import { appConfig } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
-    // Simple admin authentication (in production, use proper admin auth)
+    const adminSecret = process.env.ADMIN_SECRET;
+    if (!adminSecret) {
+      console.error('ADMIN_SECRET env var not set');
+      return NextResponse.json(
+        { error: 'Server misconfiguration: required environment variable is not set' },
+        { status: 500 }
+      );
+    }
+
     const authHeader = request.headers.get('authorization');
-    const adminSecret = process.env.ADMIN_SECRET || 'admin-secret';
-    
     if (!authHeader || authHeader !== `Bearer ${adminSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

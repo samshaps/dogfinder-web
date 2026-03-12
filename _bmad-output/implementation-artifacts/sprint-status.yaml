@@ -1,0 +1,40 @@
+generated: 2026-03-12
+project: Dog Yenta
+project_key: DOGYENTA
+tracking_system: file-system
+story_location: "dogfinder-app/_bmad-output/implementation-artifacts/stories"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WORKFLOW REMINDER
+# ─────────────────────────────────────────────────────────────────────────────
+# For each story:
+#   1. Open a FRESH chat session
+#   2. Load the story file + any referenced source files as context
+#   3. Run bmad-dev-story to implement
+#   4. Run bmad-code-review (preferably a different model)
+#   5. Mark story done here before starting the next
+#
+# Work Epic 1 (security) before Epic 2 (product).
+# Stories within Epic 1 are ordered by severity: CRITICAL → HIGH → MEDIUM.
+# ─────────────────────────────────────────────────────────────────────────────
+
+development_status:
+
+  # ── Epic 1: Security Hardening ─────────────────────────────────────────────
+  epic-1-security-hardening: backlog
+
+  1-1-remove-admin-secret-fallback: ready-for-dev   # CRITICAL — fix first
+  1-2-fix-cron-authentication: ready-for-dev         # HIGH
+  1-3-strip-stack-traces: ready-for-dev              # HIGH
+  1-4-gate-debug-endpoints: ready-for-dev            # MEDIUM (2 issues combined)
+  1-5-serverless-rate-limiter: ready-for-dev         # MEDIUM
+
+  epic-1-retrospective: optional
+
+  # ── Epic 2: Product Improvements ───────────────────────────────────────────
+  epic-2-product-improvements: backlog
+
+  2-1-rescue-url-validation: ready-for-dev           # Must-fix UX
+  2-2-contradiction-detection: ready-for-dev         # Feature
+
+  epic-2-retrospective: optional
