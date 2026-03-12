@@ -439,7 +439,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,orgs,breedPrimary,breedSecondary');
+    url.searchParams.set('include', 'pictures,orgs,breeds');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
     // No longer requesting location fields - we only use distance
@@ -460,7 +460,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     if (!resp.ok) {
       const txt = await resp.text().catch(() => '');
       throw new Error(
-        `RescueGroups API error: ${resp.status} ${resp.statusText} ${txt.substring(0, 160)}`,
+        `RescueGroups API error: ${resp.status} ${resp.statusText} ${txt.substring(0, 300)}`,
       );
     }
 
@@ -542,7 +542,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,orgs,breedPrimary,breedSecondary');
+    url.searchParams.set('include', 'pictures,orgs,breeds');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
     // No longer requesting location fields - we only use distance
@@ -565,7 +565,7 @@ export class RescueGroupsDogProvider implements DogProvider {
       throw new Error(
         `RescueGroups API error (getDogById): ${resp.status} ${resp.statusText} ${txt.substring(
           0,
-          160,
+          300,
         )}`,
       );
     }
