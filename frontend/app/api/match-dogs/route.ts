@@ -96,14 +96,14 @@ export async function POST(request: NextRequest) {
     }, { headers: responseHeaders });
     
   } catch (error) {
-    console.error('❌ API: Dog matching error:', error);
-    
-    // Return structured error response
+    console.error(`[${requestId}] ❌ API: Dog matching error:`, error);
+
+    // Return structured error response — no stack trace exposed to clients
     return NextResponse.json(
-      { 
+      {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: error instanceof Error ? error.stack : undefined
+        requestId
       },
       { status: 500 }
     );

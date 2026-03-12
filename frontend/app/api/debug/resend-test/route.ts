@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
           name: result.error.name,
           message: result.error.message,
           statusCode: (result.error as any).statusCode,
-          stack: (result.error as any).stack,
         } : null,
         data: result.data,
         // Full result for inspection
@@ -94,7 +93,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       error: 'Debug endpoint failed',
       message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
     }, { status: 500 });
   }
 }

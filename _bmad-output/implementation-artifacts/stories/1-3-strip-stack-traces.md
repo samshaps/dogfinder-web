@@ -18,13 +18,13 @@ so that attackers cannot use error output to map the application's internal file
 
 ## Tasks / Subtasks
 
-- [ ] Fix match-dogs error handler (AC: 1, 2, 3)
-  - [ ] Remove `details: error instanceof Error ? error.stack : undefined` from response
-  - [ ] Ensure `console.error` still logs the full error including stack
-  - [ ] Optionally add a `requestId` field using `crypto.randomUUID()` for correlation
-- [ ] Audit all other route catch blocks for stack leakage (AC: 4)
-  - [ ] `grep -r "error.stack" app/api/` — review and fix any matches
-- [ ] Check `lib/api/error-handler.ts` — if it's a shared handler, fix it there and all routes benefit (AC: 4)
+- [x] Fix match-dogs error handler (AC: 1, 2, 3)
+  - [x] Remove `details: error instanceof Error ? error.stack : undefined` from response
+  - [x] Ensure `console.error` still logs the full error including stack
+  - [x] Optionally add a `requestId` field using `crypto.randomUUID()` for correlation
+- [x] Audit all other route catch blocks for stack leakage (AC: 4)
+  - [x] `grep -r "error.stack" app/api/` — review and fix any matches
+- [x] Check `lib/api/error-handler.ts` — if it's a shared handler, fix it there and all routes benefit (AC: 4)
 
 ## Dev Notes
 
@@ -49,10 +49,17 @@ so that attackers cannot use error output to map the application's internal file
 
 ### Agent Model Used
 
-_to be filled_
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Found and fixed a second stack leak in `debug/resend-test/route.ts` at line 78 (`rawResponse.error.stack`) that was not explicitly listed in the story but discovered during the AC4 audit.
+- `lib/api/error-handler.ts` confirmed safe — `error.stack` only used in `logError()` (server-side `console.error`), never in response bodies.
+- `app/api/preferences/route.ts` confirmed safe — `error.stack` only in `console.error`, not in response body.
+
 ### File List
+
+- `frontend/app/api/match-dogs/route.ts`
+- `frontend/app/api/debug/resend-test/route.ts`
