@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Input schemas
 export const UserPreferencesSchema = z.object({
-  zipCodes: z.array(z.string()).min(1),          // ["10001","07030"]
+  zipCodes: z.array(z.string()).default([]),      // ["10001","07030"] — empty means no location filter
   radiusMi: z.number().default(50),              // search radius
   breedsInclude: z.array(z.string()).optional(),
   breedsExclude: z.array(z.string()).optional(),
