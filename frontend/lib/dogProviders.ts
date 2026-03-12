@@ -97,6 +97,7 @@ function mapRescueGroupsAnimalToDog(
   indexes?: {
     picturesById?: Map<string, any>;
     orgsById?: Map<string, any>;
+    breedsById?: Map<string, any>;
   }
 ): Dog {
   const attrs = animal.attributes || {};
@@ -105,8 +106,18 @@ function mapRescueGroupsAnimalToDog(
   const breeds: string[] = [];
   const primaryBreedId = rel.breedPrimary?.data?.id;
   const secondaryBreedId = rel.breedSecondary?.data?.id;
-  if (primaryBreedId) breeds.push(String(primaryBreedId));
-  if (secondaryBreedId) breeds.push(String(secondaryBreedId));
+  if (primaryBreedId && indexes?.breedsById) {
+    const breed = indexes.breedsById.get(String(primaryBreedId));
+    if (breed?.name) breeds.push(breed.name);
+  } else if (primaryBreedId) {
+    breeds.push(String(primaryBreedId));
+  }
+  if (secondaryBreedId && indexes?.breedsById) {
+    const breed = indexes.breedsById.get(String(secondaryBreedId));
+    if (breed?.name) breeds.push(breed.name);
+  } else if (secondaryBreedId) {
+    breeds.push(String(secondaryBreedId));
+  }
 
   const photos: string[] = [];
   if (Array.isArray(rel.pictures?.data) && indexes?.picturesById) {
@@ -428,11 +439,12 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,orgs');
+    url.searchParams.set('include', 'pictures,orgs,breedPrimary,breedSecondary');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
     // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
@@ -457,11 +469,13 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const picturesById = new Map<string, any>();
     const orgsById = new Map<string, any>();
+    const breedsById = new Map<string, any>();
     if (Array.isArray(json.included)) {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
         else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'breeds') breedsById.set(id, inc.attributes);
       }
     }
 
@@ -494,7 +508,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     });
 
     const mapped = animals.map((animal) =>
-      mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById })
+      mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById, breedsById })
     );
     const total = json.meta?.pagination?.total ?? mapped.length;
     const count = json.meta?.pagination?.count ?? mapped.length;
@@ -528,11 +542,12 @@ export class RescueGroupsDogProvider implements DogProvider {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const url = new URL(`${baseUrl}/public/animals/search/available/dogs`);
-    url.searchParams.set('include', 'pictures,orgs');
+    url.searchParams.set('include', 'pictures,orgs,breedPrimary,breedSecondary');
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url');
     // No longer requesting location fields - we only use distance
     url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {
       method: 'POST',
@@ -561,15 +576,17 @@ export class RescueGroupsDogProvider implements DogProvider {
 
     const picturesById = new Map<string, any>();
     const orgsById = new Map<string, any>();
+    const breedsById = new Map<string, any>();
     if (Array.isArray(json.included)) {
       for (const inc of json.included) {
         const id = String(inc.id);
         if (inc.type === 'pictures') picturesById.set(id, inc.attributes);
         else if (inc.type === 'orgs') orgsById.set(id, inc.attributes);
+        else if (inc.type === 'breeds') breedsById.set(id, inc.attributes);
       }
     }
 
-    return mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById });
+    return mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById, breedsById });
   }
 }
 
