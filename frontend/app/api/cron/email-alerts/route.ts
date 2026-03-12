@@ -13,48 +13,36 @@ async function handleCronJob(request: NextRequest) {
   try {
     // Verify this is a legitimate cron request
     const authHeader = request.headers.get('authorization');
-    const userAgent = request.headers.get('user-agent') || '';
     
-    // Check if this is a Vercel automatic cron trigger
-    // Vercel cron jobs send GET requests with user-agent: "vercel-cron/1.0"
-    const isVercelCron = userAgent.includes('vercel-cron') || 
-                        request.headers.get('x-vercel-cron') === '1';
-    
-    // Get the appropriate cron secret based on environment
-    // VERCEL_ENV: 'development' (local), 'preview' (staging), 'production' (prod)
-    const isProduction = process.env.VERCEL_ENV === 'production';
-    const cronSecret = isProduction 
-      ? appConfig.cronSecretProd 
-      : appConfig.cronSecretStaging;
-    
+    // Authenticate all requests (GET and POST) using CRON_SECRET.
+    // Vercel automatically injects Authorization: Bearer <CRON_SECRET> on cron triggers,
+    // so legitimate Vercel cron calls will pass this check.
+    const cronSecret = process.env.CRON_SECRET;
+
     console.log('🔍 Cron auth debug:', {
       vercelEnv: process.env.VERCEL_ENV,
       nodeEnv: process.env.NODE_ENV,
-      isProduction,
-      isVercelCron,
-      userAgent,
-      hasCronSecretProd: !!appConfig.cronSecretProd,
-      hasCronSecretStaging: !!appConfig.cronSecretStaging,
       hasCronSecret: !!cronSecret,
       authHeaderPresent: !!authHeader,
-      cronSecretLength: cronSecret?.length || 0
     });
-    
-    // Authenticate: 
-    // 1. Vercel automatic cron triggers are trusted (user-agent: vercel-cron)
-    // 2. Manual POST requests require CRON_SECRET authentication
-    if (!isVercelCron) {
-      // For manual triggers, require CRON_SECRET authentication
-      if (cronSecret && !isValidCronAuth(authHeader, cronSecret)) {
-        console.error('❌ Invalid cron authentication attempt (not Vercel cron and no valid secret)');
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        );
-      }
-    } else {
-      console.log('✅ Verified Vercel automatic cron trigger');
+
+    if (!cronSecret) {
+      console.error('❌ CRON_SECRET environment variable is not set');
+      return NextResponse.json(
+        { error: 'Server misconfiguration: CRON_SECRET not set' },
+        { status: 500 }
+      );
     }
+
+    if (!isValidCronAuth(authHeader, cronSecret)) {
+      console.error('❌ Invalid cron authentication attempt');
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    console.log('✅ Cron authentication verified');
 
     
     console.log('🔄 Starting email alerts cron job...');

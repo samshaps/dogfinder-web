@@ -23,7 +23,7 @@ development_status:
   # ── Epic 1: Security Hardening ─────────────────────────────────────────────
   epic-1-security-hardening: backlog
 
-  1-1-remove-admin-secret-fallback: ready-for-dev   # CRITICAL — fix first
+  1-1-remove-admin-secret-fallback: done             # CRITICAL — fix first
   1-2-fix-cron-authentication: ready-for-dev         # HIGH
   1-3-strip-stack-traces: ready-for-dev              # HIGH
   1-4-gate-debug-endpoints: ready-for-dev            # MEDIUM (2 issues combined)

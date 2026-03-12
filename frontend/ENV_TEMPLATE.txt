@@ -85,7 +85,11 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 # ============================================
 # Cron Job Security
 # ============================================
+# CRON_SECRET: Required. Set this in Vercel project settings — Vercel automatically
+# injects it as Authorization: Bearer <CRON_SECRET> on cron job requests.
 # Generate with: openssl rand -base64 32
+CRON_SECRET=your-cron-secret-here
+# Legacy env-specific variants (used by manual trigger endpoints)
 CRON_SECRET_PROD=your-production-cron-secret-here
 CRON_SECRET_STAGING=your-staging-cron-secret-here
 

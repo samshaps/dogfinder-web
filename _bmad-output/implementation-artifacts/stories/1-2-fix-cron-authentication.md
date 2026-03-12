@@ -47,10 +47,21 @@ so that arbitrary HTTP clients cannot trigger mass email sends by spoofing the V
 
 ### Agent Model Used
 
-_to be filled_
+claude-sonnet-4-6
 
 ### Debug Log References
 
+None — straightforward auth logic replacement.
+
 ### Completion Notes List
 
+- Removed `isVercelCron` trust based on User-Agent / `X-Vercel-Cron` header
+- All requests (GET and POST) now authenticated via `process.env.CRON_SECRET`
+- Returns 500 if `CRON_SECRET` is unset (misconfiguration); 401 on mismatch
+- Reused existing `isValidCronAuth` helper which already uses `crypto.timingSafeEqual` with length pre-check
+- `IMPORTANT`: `CRON_SECRET` must be set in Vercel project environment variables (production + preview) — Vercel injects it automatically into cron requests; without it the cron will return 500
+
 ### File List
+
+- `frontend/app/api/cron/email-alerts/route.ts`
+- `frontend/ENV_TEMPLATE.txt`
