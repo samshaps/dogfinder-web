@@ -18,7 +18,11 @@ export interface Dog {
   publishedAt: string;
   location: {
     distanceMi: number;
+    city?: string;
+    state?: string;
   };
+  city?: string;
+  state?: string;
   tags: string[];
   url: string;
   shelter: {
