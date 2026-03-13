@@ -142,7 +142,10 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `Pronouns: ${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective} (${pronouns.noun})`,
     hasDescription ? `Shelter description: ${sanitizedDescription}` : '',
     `Matched facets: ${JSON.stringify(matched_facets)}`,
-    breed_exact ? `Exact breed label: ${breed_label}` : ''
+    breed_exact ? `Exact breed label: ${breed_label}` : '',
+    (!breed_exact && breed_fuzzy && effectivePrefs.breeds.include.length > 0)
+      ? `Breed preference (fuzzy match): ${effectivePrefs.breeds.include.join(', ')}`
+      : ''
   ].filter(Boolean).join('\n');
 
   return `${header}\n\n${body}`;

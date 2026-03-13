@@ -5,6 +5,32 @@ import { Dog as SchemaDog } from '@/lib/schemas';
 import { getActiveDogProvider, type SearchDogsParams } from '@/lib/dogProviders';
 import type { Dog as ProviderDog } from '@/lib/api';
 
+// Canonical map for provider pre-filter (RescueGroups-friendly names only).
+// This is a performance hint — the AI matching layer handles hard filtering.
+const PROVIDER_BREED_CANONICAL: Record<string, string> = {
+  'doodle': 'poodle',
+  'goldendoodle': 'poodle',
+  'labradoodle': 'poodle',
+  'bernedoodle': 'poodle',
+  'sheepadoodle': 'poodle',
+  'aussiedoodle': 'poodle',
+  'poodle mix': 'poodle',
+  'lab': 'labrador retriever',
+  'lab mix': 'labrador retriever',
+  'labrador': 'labrador retriever',
+  'labrador mix': 'labrador retriever',
+  'golden': 'golden retriever',
+  'gsd': 'german shepherd',
+  'pit': 'pit bull',
+  'pitbull': 'pit bull',
+};
+
+function canonicalizeForProvider(breeds: string[]): string[] {
+  return [...new Set(
+    breeds.map(b => PROVIDER_BREED_CANONICAL[b.toLowerCase().trim()] ?? b)
+  )];
+}
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -29,12 +55,14 @@ export async function GET(request: NextRequest) {
     // Normalize query for provider
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 20);
     const page = parseInt(searchParams.get('page') || '1', 10) || 1;
+    const rawIncludeBreeds = searchParams.get('includeBreeds')?.split(',').filter(Boolean) || [];
+    const canonicalIncludeBreeds = canonicalizeForProvider(rawIncludeBreeds);
     const providerParams: SearchDogsParams = {
       zip: searchParams.get('zip') || undefined,
       radius: searchParams.get('radius') ? parseInt(searchParams.get('radius') as string, 10) : undefined,
       age: searchParams.get('age') || undefined,
       size: searchParams.get('size') || undefined,
-      includeBreeds: searchParams.get('breed') || undefined,
+      includeBreeds: canonicalIncludeBreeds.length > 0 ? canonicalIncludeBreeds.join(',') : undefined,
       sort: (searchParams.get('sort') as any) || 'freshness',
       page,
       limit,
