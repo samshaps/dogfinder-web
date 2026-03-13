@@ -1,6 +1,6 @@
 # Story 1.4: Gate Debug/Test Endpoints + Fix Table Enumeration
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -25,14 +25,14 @@ so that they don't expand the attack surface and cannot be used to probe interna
 
 ## Tasks / Subtasks
 
-- [ ] Add production guard to all debug/test routes (AC: 1, 2, 5)
-  - [ ] Add to top of each handler: `if (process.env.NODE_ENV === 'production') { return NextResponse.json({ error: 'Not found' }, { status: 404 }); }`
-  - [ ] Routes to update: debug-schema, debug-email-status, debug/resend-test, test, test-ai, test-email, test-supabase
-  - [ ] Consider extracting `requireNonProduction()` helper to `lib/api/helpers.ts`
-- [ ] Add table allowlist to debug-schema (AC: 3, 4)
-  - [ ] Define `const ALLOWED_TABLES = ['dogs', 'users', 'preferences', ...]` — populate with actual app tables
-  - [ ] Validate `table` query param against allowlist before Supabase call
-  - [ ] Return 400 with `{ error: 'Table not in allowlist' }` if invalid
+- [x] Add production guard to all debug/test routes (AC: 1, 2, 5)
+  - [x] Add to top of each handler: `if (process.env.NODE_ENV === 'production') { return NextResponse.json({ error: 'Not found' }, { status: 404 }); }`
+  - [x] Routes to update: debug-schema, debug-email-status, debug/resend-test, test, test-ai, test-email, test-supabase
+  - [x] Extracted `requireNonProduction()` helper to `lib/api/helpers.ts`
+- [x] Add table allowlist to debug-schema (AC: 3, 4)
+  - [x] Define `const ALLOWED_TABLES = ['users', 'plans', 'preferences', 'alert_settings', 'email_events', 'dog_cache']`
+  - [x] Validate `table` query param against allowlist before Supabase call
+  - [x] Return 400 with `{ error: 'Table not in allowlist' }` if invalid
 
 ## Dev Notes
 
@@ -55,10 +55,23 @@ so that they don't expand the attack surface and cannot be used to probe interna
 
 ### Agent Model Used
 
-_to be filled_
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Added `requireNonProduction()` helper to `lib/api/helpers.ts` — returns 404 in production, null otherwise
+- `debug/resend-test` previously used `VERCEL_ENV === 'production'` → 403; normalized to `NODE_ENV === 'production'` → 404
+- Table allowlist in `debug-schema`: users, plans, preferences, alert_settings, email_events, dog_cache
+
 ### File List
+
+- frontend/lib/api/helpers.ts
+- frontend/app/api/debug-schema/route.ts
+- frontend/app/api/debug-email-status/route.ts
+- frontend/app/api/debug/resend-test/route.ts
+- frontend/app/api/test/route.ts
+- frontend/app/api/test-ai/route.ts
+- frontend/app/api/test-email/route.ts
+- frontend/app/api/test-supabase/route.ts

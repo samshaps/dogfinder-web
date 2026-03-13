@@ -9,8 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTestEmail } from '@/lib/email/service';
 import { appConfig } from '@/lib/config';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 export async function POST(request: NextRequest) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     // Simple auth check - allow in dev mode without auth, require ADMIN_SECRET or CRON_SECRET in production
     const authHeader = request.headers.get('authorization');
@@ -95,6 +99,9 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for usage instructions
 export async function GET() {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   return NextResponse.json({
     endpoint: '/api/test-email',
     method: 'POST',

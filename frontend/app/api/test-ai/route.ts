@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runTextResponse, runStructuredResponse } from '@/lib/openai-client';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 export async function GET() {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     console.log('🧪 Testing OpenAI Responses API...');
 
@@ -32,6 +36,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     const { prompt, type, temperaments } = await request.json();
     

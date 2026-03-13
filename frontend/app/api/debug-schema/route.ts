@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase-auth';
-import { requireSession, okJson, errJson, ApiErrors } from '@/lib/api/helpers';
+import { requireSession, requireNonProduction, okJson, errJson, ApiErrors } from '@/lib/api/helpers';
+
+const ALLOWED_TABLES = ['users', 'plans', 'preferences', 'alert_settings', 'email_events', 'dog_cache'] as const;
 
 /**
  * Debug endpoint to check the actual database schema
  * GET /api/debug-schema?table=preferences
  */
 export async function GET(request: NextRequest) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     const { session, response } = await requireSession(request);
     if (response) return response;
 
     const tableName = request.nextUrl.searchParams.get('table') || 'preferences';
+
+    if (!ALLOWED_TABLES.includes(tableName as any)) {
+      return NextResponse.json({ error: 'Table not in allowlist' }, { status: 400 });
+    }
     const client = getSupabaseClient();
 
     try {

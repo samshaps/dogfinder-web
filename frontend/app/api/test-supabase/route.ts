@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient, testSupabaseConnection } from '@/lib/supabase-auth';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 export async function GET(request: NextRequest) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     console.log('🔍 Testing Supabase connection...');
     

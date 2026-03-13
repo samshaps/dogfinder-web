@@ -2,18 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { getResendClient, EMAIL_CONFIG } from '@/lib/email/config';
 import { appConfig } from '@/lib/config';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 // Debug endpoint to test Resend API directly
 export async function POST(request: NextRequest) {
-  try {
-    // Only allow in development/staging
-    if (process.env.VERCEL_ENV === 'production') {
-      return NextResponse.json(
-        { error: 'Debug endpoint not available in production' },
-        { status: 403 }
-      );
-    }
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
 
+  try {
     const session = await getServerSession();
     
     if (!session?.user?.email) {

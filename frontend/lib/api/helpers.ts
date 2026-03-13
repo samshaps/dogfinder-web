@@ -4,6 +4,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * Returns a 404 response if running in production, null otherwise.
+ * Use at the top of debug/test route handlers to block access in production.
+ */
+export function requireNonProduction(): NextResponse | null {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  return null;
+}
 import { getServerSession } from 'next-auth';
 import { Session } from 'next-auth';
 import { createSuccessResponse, createErrorResponse, getRequestId } from './response';

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 export async function GET() {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   console.log('🧪 Test API GET endpoint called');
   
   try {
@@ -24,6 +28,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   console.log('🧪 Test API POST endpoint called');
   
   try {

@@ -8,8 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase';
 import { appConfig } from '@/lib/config';
+import { requireNonProduction } from '@/lib/api/helpers';
 
 export async function GET(request: NextRequest) {
+  const prodGuard = requireNonProduction();
+  if (prodGuard) return prodGuard;
+
   try {
     // Simple auth check
     const authHeader = request.headers.get('authorization');
