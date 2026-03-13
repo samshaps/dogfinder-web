@@ -69,7 +69,7 @@ export default function TestApiPage() {
                 {/* No description field in Dog interface; omit for this test page */}
                 <div className="mt-4">
                   <a
-                    href={dog.url}
+                    href={dog.url ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
