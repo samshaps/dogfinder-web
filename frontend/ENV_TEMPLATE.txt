@@ -123,8 +123,10 @@ PETFINDER_API_KEY=
 PETFINDER_SECRET=
 
 # ============================================
-# Optional: Rate Limiting
+# Rate Limiting — Upstash Redis (distributed, cross-instance)
+# Get from: https://console.upstash.com → your Redis database → REST API
+# Without these, the rate limiter fails open (all requests allowed).
 # ============================================
-RATE_LIMIT_MAX_REQUESTS=100
-RATE_LIMIT_WINDOW_MS=60000
+UPSTASH_REDIS_REST_URL=https://your-database.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
 

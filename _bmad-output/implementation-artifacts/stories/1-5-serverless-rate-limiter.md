@@ -1,6 +1,6 @@
 # Story 1.5: Replace In-Memory Rate Limiter
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -18,15 +18,15 @@ so that a caller cannot bypass limits by distributing requests across concurrent
 
 ## Tasks / Subtasks
 
-- [ ] Choose backing store (AC: 2)
-  - [ ] Check if Vercel KV is already provisioned for this project (check `vercel.json` and env vars for `KV_REST_API_URL`)
-  - [ ] If not: prefer Upstash Redis (free tier, no Vercel plan requirement) — install `@upstash/ratelimit` and `@upstash/redis`
-- [ ] Rewrite `lib/api/rate-limit.ts` (AC: 1, 2, 3, 4)
-  - [ ] If using Upstash: use `@upstash/ratelimit` with `Ratelimit.slidingWindow()` — it's a drop-in that handles the distributed state problem
-  - [ ] Preserve the same exported function/type signatures
-  - [ ] Wrap store calls in try/catch; on failure, log warning and return `{ success: true }` (fail open)
-- [ ] Add required env vars to `ENV_TEMPLATE.txt` (AC: 2)
-- [ ] Verify all existing call sites still work without changes (AC: 3)
+- [x] Choose backing store (AC: 2)
+  - [x] Check if Vercel KV is already provisioned for this project (check `vercel.json` and env vars for `KV_REST_API_URL`)
+  - [x] If not: prefer Upstash Redis (free tier, no Vercel plan requirement) — install `@upstash/ratelimit` and `@upstash/redis`
+- [x] Rewrite `lib/api/rate-limit.ts` (AC: 1, 2, 3, 4)
+  - [x] If using Upstash: use `@upstash/ratelimit` with `Ratelimit.slidingWindow()` — it's a drop-in that handles the distributed state problem
+  - [x] Preserve the same exported function/type signatures
+  - [x] Wrap store calls in try/catch; on failure, log warning and return `{ success: true }` (fail open)
+- [x] Add required env vars to `ENV_TEMPLATE.txt` (AC: 2)
+- [x] Verify all existing call sites still work without changes (AC: 3)
 
 ## Dev Notes
 
@@ -63,10 +63,21 @@ so that a caller cannot bypass limits by distributing requests across concurrent
 
 ### Agent Model Used
 
-_to be filled_
+claude-sonnet-4-6
 
 ### Debug Log References
 
+None.
+
 ### Completion Notes List
 
+- No Vercel KV provisioned; used Upstash Redis (`@upstash/ratelimit` + `@upstash/redis` — already in package.json).
+- Replaced module-level `Map` with `Ratelimit.slidingWindow()` backed by `Redis.fromEnv()`.
+- Redis and Ratelimit instances are lazily created and module-level cached.
+- All public async helpers now return `Promise` types (necessary for Upstash network call). No call sites exist so non-breaking.
+- Fails open on missing env vars and on store errors (try/catch with `console.warn`).
+
 ### File List
+
+- `frontend/lib/api/rate-limit.ts` — rewritten
+- `frontend/ENV_TEMPLATE.txt` — added `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`

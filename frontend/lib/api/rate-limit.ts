@@ -1,10 +1,15 @@
 /**
  * Rate limiting middleware and utilities
  * Provides protection against abuse and ensures fair usage
+ *
+ * Backed by Upstash Redis (shared across all serverless instances).
+ * Fails open if the store is unavailable.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createApiError, getRequestId } from './response';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+import { getRequestId } from './response';
 
 export interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -22,34 +27,61 @@ export interface RateLimitInfo {
   retryAfter?: number;
 }
 
-// In-memory store for rate limiting (in production, use Redis)
-const rateLimitStore = new Map<string, {
-  count: number;
-  resetTime: number;
-}>();
+// ---------------------------------------------------------------------------
+// Upstash Redis + Ratelimit instance helpers (lazy, cached)
+// ---------------------------------------------------------------------------
 
-// Clean up expired entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (value.resetTime < now) {
-      rateLimitStore.delete(key);
-    }
+let _redis: Redis | null = null;
+
+function getRedis(): Redis | null {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return null;
   }
-}, 5 * 60 * 1000);
+  if (!_redis) {
+    _redis = Redis.fromEnv();
+  }
+  return _redis;
+}
 
-/**
- * Default key generator (by IP address)
- */
+// Convert windowMs to an Upstash duration string
+function msToDuration(ms: number): `${number} ${'ms' | 's' | 'm' | 'h' | 'd'}` {
+  if (ms < 1_000) return `${ms} ms`;
+  if (ms < 60_000) return `${Math.round(ms / 1_000)} s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} m`;
+  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} h`;
+  return `${Math.round(ms / 86_400_000)} d`;
+}
+
+const _ratelimitCache = new Map<string, Ratelimit>();
+
+function getRatelimit(config: RateLimitConfig): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+
+  const cacheKey = `${config.maxRequests}:${config.windowMs}`;
+  if (!_ratelimitCache.has(cacheKey)) {
+    _ratelimitCache.set(
+      cacheKey,
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(config.maxRequests, msToDuration(config.windowMs)),
+        prefix: 'rl',
+      })
+    );
+  }
+  return _ratelimitCache.get(cacheKey)!;
+}
+
+// ---------------------------------------------------------------------------
+// Key generators
+// ---------------------------------------------------------------------------
+
 function defaultKeyGenerator(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
   return `rate_limit:${ip}`;
 }
 
-/**
- * User-based key generator (requires authentication)
- */
 function userKeyGenerator(request: NextRequest): string {
   const userId = request.headers.get('x-user-id');
   if (!userId) {
@@ -58,9 +90,6 @@ function userKeyGenerator(request: NextRequest): string {
   return `rate_limit:user:${userId}`;
 }
 
-/**
- * API endpoint key generator (by endpoint and IP)
- */
 function endpointKeyGenerator(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
@@ -68,79 +97,70 @@ function endpointKeyGenerator(request: NextRequest): string {
   return `rate_limit:${endpoint}:${ip}`;
 }
 
-/**
- * Create rate limit error
- */
-function createRateLimitError(info: RateLimitInfo, message?: string): Error {
-  const error = new Error(message || 'Rate limit exceeded') as any;
-  error.code = 'RATE_LIMIT_EXCEEDED';
-  error.statusCode = 429;
-  error.retryAfter = info.retryAfter;
-  error.limit = info.limit;
-  error.remaining = info.remaining;
-  return error;
-}
+// ---------------------------------------------------------------------------
+// Core check — async due to Upstash network call
+// ---------------------------------------------------------------------------
 
-/**
- * Check if request is within rate limit
- */
-export function checkRateLimit(
+export async function checkRateLimit(
   request: NextRequest,
   config: RateLimitConfig
-): { allowed: boolean; info: RateLimitInfo; error?: Error } {
+): Promise<{ allowed: boolean; info: RateLimitInfo; error?: Error }> {
   const key = config.keyGenerator ? config.keyGenerator(request) : defaultKeyGenerator(request);
-  const now = Date.now();
-  const windowStart = now - config.windowMs;
-  
-  // Get or create rate limit entry
-  let entry = rateLimitStore.get(key);
-  if (!entry || entry.resetTime < now) {
-    entry = {
-      count: 0,
-      resetTime: now + config.windowMs,
-    };
-    rateLimitStore.set(key, entry);
-  }
-  
-  // Check if within limit
-  if (entry.count >= config.maxRequests) {
-    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
-    const info: RateLimitInfo = {
-      limit: config.maxRequests,
-      remaining: 0,
-      resetTime: entry.resetTime,
-      retryAfter,
-    };
-    
+  const ratelimit = getRatelimit(config);
+
+  // Fail open if store is not configured
+  if (!ratelimit) {
+    console.warn('[rate-limit] Upstash Redis not configured — failing open');
     return {
-      allowed: false,
-      info,
-      error: createRateLimitError(info, config.message),
+      allowed: true,
+      info: { limit: config.maxRequests, remaining: config.maxRequests, resetTime: Date.now() + config.windowMs },
     };
   }
-  
-  // Increment counter
-  entry.count++;
-  
-  const info: RateLimitInfo = {
-    limit: config.maxRequests,
-    remaining: config.maxRequests - entry.count,
-    resetTime: entry.resetTime,
-  };
-  
-  return { allowed: true, info };
+
+  try {
+    const result = await ratelimit.limit(key);
+    const now = Date.now();
+    const info: RateLimitInfo = {
+      limit: result.limit,
+      remaining: result.remaining,
+      resetTime: result.reset,
+      retryAfter: result.success ? undefined : Math.ceil((result.reset - now) / 1000),
+    };
+
+    if (!result.success) {
+      const error = new Error(config.message || 'Rate limit exceeded') as Error & {
+        code: string;
+        statusCode: number;
+        retryAfter?: number;
+      };
+      error.code = 'RATE_LIMIT_EXCEEDED';
+      error.statusCode = 429;
+      error.retryAfter = info.retryAfter;
+      return { allowed: false, info, error };
+    }
+
+    return { allowed: true, info };
+  } catch (err) {
+    // Fail open on store errors
+    console.warn('[rate-limit] Store error — failing open:', err);
+    return {
+      allowed: true,
+      info: { limit: config.maxRequests, remaining: config.maxRequests, resetTime: Date.now() + config.windowMs },
+    };
+  }
 }
 
-/**
- * Rate limiting middleware factory
- */
+// ---------------------------------------------------------------------------
+// Middleware factory
+// ---------------------------------------------------------------------------
+
 export function createRateLimit(config: RateLimitConfig) {
-  return (request: NextRequest): NextResponse | null => {
-    const { allowed, info, error } = checkRateLimit(request, config);
-    
+  return async (request: NextRequest): Promise<NextResponse | null> => {
+    const { allowed, info, error } = await checkRateLimit(request, config);
+
     if (!allowed && error) {
       const requestId = getRequestId(request);
-      
+
       const response = NextResponse.json(
         {
           success: false,
@@ -161,94 +181,91 @@ export function createRateLimit(config: RateLimitConfig) {
         },
         { status: 429 }
       );
-      
+
       if (info.retryAfter) {
         response.headers.set('Retry-After', info.retryAfter.toString());
       }
-      
-      // Add rate limit headers
       response.headers.set('X-RateLimit-Limit', info.limit.toString());
       response.headers.set('X-RateLimit-Remaining', info.remaining.toString());
       response.headers.set('X-RateLimit-Reset', info.resetTime.toString());
-      
+
       return response;
     }
-    
+
     return null; // Allow request to continue
   };
 }
 
-/**
- * Predefined rate limit configurations
- */
+// ---------------------------------------------------------------------------
+// Predefined rate limit configurations
+// ---------------------------------------------------------------------------
+
 export const RateLimits = {
   // Strict rate limit for authentication endpoints
   auth: createRateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5, // 5 attempts per 15 minutes
+    maxRequests: 5,
     keyGenerator: defaultKeyGenerator,
     message: 'Too many authentication attempts. Please try again later.',
   }),
-  
+
   // Moderate rate limit for API endpoints
   api: createRateLimit({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 60, // 60 requests per minute
+    maxRequests: 60,
     keyGenerator: defaultKeyGenerator,
     message: 'Too many API requests. Please slow down.',
   }),
-  
+
   // Strict rate limit for email operations
   email: createRateLimit({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 3, // 3 email operations per minute
+    maxRequests: 3,
     keyGenerator: userKeyGenerator,
     message: 'Too many email operations. Please wait before trying again.',
   }),
-  
+
   // Rate limit for search operations
   search: createRateLimit({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 30, // 30 searches per minute
+    maxRequests: 30,
     keyGenerator: userKeyGenerator,
     message: 'Too many search requests. Please slow down.',
   }),
-  
+
   // Rate limit for webhook endpoints
   webhook: createRateLimit({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100, // 100 webhook calls per minute
+    maxRequests: 100,
     keyGenerator: endpointKeyGenerator,
     message: 'Too many webhook requests.',
   }),
-  
+
   // Rate limit for admin operations
   admin: createRateLimit({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 10, // 10 admin operations per minute
+    maxRequests: 10,
     keyGenerator: userKeyGenerator,
     message: 'Too many admin operations. Please slow down.',
   }),
 };
 
-/**
- * Apply rate limiting to a request
- */
-export function applyRateLimit(
+// ---------------------------------------------------------------------------
+// Convenience helpers
+// ---------------------------------------------------------------------------
+
+export async function applyRateLimit(
   request: NextRequest,
   rateLimitType: keyof typeof RateLimits
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const rateLimit = RateLimits[rateLimitType];
   return rateLimit(request);
 }
 
-/**
- * Get rate limit info without applying the limit
- */
-export function getRateLimitInfo(
+export async function getRateLimitInfo(
   request: NextRequest,
   config: RateLimitConfig
-): RateLimitInfo {
-  const { info } = checkRateLimit(request, config);
+): Promise<RateLimitInfo> {
+  const { info } = await checkRateLimit(request, config);
   return info;
 }
