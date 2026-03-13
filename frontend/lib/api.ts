@@ -199,7 +199,7 @@ export async function searchDogs(params: SearchParams = {}): Promise<DogsRespons
       if (r.status === 'fulfilled') {
         r.value.items.forEach(d => {
           // Deduplicate by id; fallback to url if id missing
-          const key = d.id || d.url;
+          const key = d.id || d.url || '';
           if (!seen.has(key)) {
             seen.add(key);
             merged.push(d);
