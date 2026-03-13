@@ -1,16 +1,19 @@
 import { getResendClient, EMAIL_CONFIG } from './config';
-import { 
-  EmailTemplateData, 
+import {
+  EmailTemplateData,
   EmailTemplateDataSchema,
-  EmailServiceResponse, 
+  EmailServiceResponse,
   EmailEventType,
-  EmailDogMatch 
+  EmailDogMatch
 } from './types';
 import { getSupabaseClient } from '@/lib/supabase';
 import { signUnsubToken } from '@/lib/tokens';
 import { getUserPreferences } from '@/lib/supabase-auth';
 import { appConfig } from '@/lib/config';
 import { getDogPronouns, normalizeDogGender, applyDogPronouns } from '@/lib/utils/pronouns';
+import { generateTop3Reasoning } from '@/lib/explanation';
+import { normalizeUserPreferences } from '@/lib/normalization';
+import type { Dog as SchemaDog, DogAnalysis, UserPreferences } from '@/lib/schemas';
 
 /**
  * Send a dog match alert email to a user
@@ -167,150 +170,85 @@ export async function sendDogMatchAlert(
  * @returns Map of dog ID to reasoning string (both string and number IDs normalized to strings)
  */
 export async function fetchAIReasoningForDogs(
-  userId: string, 
-  dogs: any[], 
+  userId: string,
+  dogs: any[],
   preferences?: any
 ): Promise<Record<string, string>> {
   try {
-    // Use AI_REASONING_URL if set, otherwise construct from publicBaseUrl
-    let reasoningUrl = process.env.AI_REASONING_URL;
-    if (!reasoningUrl) {
-      // Determine base URL - use publicBaseUrl or fallback logic
-      let baseUrl = appConfig.publicBaseUrl;
-      if (!baseUrl) {
-        if (process.env.VERCEL_URL) {
-          baseUrl = `https://${process.env.VERCEL_URL}`;
-        } else if (process.env.NODE_ENV === 'production') {
-          baseUrl = 'https://dogyenta.com';
-        } else {
-          baseUrl = 'http://localhost:3000';
-        }
-      }
-      reasoningUrl = `${baseUrl}/api/ai-reasoning`;
-    }
-    
-    const hasInternalToken = !!process.env.AI_INTERNAL_TOKEN;
-    console.log(`🤖 Fetching AI reasoning for ${dogs.length} dogs (userId: ${userId}, url: ${reasoningUrl}, auth: ${hasInternalToken ? 'token' : 'none'})`);
-    
-    // Build preference context for prompt
-    let prefContext = '';
-    if (preferences) {
-      const prefParts: string[] = [];
-      if (preferences.age_preferences?.length) {
-        prefParts.push(`Ages: ${preferences.age_preferences.join(', ')}`);
-      }
-      if (preferences.size_preferences?.length) {
-        prefParts.push(`Sizes: ${preferences.size_preferences.join(', ')}`);
-      }
-      if (preferences.energy_level) {
-        prefParts.push(`Energy: ${preferences.energy_level}`);
-      }
-      if (preferences.temperament_traits?.length) {
-        prefParts.push(`Temperament: ${preferences.temperament_traits.join(', ')}`);
-      }
-      if (preferences.include_breeds?.length) {
-        prefParts.push(`Include breeds: ${preferences.include_breeds.join(', ')}`);
-      }
-      if (prefParts.length > 0) {
-        prefContext = ` User preferences: ${prefParts.join('. ')}.`;
-      }
-    }
-    
-    // Build headers - include internal token if available
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (process.env.AI_INTERNAL_TOKEN) {
-      headers['Authorization'] = `Bearer ${process.env.AI_INTERNAL_TOKEN}`;
-    }
-    
-    // For each dog, call the AI reasoning endpoint
+    console.log(`🤖 Fetching AI reasoning for ${dogs.length} dogs (userId: ${userId}) via generateTop3Reasoning`);
+
+    // Map raw DB preferences to UserPreferences so we can build EffectivePreferences
+    const userPreferences: UserPreferences = {
+      zipCodes: preferences?.zip_codes || (preferences?.location ? [preferences.location] : []),
+      radiusMi: preferences?.radius || preferences?.radius_mi || 50,
+      age: preferences?.age_preferences || preferences?.age || [],
+      size: preferences?.size_preferences || preferences?.size || [],
+      energy: preferences?.energy_level || preferences?.energy || undefined,
+      temperament: preferences?.temperament_traits || preferences?.temperament || [],
+      breedsInclude: preferences?.include_breeds || preferences?.breed || [],
+      breedsExclude: preferences?.exclude_breeds || [],
+    };
+
+    const effectivePrefs = normalizeUserPreferences(userPreferences);
+
     const reasoningPromises = dogs.map(async (dog) => {
-      // Normalize ID to string for consistent lookup
       const dogId = String(dog.id);
-      
       try {
-        // Build a comprehensive prompt with dog details and user preferences
-        const breeds = Array.isArray(dog.breeds) ? dog.breeds.join(', ') : (dog.breeds?.primary || 'Mixed Breed');
-        const normalizedGender = normalizeDogGender(dog.gender);
-        const pronouns = getDogPronouns(dog.gender);
-        const pronounInstruction = normalizedGender === 'unknown'
-          ? `Gender is unknown; use neutral pronouns (${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}) or phrases like "${pronouns.noun}". Never call the dog "it".`
-          : `This dog is ${normalizedGender}. Use pronouns "${pronouns.subject}/${pronouns.object}/${pronouns.possessiveAdjective}" and phrases like "${pronouns.noun}". Never call ${pronouns.object} "it".`;
-        const prompt = `Dog: ${dog.name || 'Unknown'}, ${breeds}, ${dog.age || 'Unknown age'}, ${dog.size || 'Unknown size'}${dog.energy ? `, ${dog.energy} energy` : ''}.${prefContext}\n${pronounInstruction}\nExplain why this dog would be a good match in one concise sentence (max 50 words).`;
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const pronounPayload = {
-          subject: pronouns.subject,
-          object: pronouns.object,
-          possessiveAdjective: pronouns.possessiveAdjective,
-          possessive: pronouns.possessive,
-          reflexive: pronouns.reflexive,
-          noun: pronouns.noun,
-          gender: pronouns.gender,
-          subjectCapitalized: pronouns.subjectCapitalized,
-          objectCapitalized: pronouns.objectCapitalized,
-          possessiveAdjectiveCapitalized: pronouns.possessiveAdjectiveCapitalized
+        // Map raw API dog to the Dog schema type that generateTop3Reasoning expects
+        const schemaDog: SchemaDog = {
+          id: dogId,
+          name: dog.name || 'Unknown',
+          breeds: Array.isArray(dog.breeds) ? dog.breeds : [],
+          age: String(dog.age || 'unknown').toLowerCase(),
+          size: String(dog.size || 'medium').toLowerCase(),
+          energy: String(dog.energy || 'medium').toLowerCase(),
+          temperament: Array.isArray(dog.tags) ? dog.tags : [],
+          location: { distanceMi: dog.location?.distanceMi },
+          gender: dog.gender,
+          photos: dog.photos,
+          rawDescription: dog.description,
+          url: dog.url,
+          shelter: dog.shelter,
         };
 
-        const resp = await fetch(reasoningUrl, {
-          method: 'POST',
-          headers,
-          cache: 'no-store',
-          signal: controller.signal,
-          body: JSON.stringify({
-            prompt,
-            type: 'free',
-            max_tokens: 60,
-            temperature: 0.1,
-            pronouns: pronounPayload,
-            dogName: dog.name
-          }),
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!resp.ok) {
-          const errorText = await resp.text().catch(() => '');
-          console.warn(`❌ AI reasoning failed for dog ${dogId} (${dog.name}): HTTP ${resp.status} - ${errorText.substring(0, 100)}`);
-          return { id: dogId, reason: '' };
-        }
-        
-        const data = await resp.json();
-        const rawReason = typeof data.reasoning === 'string' ? data.reasoning.trim() : '';
-        const reason = rawReason ? applyDogPronouns(rawReason, pronouns).trim() : '';
-        
+        // Stub analysis — generateTop3Reasoning's AI path doesn't use matchedPrefs;
+        // only the heuristic fallback does, and empty arrays produce a safe fallback.
+        const analysis: DogAnalysis = {
+          dogId,
+          score: 80,
+          matchedPrefs: [],
+          unmetPrefs: [],
+          reasons: {},
+        };
+
+        const result = await generateTop3Reasoning(schemaDog, analysis, effectivePrefs);
+        const reason = result.primary || '';
+
         if (!reason) {
           console.warn(`⚠️ Empty AI reasoning for dog ${dogId} (${dog.name})`);
           return { id: dogId, reason: '' };
         }
-        
+
         console.log(`✅ AI reasoning for dog ${dogId} (${dog.name}): ${reason.substring(0, 50)}...`);
         return { id: dogId, reason };
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.warn(`⏱️ AI reasoning timeout for dog ${dogId} (${dog.name})`);
-        } else {
-          console.warn(`❌ AI reasoning error for dog ${dogId} (${dog.name}):`, errorMsg);
-        }
+        console.warn(`❌ AI reasoning error for dog ${dogId} (${dog.name}):`, error instanceof Error ? error.message : 'Unknown error');
         return { id: dogId, reason: '' };
       }
     });
-    
+
     const results = await Promise.all(reasoningPromises);
     const reasonsMap: Record<string, string> = {};
     let successCount = 0;
-    
+
     results.forEach(({ id, reason }) => {
       if (reason) {
         reasonsMap[id] = reason;
         successCount++;
       }
     });
-    
+
     console.log(`📊 AI reasoning results: ${successCount}/${dogs.length} dogs got reasoning`);
-    
     return reasonsMap;
   } catch (error) {
     console.error('❌ Failed to fetch AI reasoning:', error instanceof Error ? error.message : 'Unknown error');

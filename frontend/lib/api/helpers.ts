@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Use at the top of debug/test route handlers to block access in production.
  */
 export function requireNonProduction(): NextResponse | null {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.VERCEL_ENV === 'production') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   return null;
