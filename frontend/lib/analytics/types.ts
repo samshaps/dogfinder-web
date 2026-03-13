@@ -49,6 +49,8 @@ export type ResultsEvent =
   | 'results_upgrade_clicked'
   | 'results_listing_link_clicked'
   | 'results_dog_link_copied'
+  | 'results_shelter_phone_copied'
+  | 'results_shelter_email_copied'
   | 'alerts_cta_clicked';
 
 // Alert & Email events

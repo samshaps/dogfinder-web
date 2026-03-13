@@ -20,7 +20,8 @@ export interface Dog {
     distanceMi: number;
   };
   tags: string[];
-  url: string;
+  url: string | null;
+  urlFallbackNote?: string;
   shelter: {
     name: string;
     email: string;

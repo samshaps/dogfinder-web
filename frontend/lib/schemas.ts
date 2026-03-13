@@ -78,7 +78,8 @@ export type Dog = {
   city?: string;
   state?: string;
   tags?: string[];
-  url?: string;
+  url?: string | null;
+  urlFallbackNote?: string;
   shelter?: {
     name: string;
     email: string;

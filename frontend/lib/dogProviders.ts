@@ -1,5 +1,6 @@
 import { sanitizeDescription } from './utils/description-sanitizer';
 import { normalizeDogGender } from './utils/pronouns';
+import { validateUrl } from './utils/validate-url';
 import type { Dog } from './api';
 
 /**
@@ -236,17 +237,17 @@ function mapRescueGroupsAnimalToDog(
         orgId = String(rel.org.data.id);
       }
       
+      let email = '';
+      let phone = '';
       if (orgId && indexes?.orgsById) {
         const org = indexes.orgsById.get(orgId);
         if (org) {
           name = org.name || name;
+          email = org.email || '';
+          phone = org.phone || '';
         }
       }
-      return {
-        name,
-        email: '',
-        phone: '',
-      };
+      return { name, email, phone };
     })(),
     description: sanitizedDescription || undefined,
   };
@@ -434,7 +435,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url,email,phone'); // Include contact info for fallback
     url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {
@@ -501,12 +502,34 @@ export class RescueGroupsDogProvider implements DogProvider {
     const mapped = animals.map((animal) =>
       mapRescueGroupsAnimalToDog(animal, { picturesById, orgsById, breedsById })
     );
-    const total = json.meta?.pagination?.total ?? mapped.length;
-    const count = json.meta?.pagination?.count ?? mapped.length;
+
+    // Validate adoption URLs in parallel (AC 1,2,5,6,7).
+    // Only RescueGroups has the broken-link problem — Petfinder is not validated.
+    const validationResults = await Promise.allSettled(
+      mapped.map(async (dog): Promise<Dog> => {
+        if (!dog.url) return dog;
+        const valid = await validateUrl(dog.url);
+        if (valid) return dog;
+        const shelterName =
+          dog.shelter?.name && dog.shelter.name !== 'Unknown Shelter'
+            ? dog.shelter.name
+            : null;
+        const urlFallbackNote = shelterName
+          ? `Listed by ${shelterName} — search for them directly to inquire about adoption`
+          : 'Listing unavailable — search for this shelter directly to inquire about adoption';
+        return { ...dog, url: null, urlFallbackNote };
+      })
+    );
+    const items = validationResults.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : mapped[i]
+    );
+
+    const total = json.meta?.pagination?.total ?? items.length;
+    const count = json.meta?.pagination?.count ?? items.length;
     const currentPage = json.meta?.pagination?.current_page ?? page;
 
     return {
-      items: mapped,
+      items,
       page: currentPage,
       pageSize: count,
       total,
@@ -537,7 +560,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url,email,phone'); // Include contact info for fallback
     url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {

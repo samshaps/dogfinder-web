@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ExternalLink, MapPin, Home, X, ChevronLeft, ChevronRight, Check, Phone, Mail } from 'lucide-react';
 import { listDogs, type Dog as APIDog } from '@/lib/api';
 import { type UserPreferences, type MatchingResults, type Dog } from '@/lib/schemas';
 import PhotoCarousel from '@/components/PhotoCarousel';
@@ -46,6 +46,7 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
     state: '',
     tags: apiDog.tags,
     url: apiDog.url,
+    urlFallbackNote: apiDog.urlFallbackNote,
     shelter: apiDog.shelter
   };
 }
@@ -129,31 +130,76 @@ function TopPickCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: AP
         </div>
         
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-nowrap mt-auto">
-          <a
-            href={dog.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary-sm whitespace-nowrap"
-            onClick={() => trackEvent('results_listing_link_clicked', {
-              dog_id: dog.id,
-              dog_name: dog.name,
-              source: 'top_pick'
-            })}
-          >
-            View full listing
-          </a>
-          <CopyLinkButton
-            text={dog.url}
-            className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
-            iconClassName="w-4 h-4 text-gray-700"
-            onCopy={() => trackEvent('results_dog_link_copied', {
-              dog_id: dog.id,
-              dog_name: dog.name,
-              source: 'top_pick'
-            })}
-          />
-        </div>
+        {dog.url ? (
+          <div className="flex items-center gap-2 sm:gap-3 flex-nowrap mt-auto">
+            <a
+              href={dog.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary-sm whitespace-nowrap"
+              onClick={() => trackEvent('results_listing_link_clicked', {
+                dog_id: dog.id,
+                dog_name: dog.name,
+                source: 'top_pick'
+              })}
+            >
+              View full listing
+            </a>
+            <CopyLinkButton
+              text={dog.url}
+              className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
+              iconClassName="w-4 h-4 text-gray-700"
+              onCopy={() => trackEvent('results_dog_link_copied', {
+                dog_id: dog.id,
+                dog_name: dog.name,
+                source: 'top_pick'
+              })}
+            />
+          </div>
+        ) : dog.shelter.phone || dog.shelter.email ? (
+          <div className="mt-auto space-y-2">
+            {dog.shelter.phone && (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[14px] text-gray-700 min-w-0">
+                  <Phone className="w-4 h-4 text-gray-500 shrink-0" />
+                  <span className="truncate">{dog.shelter.phone}</span>
+                </div>
+                <CopyLinkButton
+                  text={dog.shelter.phone}
+                  className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
+                  iconClassName="w-4 h-4 text-gray-700"
+                  onCopy={() => trackEvent('results_shelter_phone_copied', {
+                    dog_id: dog.id,
+                    dog_name: dog.name,
+                    source: 'top_pick'
+                  })}
+                />
+              </div>
+            )}
+            {dog.shelter.email && (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[14px] text-gray-700 min-w-0">
+                  <Mail className="w-4 h-4 text-gray-500 shrink-0" />
+                  <span className="truncate">{dog.shelter.email}</span>
+                </div>
+                <CopyLinkButton
+                  text={dog.shelter.email}
+                  className="btn-ghost-sm p-2 w-9 h-9 flex items-center justify-center shrink-0"
+                  iconClassName="w-4 h-4 text-gray-700"
+                  onCopy={() => trackEvent('results_shelter_email_copied', {
+                    dog_id: dog.id,
+                    dog_name: dog.name,
+                    source: 'top_pick'
+                  })}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="mt-auto text-[13px] text-gray-500 italic">
+            {dog.urlFallbackNote ?? 'Listing unavailable — search for this shelter directly to inquire about adoption'}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -216,31 +262,76 @@ function DogCard({ dog, onPhotoClick, userPreferences, analysis }: { dog: APIDog
         
         {/* AI Note removed for All Matches */}
         
-        <div className="mt-auto flex gap-2">
-          <a
-            href={dog.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 btn-primary text-sm"
-            onClick={() => trackEvent('results_listing_link_clicked', {
-              dog_id: dog.id,
-              dog_name: dog.name,
-              source: 'all_matches'
-            })}
-          >
-            View full listing
-          </a>
-          <CopyLinkButton
-            text={dog.url}
-            className="btn-ghost text-sm flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300"
-            iconClassName="w-4 h-4"
-            onCopy={() => trackEvent('results_dog_link_copied', {
-              dog_id: dog.id,
-              dog_name: dog.name,
-              source: 'all_matches'
-            })}
-          />
-        </div>
+        {dog.url ? (
+          <div className="mt-auto flex gap-2">
+            <a
+              href={dog.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 btn-primary text-sm"
+              onClick={() => trackEvent('results_listing_link_clicked', {
+                dog_id: dog.id,
+                dog_name: dog.name,
+                source: 'all_matches'
+              })}
+            >
+              View full listing
+            </a>
+            <CopyLinkButton
+              text={dog.url}
+              className="btn-ghost text-sm flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300"
+              iconClassName="w-4 h-4"
+              onCopy={() => trackEvent('results_dog_link_copied', {
+                dog_id: dog.id,
+                dog_name: dog.name,
+                source: 'all_matches'
+              })}
+            />
+          </div>
+        ) : dog.shelter.phone || dog.shelter.email ? (
+          <div className="mt-auto space-y-2">
+            {dog.shelter.phone && (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[13px] text-gray-700 min-w-0">
+                  <Phone className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="truncate">{dog.shelter.phone}</span>
+                </div>
+                <CopyLinkButton
+                  text={dog.shelter.phone}
+                  className="btn-ghost text-sm flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 shrink-0"
+                  iconClassName="w-3.5 h-3.5"
+                  onCopy={() => trackEvent('results_shelter_phone_copied', {
+                    dog_id: dog.id,
+                    dog_name: dog.name,
+                    source: 'all_matches'
+                  })}
+                />
+              </div>
+            )}
+            {dog.shelter.email && (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[13px] text-gray-700 min-w-0">
+                  <Mail className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="truncate">{dog.shelter.email}</span>
+                </div>
+                <CopyLinkButton
+                  text={dog.shelter.email}
+                  className="btn-ghost text-sm flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 shrink-0"
+                  iconClassName="w-3.5 h-3.5"
+                  onCopy={() => trackEvent('results_shelter_email_copied', {
+                    dog_id: dog.id,
+                    dog_name: dog.name,
+                    source: 'all_matches'
+                  })}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="mt-auto text-[12px] text-gray-500 italic">
+            {dog.urlFallbackNote ?? 'Listing unavailable — search for this shelter directly to inquire about adoption'}
+          </p>
+        )}
       </div>
     </div>
   );
