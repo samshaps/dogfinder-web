@@ -150,7 +150,24 @@ function mapRescueGroupsAnimalToDog(
     );
   }
 
-  // Only use distance - no city/state lookup needed
+  // Pull city/state from the org (shelter) since animals don't carry location fields
+  let orgCity: string | undefined;
+  let orgState: string | undefined;
+  let orgId: string | undefined;
+  if (rel.orgs?.data && Array.isArray(rel.orgs.data) && rel.orgs.data.length > 0 && rel.orgs.data[0]?.id) {
+    orgId = String(rel.orgs.data[0].id);
+  } else if (rel.organization?.data?.id) {
+    orgId = String(rel.organization.data.id);
+  } else if (rel.org?.data?.id) {
+    orgId = String(rel.org.data.id);
+  }
+  if (orgId && indexes?.orgsById) {
+    const org = indexes.orgsById.get(orgId);
+    if (org) {
+      orgCity = org.city || undefined;
+      orgState = org.state || undefined;
+    }
+  }
 
   const sanitizedDescription = sanitizeDescription(attrs.descriptionText);
 
@@ -170,6 +187,8 @@ function mapRescueGroupsAnimalToDog(
     location: {
       distanceMi: attrs.distance || 0,
     },
+    city: orgCity,
+    state: orgState,
     tags: [],
     url: (() => {
       // Try animal's direct adoption URL first
@@ -434,7 +453,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url,city,state'); // city/state used for dog location display and emails
     url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {
@@ -537,7 +556,7 @@ export class RescueGroupsDogProvider implements DogProvider {
     // Request adoptionUrl along with all essential fields (don't limit to just adoptionUrl)
     url.searchParams.set('fields[animals]', 'name,ageGroup,sizeGroup,sex,descriptionText,publishedDate,distance,adoptionUrl,url,breedPrimary,breedSecondary');
     // No longer requesting location fields - we only use distance
-    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url'); // Include url as fallback
+    url.searchParams.set('fields[orgs]', 'name,adoptionUrl,url,city,state'); // city/state used for dog location display and emails
     url.searchParams.set('fields[breeds]', 'name');
 
     const resp = await fetch(url.toString(), {

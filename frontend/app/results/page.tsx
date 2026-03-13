@@ -42,8 +42,8 @@ function mapAPIDogToDog(apiDog: APIDog): Dog {
     gender: genderLabel,
     photos: apiDog.photos,
     publishedAt: apiDog.publishedAt,
-    city: '',
-    state: '',
+    city: apiDog.city,
+    state: apiDog.state,
     tags: apiDog.tags,
     url: apiDog.url,
     shelter: apiDog.shelter
