@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Ruler, X, Info, Save, Check } from 'lucide-react';
+import { Search, MapPin, Ruler, X, Info, Save, Check, AlertTriangle } from 'lucide-react';
 import { useUser } from '@/lib/auth/user-context';
 import { trackEvent } from '@/lib/analytics/tracking';
 import { validateFormData, getExpectedApiPayload, logValidationResults } from '@/lib/validation/preferences-mapping';
 import { getUserPlan, canViewPrefs } from '@/lib/stripe/plan-utils';
+import { detectExplicitContradictions, detectGuidanceContradictions } from '@/lib/utils/detect-contradictions';
 // Removed breed selector - using free text fields instead
 
 // Helper component for pill controls
@@ -119,6 +120,9 @@ export default function FindPage() {
   const isLoadingPreferencesRef = useRef(false);
   const lastLoadTimeRef = useRef<number>(0);
   const [planInfo, setPlanInfo] = useState<{ planType?: string; isPro?: boolean } | null>(null);
+  const [contradictionWarnings, setContradictionWarnings] = useState<string[]>([]);
+  const [checkingContradictions, setCheckingContradictions] = useState(false);
+  const [pendingNav, setPendingNav] = useState<{ url: string; formSnapshot: typeof formData } | null>(null);
 
   // Load plan info and preferences when user is authenticated
   useEffect(() => {
@@ -355,9 +359,91 @@ export default function FindPage() {
   };
 
 
+  // Save preferences + navigate to results
+  const doSearch = async (pending: typeof formData, navUrl: string) => {
+    if (user) {
+      try {
+        console.log('🔍 Validating form data before API call...');
+        const validationResult = validateFormData(pending);
+        logValidationResults(validationResult, 'Form Data Validation');
+
+        if (!validationResult.isValid) {
+          console.error('❌ Form validation failed, not sending to API:', validationResult.errors);
+          alert(`Form validation failed: ${validationResult.errors.join(', ')}`);
+          return;
+        }
+
+        const prefsPayload = getExpectedApiPayload(pending);
+
+        console.log('🔍 Saving preferences for user:', user.email);
+        console.log('🔍 Form data (pending):', pending);
+        console.log('🔍 Generated API payload:', prefsPayload);
+        console.log('🔍 JSON.stringify result:', JSON.stringify(prefsPayload));
+
+        const response = await fetch('/api/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(prefsPayload)
+        });
+
+        console.log('🔍 Save response status:', response.status);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Preferences saved successfully:', result);
+          const savedPreferences = result.data?.preferences || result.preferences;
+          if (savedPreferences) {
+            console.log('✅ Verified preferences saved:', savedPreferences);
+          } else {
+            console.warn('⚠️ Save response received but preferences data not found in response');
+          }
+          setPreferencesSaved(true);
+          trackEvent('preferences_saved', { user_id: user.id, source: 'find_page' });
+          setTimeout(() => setPreferencesSaved(false), 2000);
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to save preferences:', response.status, errorText);
+          console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+          let errorMessage = 'Failed to save preferences';
+          try {
+            const errorData = JSON.parse(errorText);
+            console.error('❌ Parsed error response:', errorData);
+            if (errorData.error) {
+              errorMessage = typeof errorData.error === 'string'
+                ? errorData.error
+                : errorData.error.message || errorData.error.code || errorMessage;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch (e) {
+            console.error('❌ Could not parse error response as JSON');
+            errorMessage = errorText.substring(0, 100);
+          }
+          alert(`Warning: ${errorMessage}. Your search will still proceed, but preferences may not be saved.`);
+        }
+      } catch (error) {
+        console.error('❌ Error saving preferences:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        alert(`Error saving preferences: ${errorMessage}. Your search will still proceed.`);
+      }
+    }
+    router.push(navUrl);
+  };
+
+  const handleSearchAnyway = () => {
+    if (!pendingNav) return;
+    setContradictionWarnings([]);
+    doSearch(pendingNav.formSnapshot, pendingNav.url);
+  };
+
+  const handleEditPreferences = () => {
+    setContradictionWarnings([]);
+    setPendingNav(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Capture any in-progress text entries that weren't confirmed with Enter
     const pending = { ...formData };
     const maybeZip = newZipCode.trim();
@@ -375,92 +461,10 @@ export default function FindPage() {
       pending.touched = { ...(pending.touched || {}), breedsExclude: true };
     }
 
-      // Save preferences automatically if user is authenticated
-      if (user) {
-        try {
-          // Validate form data before sending to API
-          console.log('🔍 Validating form data before API call...');
-          const validationResult = validateFormData(pending);
-          logValidationResults(validationResult, 'Form Data Validation');
-          
-          if (!validationResult.isValid) {
-            console.error('❌ Form validation failed, not sending to API:', validationResult.errors);
-            alert(`Form validation failed: ${validationResult.errors.join(', ')}`);
-            return;
-          }
-
-          // Generate expected API payload
-          const prefsPayload = getExpectedApiPayload(pending);
-          
-          console.log('🔍 Saving preferences for user:', user.email);
-          console.log('🔍 Form data (pending):', pending);
-          console.log('🔍 Generated API payload:', prefsPayload);
-          console.log('🔍 JSON.stringify result:', JSON.stringify(prefsPayload));
-
-          const response = await fetch('/api/preferences', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(prefsPayload)
-          });
-
-          console.log('🔍 Save response status:', response.status);
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Preferences saved successfully:', result);
-            
-            // Verify the save was successful
-            const savedPreferences = result.data?.preferences || result.preferences;
-            if (savedPreferences) {
-              console.log('✅ Verified preferences saved:', savedPreferences);
-            } else {
-              console.warn('⚠️ Save response received but preferences data not found in response');
-            }
-            
-            setPreferencesSaved(true);
-            trackEvent('preferences_saved', {
-              user_id: user.id,
-              source: 'find_page'
-            });
-            setTimeout(() => setPreferencesSaved(false), 2000);
-          } else {
-            const errorText = await response.text();
-            console.error('❌ Failed to save preferences:', response.status, errorText);
-            console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
-            
-            // Try to parse error response for more details
-            let errorMessage = 'Failed to save preferences';
-            try {
-              const errorData = JSON.parse(errorText);
-              console.error('❌ Parsed error response:', errorData);
-              // Handle wrapped API error format: {success: false, error: {code, message}}
-              if (errorData.error) {
-                errorMessage = typeof errorData.error === 'string' 
-                  ? errorData.error 
-                  : errorData.error.message || errorData.error.code || errorMessage;
-              } else if (errorData.message) {
-                errorMessage = errorData.message;
-              }
-            } catch (e) {
-              console.error('❌ Could not parse error response as JSON');
-              // If it's not JSON, use the raw text (might be HTML error page)
-              errorMessage = errorText.substring(0, 100);
-            }
-            
-            // Show error to user but don't block navigation
-            alert(`Warning: ${errorMessage}. Your search will still proceed, but preferences may not be saved.`);
-          }
-        } catch (error) {
-          console.error('❌ Error saving preferences:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          alert(`Error saving preferences: ${errorMessage}. Your search will still proceed.`);
-        }
-      }
-
     // Build query parameters
     const params = new URLSearchParams();
     if (pending.zipCodes.length > 0) params.set('zip', pending.zipCodes.join(','));
-    params.set('radius', '50'); // Hardcoded to 50 miles
+    params.set('radius', '50');
     if (pending.age.length > 0) params.set('age', pending.age.join(','));
     if (pending.size.length > 0) params.set('size', pending.size.join(','));
     if (pending.includeBreeds.length > 0) params.set('includeBreeds', pending.includeBreeds.join(','));
@@ -468,12 +472,44 @@ export default function FindPage() {
     if (pending.temperament.length > 0) params.set('temperament', pending.temperament.join(','));
     if (pending.energy) params.set('energy', pending.energy);
     if (pending.guidance) params.set('guidance', pending.guidance);
-    // touched flags → query params (t_field=1)
     const t = pending.touched || {};
     Object.entries(t).forEach(([k, v]) => { if (v) params.set(`t_${k}`, '1'); });
-    
-    // Navigate to results page
-    router.push(`/results?${params.toString()}`);
+
+    const navUrl = `/results?${params.toString()}`;
+
+    // Type 1: instant contradiction check on explicit form fields
+    const warnings: string[] = detectExplicitContradictions(pending.energy, pending.temperament);
+
+    // Type 2: guidance-based check (only when guidance text is present)
+    if (pending.guidance) {
+      setCheckingContradictions(true);
+      try {
+        const resp = await fetch('/api/normalize-guidance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guidance: pending.guidance }),
+        });
+        if (resp.ok) {
+          const normPrefs = await resp.json();
+          const guidanceWarnings = detectGuidanceContradictions(pending.energy, pending.size, normPrefs);
+          warnings.push(...guidanceWarnings);
+        }
+      } catch {
+        // Don't block search if the guidance check fails
+      } finally {
+        setCheckingContradictions(false);
+      }
+    }
+
+    // If contradictions found, surface them and wait for user decision
+    if (warnings.length > 0) {
+      setContradictionWarnings(warnings);
+      setPendingNav({ url: navUrl, formSnapshot: pending });
+      return;
+    }
+
+    // No issues — save preferences and navigate
+    await doSearch(pending, navUrl);
   };
 
   return (
@@ -725,16 +761,65 @@ export default function FindPage() {
               </div>
             </div>
 
+            {/* Contradiction Warnings */}
+            {contradictionWarnings.length > 0 && (
+              <div className="pt-2">
+                <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-amber-900 mb-2">
+                        A few things to be aware of
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {contradictionWarnings.map((warning, i) => (
+                          <li key={i} className="text-sm text-amber-800">• {warning}</li>
+                        ))}
+                      </ul>
+                      <div className="flex flex-wrap gap-3 mt-4">
+                        <button
+                          type="button"
+                          onClick={handleSearchAnyway}
+                          className="btn-primary"
+                        >
+                          Search anyway
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleEditPreferences}
+                          className="btn-ghost"
+                        >
+                          Edit preferences
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Submit Button */}
-            <div className="pt-6">
-              <button
-                type="submit"
-                className="btn-primary w-full text-lg py-4"
-              >
-                <Search className="w-5 h-5 mr-2" />
-                See my matches
-              </button>
-            </div>
+            {contradictionWarnings.length === 0 && (
+              <div className="pt-6">
+                <button
+                  type="submit"
+                  className="btn-primary w-full text-lg py-4"
+                  disabled={checkingContradictions}
+                >
+                  {checkingContradictions ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      Checking preferences...
+                    </span>
+                  ) : (
+                    <>
+                      <Search className="w-5 h-5 mr-2" />
+                      See my matches
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </form>
           </div>
         </div>

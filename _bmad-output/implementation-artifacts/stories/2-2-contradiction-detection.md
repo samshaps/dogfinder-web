@@ -1,6 +1,6 @@
 # Story 2.2: Contradiction Detection for Conflicting Preferences
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -23,23 +23,24 @@ so that I understand why results may be unexpected and can adjust before the sea
 
 ## Tasks / Subtasks
 
-- [ ] Create contradiction detection utility (AC: 1, 2, 3, 6)
-  - [ ] Create `lib/utils/detect-contradictions.ts`
-  - [ ] Input: `NormPrefs` (from `app/api/normalize-guidance/route.ts`)
-  - [ ] Output: `string[]` — array of advisory messages, empty if no contradictions
-  - [ ] Implement the contradiction rules from AC: 2
-- [ ] Integrate into normalize-guidance route (AC: 1, 4)
-  - [ ] After parsing `NormPrefs`, call `detectContradictions(prefs)`
-  - [ ] Add `warnings: string[]` to the response JSON
-- [ ] Update `NormPrefs` type (AC: 3)
-  - [ ] Add `warnings?: string[]` to the `NormPrefs` type in `app/api/normalize-guidance/route.ts`
-- [ ] Update matching flow to thread warnings through (AC: 4)
-  - [ ] In `lib/matching-flow.ts`, ensure `warnings` from normalize-guidance is included in `MatchingResults`
-  - [ ] Add `warnings?: string[]` to `MatchingResults` in `lib/schemas.ts`
-- [ ] Build UI warning banner (AC: 5)
-  - [ ] Find the results page component — likely in `app/` (e.g., `app/page.tsx` or `app/results/page.tsx`)
-  - [ ] When `warnings` is non-empty, render a non-dismissable yellow advisory above the result list
-  - [ ] Each warning should render as a separate item
+- [x] Create contradiction detection utility (AC: 1, 2, 3, 6)
+  - [x] Create `lib/utils/detect-contradictions.ts`
+  - [x] `detectExplicitContradictions(energy, temperament)` — Type 1, no API needed
+  - [x] `detectGuidanceContradictions(energy, size, normPrefs)` — Type 2, uses NormPrefs
+  - [x] `detectNormPrefsContradictions(normPrefs)` — used by normalize-guidance route internally
+  - [x] Implement the contradiction rules from AC: 2
+- [x] Integrate into normalize-guidance route (AC: 1)
+  - [x] After parsing `NormPrefs`, call `detectNormPrefsContradictions(parsed)`
+  - [x] Add `warnings: string[]` to the response JSON
+- [x] Update `NormPrefs` type (AC: 3)
+  - [x] Add `warnings?: string[]` to the `NormPrefs` type in `app/api/normalize-guidance/route.ts`
+- [x] Build UI warning on form page (AC: 4, 5) — design pivot from original story
+  - [x] Warning surfaces on `app/find/page.tsx` before redirect (not on results page)
+  - [x] Type 1: instant client-side check on explicit fields (energy vs temperament)
+  - [x] Type 2: calls `/api/normalize-guidance` when guidance text is present, runs cross-check
+  - [x] Shows yellow advisory banner with each warning as a separate bullet
+  - [x] "Search anyway" proceeds; "Edit preferences" clears and stays on form
+  - [x] Submit button shows "Checking preferences..." spinner during Type 2 API call
 
 ## Dev Notes
 
@@ -66,10 +67,18 @@ so that I understand why results may be unexpected and can adjust before the sea
 
 ### Agent Model Used
 
-_to be filled_
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Design pivot from original story: warnings surface on `app/find/page.tsx` (form page) instead of results page, per Sam's direction. Non-blocking — "Search anyway" proceeds, "Edit preferences" stays on form.
+- Did not modify `lib/matching-flow.ts`, `lib/schemas.ts` (MatchingResults), or `app/api/match-dogs/route.ts` — not needed with form-page approach.
+- `detectNormPrefsContradictions` integrates with normalize-guidance route for API completeness; the form page uses `detectGuidanceContradictions` directly with explicit form fields for accurate cross-checking.
+
 ### File List
+
+- `frontend/lib/utils/detect-contradictions.ts` (new)
+- `frontend/app/api/normalize-guidance/route.ts` (modified)
+- `frontend/app/find/page.tsx` (modified)

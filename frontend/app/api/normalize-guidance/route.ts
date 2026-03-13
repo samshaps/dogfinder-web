@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runResponse, isOpenAIConfigured } from '@/lib/openai-client';
+import { detectNormPrefsContradictions } from '@/lib/utils/detect-contradictions';
 
 export type NormPrefs = {
   age?: Array<'puppy'|'young'|'adult'|'senior'>;
@@ -7,6 +8,7 @@ export type NormPrefs = {
   energy?: 'low'|'medium'|'high'|null;
   temperament?: string[];
   notes?: string[];
+  warnings?: string[];
 };
 
 export async function POST(req: NextRequest) {
@@ -57,11 +59,12 @@ Output JSON only. No prose.`;
     });
 
     let parsed: NormPrefs;
-    try { 
-      parsed = JSON.parse(response.output_text); 
-    } catch { 
-      parsed = {}; 
+    try {
+      parsed = JSON.parse(response.output_text);
+    } catch {
+      parsed = {};
     }
+    parsed.warnings = detectNormPrefsContradictions(parsed);
     return NextResponse.json(parsed as NormPrefs);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'normalize-guidance failed' }, { status: 500 });
