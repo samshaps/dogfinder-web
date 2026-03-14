@@ -379,7 +379,6 @@ async function handleCronJob(request: NextRequest) {
               distanceMi: dog.location?.distanceMi || 0,
             },
             photos,
-            matchScore: Math.floor(Math.random() * 30) + 70,
             reasons: { primary150: aiReason, blurb50: '' },
             shelter: {
               name: dog.shelter?.name || 'Local Shelter',
