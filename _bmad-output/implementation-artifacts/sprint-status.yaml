@@ -21,20 +21,33 @@ story_location: "dogfinder-app/_bmad-output/implementation-artifacts/stories"
 development_status:
 
   # ── Epic 1: Security Hardening ─────────────────────────────────────────────
-  epic-1-security-hardening: backlog
+  epic-1-security-hardening: done
 
-  1-1-remove-admin-secret-fallback: done             # CRITICAL — fix first
+  1-1-remove-admin-secret-fallback: done             # CRITICAL
   1-2-fix-cron-authentication: done                  # HIGH
   1-3-strip-stack-traces: done                       # HIGH
-  1-4-gate-debug-endpoints: ready-for-dev            # MEDIUM (2 issues combined)
-  1-5-serverless-rate-limiter: ready-for-dev         # MEDIUM
+  1-4-gate-debug-endpoints: done                     # MEDIUM
+  1-5-serverless-rate-limiter: done                  # MEDIUM
 
   epic-1-retrospective: optional
 
   # ── Epic 2: Product Improvements ───────────────────────────────────────────
-  epic-2-product-improvements: backlog
+  epic-2-product-improvements: done
 
-  2-1-rescue-url-validation: ready-for-dev           # Must-fix UX
-  2-2-contradiction-detection: ready-for-dev         # Feature
+  2-1-rescue-url-validation: done                    # Must-fix UX
+  2-2-contradiction-detection: done                  # Feature
+  2-3-breed-filter-bug: done                         # Bug fix
+  2-4-lab-mix-breed-fuzzy-matching: done             # Enhancement
+  2-5-doodle-breed-provider-and-text: done           # Enhancement
 
   epic-2-retrospective: optional
+
+  # ── Epic 3: Output Polish & Code Health ────────────────────────────────────
+  epic-3-output-polish-and-code-health: in-progress
+
+  3-1-remove-matchscore-dead-code: ready-for-dev         # Dead code removal
+  3-2-strip-citation-parentheticals: ready-for-dev       # Output quality
+  3-3-breed-filter-audit: ready-for-dev                  # Filter correctness
+  3-4-dead-code-audit: ready-for-dev                     # Code health
+
+  epic-3-retrospective: optional

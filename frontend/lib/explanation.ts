@@ -122,7 +122,7 @@ function createTop3Prompt(dog: Dog, analysis: DogAnalysis, effectivePrefs: Effec
     `Write a warm, natural recommendation about this dog for a potential adopter. Be enthusiastic but grounded — like a knowledgeable friend, not a checklist. Aim for ${COPY_SOFT.TOP - 20} to ${COPY_SOFT.TOP} characters.`,
     `Address the reader as "you" (the adopter only — never address the dog as "you"). No names or PII.`,
     hasPrefs
-      ? `Naturally weave in which user preferences were satisfied, using brief parenthetical citations (e.g., "(requested: calm temperament)"). Acknowledge any gaps positively without discarding the dog. Only cite preferences explicitly listed below — do not invent any.`
+      ? `Naturally weave in which user preferences were satisfied. Acknowledge any gaps positively without discarding the dog. Only reference preferences explicitly listed below — do not invent any.`
       : `No user preferences were provided. Focus entirely on the dog's personality, charm, and what makes this breed special. Do not mention size unless it appears in the dog facts below. Use engaging language like "known for", "thrives on", "excels at".`,
     hasDescription
       ? `Use the shelter description below as an evidence source — summarize relevant facts in your own words (training, demeanor, compatibility). Do not copy verbatim.`
@@ -323,7 +323,7 @@ export async function generateTop3Reasoning(
       processed = sanitizePerspective(processed);
     }
     if (!hasPrefs) processed = sanitizeNoPreferenceClaims(processed);
-    processed = applyDogPronouns(processed, pronouns);
+    processed = stripCitationParentheticals(applyDogPronouns(processed, pronouns));
     // Verification and tighten pass (with temperament checking)
     const v = verifyBlurbWithTemperament(processed, facts, dog, { lengthCap: BODY_CAP, hasDescription });
     processed = v.fixed;
@@ -356,7 +356,7 @@ export async function generateTop3Reasoning(
   if ((buildFactPack(effectivePrefs, dog).prefs || []).length === 0) {
     fbProcessed = sanitizeNoPreferenceClaims(fbProcessed);
   }
-  fbProcessed = applyDogPronouns(fbProcessed, pronouns);
+  fbProcessed = stripCitationParentheticals(applyDogPronouns(fbProcessed, pronouns));
   const hasDescFallback = (dog.rawDescription && sanitizeDescription(dog.rawDescription).length > 0) || false;
   const v2 = verifyBlurbWithTemperament(fbProcessed, buildFactPack(effectivePrefs, dog), dog, { lengthCap: BODY_CAP, hasDescription: hasDescFallback });
   return { ...fb, primary: finalClamp(v2.fixed, COPY_MAX.TOP) };
@@ -452,6 +452,19 @@ export function sanitizeReasoning(text: string, maxLength: number = COPY_MAX.TOP
   sanitized = scrubPII(sanitized);
   if (sanitized && !sanitized.match(/[.!?]$/)) sanitized += '.';
   return sanitized.substring(0, maxLength);
+}
+
+/**
+ * Strip citation-style parentheticals that the LLM may generate even when not instructed to,
+ * e.g. "(requested: calm temperament)", "(mentioned: small size)", "(requested temperament: gentle)".
+ * Only targets the known citation patterns — does not strip all parentheticals.
+ */
+function stripCitationParentheticals(text: string): string {
+  return text
+    .replace(/\((?:requested(?: temperament)?|mentioned):[^)]+\)/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.])/g, '$1')
+    .trim();
 }
 
 /**
