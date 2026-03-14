@@ -423,7 +423,6 @@ export async function sendTestEmail(
               distanceMi: dog.distance || dog.distanceMi,
             },
             photos,
-            matchScore: Math.floor(Math.random() * 20) + 80, // 80-100 for test email
             reasons: {
               // Normalize dog.id to string for lookup, handle both string and number IDs
               // Use empty string when missing - conditional render will hide the section
@@ -474,7 +473,6 @@ export async function sendTestEmail(
           temperament: ['friendly', 'playful'],
           location: { city: 'New York', state: 'NY', distanceMi: 5 },
           photos: ['https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=400'],
-          matchScore: 95,
           reasons: {
             primary150: 'This is a sample dog match shown in your test email. When alerts are enabled, you\'ll see real dog postings that match your preferences!',
             blurb50: 'Sample match',
@@ -646,7 +644,6 @@ async function sendTestEmailWithStubData(
           temperament: ['friendly', 'playful'],
           location: { city: 'New York', state: 'NY', distanceMi: 5 },
           photos: ['https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=400'],
-          matchScore: 95,
           reasons: {
             primary150: 'This is a sample dog match shown in your test email. When alerts are enabled, you\'ll see real dog postings that match your preferences!',
             blurb50: 'Sample match',

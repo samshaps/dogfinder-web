@@ -47,7 +47,6 @@ export interface EmailDogMatch {
     distanceMi?: number;
   };
   photos: string[];
-  matchScore: number;
   reasons: {
     primary150?: string;
     blurb50?: string;
@@ -86,7 +85,6 @@ export const EmailTemplateDataSchema = z.object({
       distanceMi: z.number().optional(),
     }),
     photos: z.array(z.string().url()),
-    matchScore: z.number().min(0).max(100),
     reasons: z.object({
       primary150: z.string().optional(),
       blurb50: z.string().optional(),
