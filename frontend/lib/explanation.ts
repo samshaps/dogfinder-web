@@ -362,10 +362,6 @@ export async function generateTop3Reasoning(
   return { ...fb, primary: finalClamp(v2.fixed, COPY_MAX.TOP) };
 }
 
-export async function generateAllMatchesReasoning(): Promise<string> {
-  return '';
-}
-
 /**
  * Fallback reasoning for Top 3 when AI fails
  */

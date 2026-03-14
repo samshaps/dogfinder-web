@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateTop3Reasoning, generateAllMatchesReasoning } from '../lib/explanation';
+import { generateTop3Reasoning } from '../lib/explanation';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch as any;
@@ -36,10 +36,6 @@ describe('E2E citation and verification', () => {
     expect(res.primary.toLowerCase()).toContain('medium energy');
   });
 
-  it('returns empty string for All Matches (no AI)', async () => {
-    const blurb = await generateAllMatchesReasoning(dog, analysis, effectivePrefs);
-    expect(blurb).toBe('');
-  });
 });
 
 

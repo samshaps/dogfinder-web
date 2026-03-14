@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { generateTop3Reasoning, generateAllMatchesReasoning } from '../lib/explanation';
+import { generateTop3Reasoning } from '../lib/explanation';
 import { buildFactPack } from '../lib/facts';
 import { verifyBlurb } from '../lib/verify';
 
@@ -31,50 +31,73 @@ describe('end-to-end generation with verification', () => {
     expect(result.primary.length).toBeGreaterThan(0);
   });
 
-  it('All Matches returns empty string (no AI)', async () => {
-    const blurb = await generateAllMatchesReasoning(dog, analysis, effectivePrefs);
-    expect(blurb).toBe('');
-  });
 });
 
-import { describe, it, expect } from 'vitest';
 import { UserPreferences, Dog } from '@/lib/schemas';
-import { expandUserBreeds, breedHit } from '@/utils/breedFuzzy';
+import { expandUserBreedsV2, dogBreedHit } from '@/utils/breedFuzzy';
 import { tokenizeGuidance, extractGuidanceHints } from '@/utils/guidance';
 import { normalizeUserPreferences } from '@/lib/normalization';
 import { filterByRadius, filterByBreeds, applyFilters } from '@/lib/filtering';
 import { scoreDog, sortDogsByScore } from '@/lib/scoring';
 import { processDogMatchingSync } from '@/lib/matching-flow';
 
-describe('Breed Fuzzy Matching', () => {
-  it('should expand doodle terms correctly', () => {
-    const result = expandUserBreeds(['doodles']);
-    expect(result.expanded).toContain('goldendoodle');
-    expect(result.expanded).toContain('labradoodle');
-    expect(result.expanded).toContain('poodle mix');
-    expect(result.notes.length).toBeGreaterThan(0);
+
+describe('V2 Breed Fuzzy Matching', () => {
+  describe('expandUserBreedsV2', () => {
+    it('expands doodle terms to the full doodle family', () => {
+      const result = expandUserBreedsV2(['goldendoodle']);
+      expect(result.expanded).toContain('goldendoodle');
+      expect(result.expanded).toContain('labradoodle');
+      expect(result.expanded).toContain('poodle');
+      expect(result.notes.length).toBeGreaterThan(0);
+    });
+
+    it('resolves known aliases to canonical breed', () => {
+      const result = expandUserBreedsV2(['lab']);
+      expect(result.expanded).toContain('labrador retriever');
+    });
+
+    it('expands mix terms to include breed family', () => {
+      const result = expandUserBreedsV2(['lab mix']);
+      expect(result.expanded).toContain('labrador retriever');
+      expect(result.expanded.length).toBeGreaterThan(1);
+    });
+
+    it('falls back to normalized term when no match found', () => {
+      const result = expandUserBreedsV2(['xyzunknownbreed']);
+      expect(result.expanded.length).toBeGreaterThan(0);
+    });
   });
 
-  it('should handle breed hit matching', () => {
-    const dogBreeds = ['Goldendoodle', 'Mixed Breed'];
-    const expanded = ['goldendoodle', 'labradoodle', 'poodle'];
-    
-    expect(breedHit(dogBreeds, expanded)).toBe(true);
-    expect(breedHit(['Husky'], expanded)).toBe(false);
-  });
+  describe('dogBreedHit', () => {
+    it('returns tier 1 for exact canonical match', () => {
+      const result = dogBreedHit({ breeds: ['labrador retriever'] }, ['labrador retriever']);
+      expect(result.hit).toBe(true);
+      expect(result.tier).toBe(1);
+    });
 
-  it('should handle case insensitive matching', () => {
-    const dogBreeds = ['GOLDENDOODLE'];
-    const expanded = ['goldendoodle'];
-    
-    expect(breedHit(dogBreeds, expanded)).toBe(true);
-  });
+    it('returns tier 2 for alias match', () => {
+      const result = dogBreedHit({ breeds: ['lab'] }, ['labrador retriever']);
+      expect(result.hit).toBe(true);
+      expect(result.tier).toBeLessThanOrEqual(2);
+    });
 
-  it('should handle hyphen variations', () => {
-    const dogBreeds = ['Golden-Doodle'];
-    const expanded = ['goldendoodle'];
-    
-    expect(breedHit(dogBreeds, expanded)).toBe(true);
+    it('returns tier 3 for breed family match', () => {
+      const result = dogBreedHit({ breeds: ['goldendoodle'] }, ['poodle']);
+      expect(result.hit).toBe(true);
+      expect(result.tier).toBeLessThanOrEqual(3);
+    });
+
+    it('returns hit false when no match', () => {
+      const result = dogBreedHit({ breeds: ['siberian husky'] }, ['poodle']);
+      expect(result.hit).toBe(false);
+    });
+
+    it('returns tier 99 hit when expanded list is empty (no breed filter)', () => {
+      const result = dogBreedHit({ breeds: ['labrador retriever'] }, []);
+      expect(result.hit).toBe(true);
+      expect(result.tier).toBe(99);
+    });
   });
 });
 
