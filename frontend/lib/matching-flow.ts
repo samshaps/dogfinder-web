@@ -9,7 +9,7 @@ import {
 import { normalizeUserPreferences } from './normalization';
 import { applyFilters } from './filtering';
 import { scoreDog, getTopMatches, sortDogsByScore } from './scoring';
-import { generateTop3Reasoning, generateAllMatchesReasoning } from './explanation';
+import { generateTop3Reasoning } from './explanation';
 import { getExpansionNotes } from './normalization';
 import { isFeatureEnabled } from './featureFlags';
 import { getInferredTraitsBatch } from './inference/trait-storage';
