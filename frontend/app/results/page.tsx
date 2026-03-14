@@ -531,7 +531,14 @@ function ResultsPageContent() {
       breedsExclude: searchQuery.t_breedsExclude,
     }
   }), [searchQuery]);
-  
+
+  // Sort All Matches dogs by AI score descending; falls back to backend order while AI results are loading
+  const sortedDogs = useMemo(() => {
+    if (!matchingResults?.allMatches?.length) return dogs;
+    const scoreMap = new Map(matchingResults.allMatches.map(m => [m.dogId, m.score]));
+    return [...dogs].sort((a, b) => (scoreMap.get(b.id) ?? -1) - (scoreMap.get(a.id) ?? -1));
+  }, [dogs, matchingResults]);
+
   // DEBUG TRACE GUIDANCE
   console.log('🔍 RESULTS PAGE DEBUG: searchQuery extracted:', {
     guidance: searchQuery.guidance,
@@ -927,7 +934,7 @@ function ResultsPageContent() {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 mb-6">All Matches</h3>
           <div className="grid gap-y-10 gap-x-10 md:gap-x-12 xl:gap-x-16 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
-            {dogs.map((dog) => {
+            {sortedDogs.map((dog) => {
               // Find the analysis for this dog from matching results
               const analysis = matchingResults?.allMatches?.find(match => match.dogId === dog.id);
               return (
