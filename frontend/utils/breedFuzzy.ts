@@ -230,6 +230,7 @@ function normalizeBaseV2(s: string) {
 // Minimal dictionaries for synonyms and families (extendable)
 const SYNONYMS_V2: Record<string, string> = {
   'lab': 'labrador retriever',
+  'labrador': 'labrador retriever',
   'lab retriever': 'labrador retriever',
   'gsd': 'german shepherd',
   'german sheperd': 'german shepherd',
@@ -252,6 +253,7 @@ const BREED_FAMILIES_V2: Record<string, string[]> = {
   'golden retriever': ['golden retriever','golden','goldador','goldendoodle'],
   'german shepherd': ['german shepherd','shepherd','gsd','malinois'],
   'poodle': ['poodle','doodle','labradoodle','goldendoodle','bernedoodle','sheepadoodle','aussiedoodle'],
+  'husky': ['siberian husky','husky','alaskan malamute'],
 };
 
 export function normalizeQueryV2(s: string): { text: string; isMix: boolean } {
