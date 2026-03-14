@@ -301,7 +301,8 @@ export default function FindPage() {
           });
           return {
             ...prev,
-            includeBreeds: newBreeds
+            includeBreeds: newBreeds,
+            touched: { ...(prev.touched || {}), breedsInclude: true }
           };
         });
       }
@@ -336,7 +337,8 @@ export default function FindPage() {
           });
           return {
             ...prev,
-            excludeBreeds: newBreeds
+            excludeBreeds: newBreeds,
+            touched: { ...(prev.touched || {}), breedsExclude: true }
           };
         });
       }
