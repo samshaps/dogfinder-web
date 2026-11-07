@@ -279,10 +279,14 @@ def trends_batches(terms: list[str], quick: bool) -> tuple[dict[str, float], dic
                 got_index[t] = round(100.0 * float(df[t].mean()) / anchor_mean, 1)
                 got_monthly[t] = [float(x) for x in df[t].resample("ME").mean().round(1).tolist()]
             if ANCHOR not in monthly:
-                monthly[ANCHOR] = [float(x) for x in df[ANCHOR].resample("ME").mean().round(1).tolist()]
+                resampled = df[ANCHOR].resample("ME").mean().round(1)
+                monthly[ANCHOR] = [float(x) for x in resampled.tolist()]
+                monthly["__labels__"] = [d.strftime("%b %Y") for d in resampled.index]  # type: ignore[assignment]
                 index[ANCHOR] = 100.0
             index.update(got_index)
             monthly.update(got_monthly)
+            if "__labels__" in monthly:
+                got_monthly["__labels__"] = monthly["__labels__"]
             cache_put(key, {"index": got_index, "monthly": got_monthly})
             time.sleep(4)
         except Exception as e:
@@ -312,7 +316,7 @@ def wiki_views(breed_name: str) -> int | None:
         "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/"
         f"{title}/monthly/{start:%Y%m%d}00/{end:%Y%m%d}00"
     )
-    data = http_json(url, {}, sleep=0.2)
+    data = http_json(url, {}, sleep=1.0)  # Wikimedia throttles bursts; stay polite
     total = sum(i["views"] for i in data["items"]) if data and "items" in data else None
     cache_put(key, total)
     return total
@@ -425,11 +429,20 @@ def main() -> int:
     print(f"[research] {len(found)} keywords after expansion", file=sys.stderr)
 
     # ---- 2. classify, then route city-specific queries to the matching page
-    city_by_name = {c["city"].lower(): c for c in cities}
+    city_by_name: dict[str, dict] = {}
+    for c in sorted(cities, key=lambda c: (not c["major"], c["slug"])):
+        city_by_name.setdefault(c["city"].lower(), c)
     breed_by_name = {b["name"]: b for b in breeds}
+    abbrs = set(US_STATES.values())
     for rec in found.values():
         rec["intent"], rec["geo"] = classify(rec["keyword"], city_names)
         city = city_by_name.get(rec["geo"])
+        if city:
+            # "jacksonville nc" names a different Jacksonville than the catalog's Jacksonville, FL.
+            m = re.search(rf"\b{re.escape(rec['geo'])} ([a-z]{{2}})\b", rec["keyword"])
+            if m and m.group(1).upper() in abbrs and m.group(1).upper() != city["state"]:
+                rec["geo"] = m.group(1).upper()
+                city = None
         if city and rec["intent"] == "adopt":
             if rec["campaign"] == "breed" and rec["ad_group"] in breed_by_name:
                 b = breed_by_name[rec["ad_group"]]
@@ -456,30 +469,39 @@ def main() -> int:
              "trends_adopt_index": t_adopt, "trends_rescue_index": t_rescue, "listings_us": supply}
         )
     max_views = max((r["wiki_views_12m"] or 0) for r in breed_rows) or 1
+    max_trend = max((r["trends_rescue_index"] or 0) for r in breed_rows) or 1
     for r in breed_rows:
-        demand = 0.0
-        parts = 0
-        if r["wiki_views_12m"]:
-            demand += 100.0 * r["wiki_views_12m"] / max_views
-            parts += 1
-        t = [x for x in (r["trends_adopt_index"], r["trends_rescue_index"]) if x is not None]
-        if t:
-            demand += min(100.0, sum(t) / len(t))
-            parts += 1
-        r["demand_score"] = round(demand / parts, 1) if parts else None
+        wiki = 100.0 * (r["wiki_views_12m"] or 0) / max_views
+        t = r["trends_rescue_index"]
+        if t is not None:
+            # Adoption-specific search demand outweighs general breed curiosity (memes, shows).
+            r["demand_score"] = round(0.3 * wiki + 0.7 * 100.0 * t / max_trend, 1)
+            r["demand_basis"] = "trends+wiki"
+        elif r["wiki_views_12m"]:
+            r["demand_score"] = round(0.5 * wiki, 1)
+            r["demand_basis"] = "wiki only (discounted)"
+        else:
+            r["demand_score"] = None
+            r["demand_basis"] = "none"
     breed_rows.sort(key=lambda r: -(r["demand_score"] or 0))
     for i, r in enumerate(breed_rows):
         r["rank"] = i + 1
 
     # ---- 5. city priority from state interest + supply
+    city_signal: dict[str, list[int]] = defaultdict(list)
+    for rec in found.values():
+        if rec["intent"] == "adopt" and rec["geo"] in city_by_name:
+            city_signal[city_by_name[rec["geo"]]["slug"]].append(rec["google_relevance"])
     city_rows = []
     for c in (major if args.quick else cities):
         supply = rescuegroups_total(None, c["zip"])
+        sig = city_signal.get(c["slug"], [])
         city_rows.append(
             {"city": c["city"], "state": c["state"], "slug": c["slug"], "major": c["major"],
+             "adopt_queries_found": len(sig), "top_google_relevance": max(sig) if sig else 0,
              "state_adoption_interest": by_state.get(c["state"]), "listings_50mi": supply}
         )
-    city_rows.sort(key=lambda r: -(r["state_adoption_interest"] or 0))
+    city_rows.sort(key=lambda r: (-r["adopt_queries_found"], -r["top_google_relevance"], -(r["state_adoption_interest"] or 0)))
     for i, r in enumerate(city_rows):
         r["rank"] = i + 1
 
@@ -540,19 +562,21 @@ def main() -> int:
             if r["intent"] == "informational":
                 w.writerow([r["keyword"], r["seed"], r["landing"]])
     with open(OUT / "breed-priority.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["rank", "breed", "slug", "popular", "demand_score", "wiki_views_12m",
+        w = csv.DictWriter(f, fieldnames=["rank", "breed", "slug", "popular", "demand_score", "demand_basis", "wiki_views_12m",
                                           "trends_adopt_index", "trends_rescue_index", "listings_us"])
         w.writeheader()
         w.writerows(breed_rows)
     with open(OUT / "city-priority.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["rank", "city", "state", "slug", "major", "state_adoption_interest", "listings_50mi"])
+        w = csv.DictWriter(f, fieldnames=["rank", "city", "state", "slug", "major", "adopt_queries_found", "top_google_relevance",
+                                          "state_adoption_interest", "listings_50mi"])
         w.writeheader()
         w.writerows(city_rows)
+    labels = [str(x) for x in monthly.pop("__labels__", [])]
     if monthly:
         months = 12
         with open(OUT / "seasonality.csv", "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["term"] + [f"m-{months - i}" for i in range(months)])
+            w.writerow(["term"] + (labels[-months:] if labels else [f"m-{months - i}" for i in range(months)]))
             for t, series in monthly.items():
                 w.writerow([t] + series[-months:])
 
@@ -595,25 +619,34 @@ def main() -> int:
         f"| --- | --- | --- | --- |",
         f"| {len(rows)} | {len(adopt)} | {len(negs)} | {len(info)} |",
         "",
-        "## Top adopt-intent keywords by score",
-        "",
-        "| # | Keyword | Geo | Score | Trends idx | Campaign / ad group |",
-        "| --- | --- | --- | --- | --- | --- |",
     ]
-    for i, r in enumerate(top, 1):
-        lines.append(f"| {i} | {r['keyword']} | {r['geo'] or ''} | {r['score']} | {r['trends_index'] if r['trends_index'] is not None else ''} | {r['campaign']} / {r['ad_group']} |")
-    lines += ["", "## Breed demand ranking", "", "| Rank | Breed | Demand | Wiki views 12m | Trends adopt | Trends rescue | US listings |", "| --- | --- | --- | --- | --- | --- | --- |"]
-    for r in breed_rows[:25]:
-        lines.append(f"| {r['rank']} | {r['breed']} | {r['demand_score'] if r['demand_score'] is not None else ''} | {r['wiki_views_12m'] or ''} | {r['trends_adopt_index'] if r['trends_adopt_index'] is not None else ''} | {r['trends_rescue_index'] if r['trends_rescue_index'] is not None else ''} | {r['listings_us'] or ''} |")
-    lines += ["", "## City priority (state-level interest in \"adopt a dog\")", "", "| Rank | City | Interest | Listings within 50mi |", "| --- | --- | --- | --- |"]
-    for r in city_rows[:25]:
-        lines.append(f"| {r['rank']} | {r['city']}, {r['state']} | {r['state_adoption_interest'] if r['state_adoption_interest'] is not None else ''} | {r['listings_50mi'] or ''} |")
+    for camp_key, camp_label in (("breed", "Breed intent"), ("city", "City intent"), ("generic", "Generic intent")):
+        lines += ["", f"## Top adopt-intent keywords: {camp_label}", "", "| # | Keyword | Geo | Score | Trends idx (seed) | Ad group |", "| --- | --- | --- | --- | --- | --- |"]
+        seen_groups: dict[str, int] = defaultdict(int)
+        shown = 0
+        for r in adopt:
+            if r["campaign"] != camp_key or seen_groups[r["ad_group"]] >= 3:
+                continue
+            seen_groups[r["ad_group"]] += 1
+            shown += 1
+            lines.append(f"| {shown} | {r['keyword']} | {r['geo'] or ''} | {r['score']} | {r['trends_index'] if r['trends_index'] is not None else ''} | {r['ad_group']} |")
+            if shown >= 20:
+                break
+    lines += ["", "## Breed demand ranking", "", "Demand = 70% adoption search interest (Trends, \"[breed] rescue\" vs the strongest breed) + 30% Wikipedia views. Breeds without Trends data are wiki-only and discounted by half.", "",
+              "| Rank | Breed | Demand | Basis | Wiki views 12m | Trends adopt | Trends rescue | US listings |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for r in breed_rows[:30]:
+        lines.append(f"| {r['rank']} | {r['breed']} | {r['demand_score'] if r['demand_score'] is not None else ''} | {r['demand_basis']} | {r['wiki_views_12m'] or ''} | {r['trends_adopt_index'] if r['trends_adopt_index'] is not None else ''} | {r['trends_rescue_index'] if r['trends_rescue_index'] is not None else ''} | {r['listings_us'] or ''} |")
+    lines += ["", "## City priority", "", "Ranked by the number of distinct adopt-intent queries autocomplete returned for the city (a proxy for absolute search volume), then Google's top relevance score. State interest is Google Trends' per-capita index and favors small states, so it is context only.", "",
+              "| Rank | City | Adopt queries found | Top relevance | State interest | Listings within 50mi |", "| --- | --- | --- | --- | --- | --- |"]
+    for r in city_rows[:30]:
+        lines.append(f"| {r['rank']} | {r['city']}, {r['state']} | {r['adopt_queries_found']} | {r['top_google_relevance']} | {r['state_adoption_interest'] if r['state_adoption_interest'] is not None else ''} | {r['listings_50mi'] or ''} |")
     if monthly.get(ANCHOR):
         series = monthly[ANCHOR][-12:]
         peak = series.index(max(series))
         trough = series.index(min(series))
-        lines += ["", "## Seasonality", "", f"\"{ANCHOR}\" interest over the last 12 months (oldest to newest): {', '.join(str(int(x)) for x in series)}.",
-                  f"Peak was month {peak + 1} of 12, trough month {trough + 1} of 12. Front-load budget into the peak window; expect ~{int(100 - 100 * min(series) / max(series))}% lower demand at the trough."]
+        lab = labels[-12:] if len(labels) >= 12 else [f"month {i + 1}" for i in range(12)]
+        lines += ["", "## Seasonality", "", f"\"{ANCHOR}\" US interest by month: " + ", ".join(f"{lab[i]} {int(series[i])}" for i in range(len(series))) + ".",
+                  f"Peak: {lab[peak]}. Trough: {lab[trough]} (~{int(100 - 100 * min(series) / max(series))}% below peak). Front-load budget into the peak window."]
     if trends_note:
         lines += ["", f"Trends note: {trends_note}"]
     lines += ["", "## Negatives discovered (sample)", ""]
