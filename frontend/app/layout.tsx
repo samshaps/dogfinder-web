@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProviders } from "@/components/AuthProviders";
 import Navigation from "@/components/Navigation";
 import { appConfig } from "@/lib/config";
+import { getSiteUrl } from "@/lib/seo/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "DogYenta",
     template: "%s | DogYenta",

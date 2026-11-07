@@ -19,6 +19,17 @@ export interface SearchDogsParams {
   sort?: 'freshness' | 'distance' | 'age' | 'size';
   page?: number;
   limit?: number;
+  /**
+   * Substring matched against the provider's primary breed label (server-side filter).
+   * Used by programmatic SEO pages; the interactive search filters breeds client-side.
+   */
+  breedKeyword?: string;
+  /**
+   * When true, the provider request is allowed to participate in Next.js data caching
+   * (no `cache: 'no-store'`), so statically regenerated pages can call it. Interactive
+   * API routes leave this unset to always fetch fresh listings.
+   */
+  allowCaching?: boolean;
 }
 
 export interface DogsPage {
@@ -421,6 +432,14 @@ export class RescueGroupsDogProvider implements DogProvider {
       }
     }
 
+    if (params.breedKeyword && params.breedKeyword.trim()) {
+      filters.push({
+        fieldName: 'animals.breedPrimary',
+        operation: 'contains',
+        criteria: params.breedKeyword.trim(),
+      });
+    }
+
     const body: any = {
       data: {
         page: { limit, current: page },
@@ -464,7 +483,7 @@ export class RescueGroupsDogProvider implements DogProvider {
         Authorization: apiKey,
       },
       body: JSON.stringify(body),
-      cache: 'no-store',
+      ...(params.allowCaching ? {} : { cache: 'no-store' as const }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timeoutId));
 

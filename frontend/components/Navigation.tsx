@@ -47,6 +47,17 @@ export default function Navigation() {
                   Find a Dog
                 </Link>
                 <Link
+                  href="/adopt"
+                  aria-current={pathname.startsWith('/adopt') ? 'page' : undefined}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                    pathname.startsWith('/adopt')
+                      ? 'text-slate-900 font-semibold after:content-[""] after:block after:h-0.5 after:bg-slate-900 after:mt-1'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Browse Breeds
+                </Link>
+                <Link
                   href="/about"
                   aria-current={pathname === '/about' ? 'page' : undefined}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
@@ -137,6 +148,18 @@ export default function Navigation() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Find a Dog
+            </Link>
+            <Link
+              href="/adopt"
+              aria-current={pathname.startsWith('/adopt') ? 'page' : undefined}
+              className={`block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-50 ${
+                pathname.startsWith('/adopt')
+                  ? 'text-slate-900 font-semibold'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Browse Breeds
             </Link>
             <Link
               href="/about"
