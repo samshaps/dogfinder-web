@@ -127,6 +127,41 @@ Umami cannot feed conversions back into Google Ads, so Google's own tag is neede
 4. Tools → Linked accounts → link Search Console (lets you compare paid vs organic queries).
 5. Admin → Access: add me later only if you want automated reporting; the CSVs below work without it.
 
+### B3b. Keyword research before any spend (automated)
+
+`scripts/keyword-research/research.py` builds the keyword set from free sources, so no money moves
+on guesswork:
+
+| Source | What it gives |
+| --- | --- |
+| Google + Bing autocomplete | Real query expansions for every breed and city seed, with Google's relevance ordering |
+| Google Trends | Relative demand vs "adopt a dog", 12-month seasonality, interest by state |
+| Wikimedia pageviews | Breed-level demand proxy (12 months of article views) |
+| RescueGroups (optional) | Listing supply per breed and per city, when `RESCUEGROUPS_API_KEY` is set |
+
+Outputs land in `docs/ads/research/`: `REPORT.md` (read this first), `keywords-scored.csv`,
+`negatives-discovered.csv`, `content-ideas.csv`, `breed-priority.csv`, `city-priority.csv`,
+`seasonality.csv`. With `--write-import-files` it regenerates `docs/ads/keywords.csv` and
+`docs/ads/negative-keywords.csv` from the scored data.
+
+Automation: `.github/workflows/keyword-research.yml` runs it on the first Monday of each month and on
+demand (Actions → Keyword research refresh → Run workflow), then opens a PR titled "Keyword research
+refresh" for you to review and merge. Add `RESCUEGROUPS_API_KEY` as a repository secret to include
+listing supply in the ranking. Nothing is spent or changed in Google Ads by this job; it only updates
+the files you import.
+
+How to use the report:
+
+1. Fund ad groups in the order of `breed-priority.csv` and `city-priority.csv`. Pause breeds with
+   strong demand but near-zero listings (ads would send people to empty pages).
+2. Import `negatives-discovered.csv` alongside the base negatives before launch.
+3. Time the launch with `seasonality.csv`; the REPORT names the peak and trough months.
+4. Hand `content-ideas.csv` to the breed-page FAQs; informational queries are cheaper to win
+   organically than to buy.
+
+Once a Google Ads account exists, the same script can be extended with Keyword Planner volumes and
+CPCs, and with Search Console impressions for `/adopt` pages, to replace proxies with real counts.
+
 ### B4. Build the campaigns from the files in `docs/ads/`
 
 Three files, importable with Google Ads Editor (free desktop app) via File → Import → From file.
@@ -153,6 +188,7 @@ Campaign settings to apply after import (not in the CSVs):
 
 ### B5. Pre-launch checklist
 
+- [ ] Keyword research report reviewed; empty-supply breeds paused
 - [ ] `signup` conversion fires on staging (Tag Assistant shows the hit)
 - [ ] Daily budget and account spend limit set
 - [ ] Display Network and Search Partners off

@@ -44,3 +44,10 @@ Each page also serves an `opengraph-image` so shares on social and in group chat
 2. Spot-check a few pages with Google's Rich Results Test (BreadcrumbList, FAQPage, ItemList).
 3. Watch Search Console "Pages" for the `/adopt/` prefix; expect indexing to ramp over 2-6 weeks.
 4. Review `[adopt] listings unavailable` log lines in Vercel if pages show the refreshing notice.
+
+## Keyword research
+
+`scripts/keyword-research/research.py` discovers and scores queries for the paid campaign and the
+`/adopt` pages from free sources (autocomplete, Google Trends, Wikimedia pageviews). See
+`docs/SEO_TEST_AND_PAID_CAMPAIGN_PLAN.md` section B3b. The `content-ideas.csv` output lists
+informational queries worth answering in breed and city page FAQs.

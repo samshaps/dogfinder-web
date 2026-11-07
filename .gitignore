@@ -21,3 +21,6 @@ frontend/node_modules/
 
 # macOS duplicate copies (e.g. "file 2.txt")
 * [0-9].*
+
+# Keyword research cache
+.cache/
